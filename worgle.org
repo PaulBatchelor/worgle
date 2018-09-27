@@ -1,0 +1,162 @@
+* Notice
+
+This is a work in progress. There's not a whole lot here yet.
+
+Don't run this yet!
+
+* What is Worgle?
+
+Hello, fellow human. I'm glad you could stop by.
+
+This is a document written
+in Org markup, talking about a thing I'm building called Worgle. The name
+*Worgle* is derived from what it is: a Worg Tangler. =Worg= is the name of this
+project. It too gets its name from what it is: a WEB + Org project.
+Org is the very decent markup language from org-mode.
+WEB is
+the name of the first literate programming tool ever created by Donald Knuth.
+In literate programming,
+one writes language and code together in a markup language, which can
+then be parsed two ways. The *weaver* parses the markup to produce a
+human readable document, usually a (La)TeX or HTML file. The *tangler*
+parses the markup and produces computer code that can be read by a computer
+to run or compile the program.
+
+In other words, Worgle is a literate programming tangler used to convert
+org-like markup into (primarily) code.
+
+Worgle itself is a literate program, so what tangles the worgle code? Orgle
+does! Orgle is a program written in C without literate programming. It is
+designed to be just enough of a program to bootstrap Worgle. Worgle will
+then be used as the tangler for the rest of Worg.
+
+Worgle will initially start out as a literate program of Orgle. In fact,
+this document will initially start out as an outline for the Orgle program.
+The Orgle program will be considered done when it is able to produce a similar
+program by parsing this Worgle document. After that is done, more work will
+be put into Worgle to make it more suitable for managing larger projects
+written in C.
+
+Following me so far? No? Yes? Great, let's get started.
+
+* An Outline of What Orgle and Worgle do
+
+This aims to show a broad overview of how Orgle (and Worgle) will work
+essentially. Orgle is a bootstrap program written in C, used to generate
+C code for Worgle (this program here). At the highest level, the two
+programs share the same basic program structure.
+
+** Load file into memory
+
+The first thing the program will do is load the file.
+
+While most parsers tend to parse things on a line by line basis via
+a file stream, this parser will load the entire file into memory. This
+is done due to the textual nature of the program. It is much easier to
+simply allocate everything in one big block and reference chunks, then to
+allocate smaller chunks as you go.
+
+** Parsing
+
+The second phase of the program is the parsing stage.
+
+The parsing stage will parse files line-by-line. The program will find a line
+by skimming through the block up to a line break character, then pass
+that off to be parsed. Line by line, the parser will read the program and
+produce a structure of the tangled code in memory.
+
+*** Parsing the block name
+
+A block begins with a name declaration. The extracted name is then used to
+acquire a block from the block dictionary. If no block exists with that name,
+a new codeblock entry is created. This becomes assigned to eb the active
+codeblock.
+
+*** Tangling a file
+
+A top level block is the entry point for a particular file. This filename is
+appended to the end of the filelist.
+
+*** Parsing segments
+**** Parsing Text Segments
+
+Text chunks are appended to the end of the active code block.
+
+**** Parsing Reference Segments
+
+References at this point are stored as text strings. A reference for them is
+searched in the block dictionary. If no entry is found, an empty code block is
+created.
+
+** Generation
+
+The last phase of the program is code generation.
+
+A parsed file generates a structure of how the code will look. The generation
+stage involves iterating through the structure and producing the code.
+
+* Core Data Structures
+
+The Worgle/Orgle program is very much a data-structure driven program.
+Understanding the hierarchy of data here will provide a clear picture for
+how the tangling works.
+
+** Top Level Struct
+
+All orgle operations are contained in a top-level struct called =orgle_d=.
+
+** Code Block
+
+A code block is a top-level unit that stores some amount of code. It is
+made up of a list of segments. Every code block has a unique name.
+
+*** Segment
+
+A segment turns a string into a linked list component that has a type.
+A segment type flag can either be a text chunk or a reference.
+
+**** Text Chunk Type
+
+A text chunk is a literal string of text.
+
+When a text chunk segment is processed, it gets written to file directly.
+
+**** Reference Type
+
+A reference contains a string reference to another block.
+
+When a reference
+segment gets processed, it looks up the reference and processes all the
+segements in that code block.
+
+*** Appending a segment to a code block
+*** Appending a codeblock to a code block
+
+In both CWEB and Org-tangle, code blocks can be appeneded to in
+different sections. To do this,
+one must simply continue to append segments to the already existing block.
+This is all that is needed for the tangler, but more sophistication
+may be needed for the weaving code into human-readable documents.
+
+*** Writing a codeblock to filehandle
+
+This is done by going through the list in the code block and writing all
+the segments.
+
+** Block Dictionary
+
+A block dictionary is a key-value hash map for code blocks.
+
+*** Dictionary Initialization
+*** Freeing Memory
+*** Adding a new entry
+*** Looking up an entry
+*** Looking up or adding a new entry
+Will return an existing entry or create a new entry. Useful
+for the initial parsing.
+** File
+An orgle file is an abstraction for a single file orgle can write to. Every
+file has a filename, and a top-level code block.
+*** Initializing an orgle file
+*** Writing A File to Disk
+This will actually open a filehandle, and write the top-level code block to disk.
