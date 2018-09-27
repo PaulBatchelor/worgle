@@ -1,0 +1,98 @@
+#+TITLE:Worgle
+
+* What is this?
+
+Worgle is the Web ORg TanGLER. At the very least, it aims to be able to tangler
+for literate programs written in a subset of org markup that is compatible with
+org-babel. This includes noweb style code expansion, a crucial aspect to
+literate programming (which often seems to be ignored in other non-emacs
+org-mode tanglers). Eventually, the hope is to introduce more WEB-like syntax
+and construct a backend for weave (export to HTML, TeX, etc).
+
+Worgle is not finished yet, but [[What does it do now?][some things do work]].
+
+** Why did you do it?
+
+The initial motivation for building Worgle is performance.
+The tangling done by org-babel is embarassingly slow to the point of being
+useless for any projects larger than a script. Worgle aims to make org-tangle
+usable for actual software projects.
+
+The larger goal is to build a spirtual successor to CWEB, a program I use
+on a daily basis to write literate programs in C. It is perhaps one of the best
+literate programming tools out there. Now over 3 decades old,
+CWEB is definitely showing signs of old age.
+
+** What does it do now?
+
+Worgle has yet to be written yet, but org-mode tangling of C code can be done
+using Orgle.
+Orgle is an included program designed to bootstrap Worgle. Orgle can parse
+named code blocks, do code expansion, and write multiple files. A nifty thing
+Orgle does is export line directive macros inside generated code. This allows
+compilers and debuggers to report line numbers in the org file rather than
+in the tangled C output, which is crucial for larger-scale programs.
+
+** What will it do later?
+
+The plan right now is to begin writing Worgle using Orgle. The first milestone
+will be writing Orgle inside of Org-mode. From there, the plan will be to
+introduce some command line flags and more forgiving syntax. Worgle will then
+be used on itself to build some sort of HTML output. Once Worgle is able to
+tangle and weave code together, nonstandard CWEB syntax will be introduced.
+
+That's the idea so far. At least.
+
+** Anti-features
+
+The goal is to keep this small and to prevent bloat. My main intention
+is to build a tool similar in scope to CWEB that stays true to Knuths
+ideas on literate programming. Anything related to code evaluation will not
+be implemented. I'm not too keen on any of the various extension codes
+used for customization or parameters, so that won't be really considered either.
+
+* Compilation
+
+To compile, run =make=.
+
+To install, run =sudo make install=.
+
+* Sample code
+
+As it turns out, this README *is* the sample code. Cool, right?
+
+A code block for a simple hello world program in C looks like this:
+
+#+NAME: top
+#+BEGIN_SRC c :tangle hello.c
+#include <stdio.h>
+
+int main(int argc, char *argv[])
+{
+    <<say_the_worgle_greeting>>
+    return 0;
+}
+#+END_SRC
+
+The code mentioned above has a code block called =say_the_worgle_greeting=.
+
+This gets expanded to this code block below:
+
+#+NAME: say_the_worgle_greeting
+#+BEGIN_SRC c
+printf("Orgle Worgle Borgle!\n");
+#+END_SRC
+
+The C code is tangled up using the =orgle= bootstrapper, which can then
+be compiled and run using a C compiler like GCC.
+
+#+NAME: generate_and_run
+#+BEGIN_SRC sh
+./orgle README.org
+gcc hello.c -o hello
+./hello
+#+END_SRC
+
+* License
+
+This project is placed under the public domain. Happy hacking, humans.
