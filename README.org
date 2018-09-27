@@ -9,7 +9,7 @@ literate programming (which often seems to be ignored in other non-emacs
 org-mode tanglers). Eventually, the hope is to introduce more WEB-like syntax
 and construct a backend for weave (export to HTML, TeX, etc).
 
-Worgle is not finished yet, but [[What does it do now?][some things do work]].
+Worgle is not finished yet, but some things do work.
 
 ** Why did you do it?
 
