@@ -39,6 +39,26 @@ written in C.
 
 Following me so far? No? Yes? Great, let's get started.
 
+* Top-level files
+
+Like Orgle, Worgle is self contained inside of a single C file.
+For the time being, this is suitable enough. The current scope of Worgle is
+to be a self-contained standalone CLI application.
+
+#+NAME: worgle-top
+#+BEGIN_SRC c :tangle worgle.c
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+int main(int argc, char *argv[])
+{
+    printf("Sorry. No Worgling yet.\n");
+    return 0;
+}
+
+#+END_SRC
 * An Outline of What Orgle and Worgle do
 
 This aims to show a broad overview of how Orgle (and Worgle) will work
