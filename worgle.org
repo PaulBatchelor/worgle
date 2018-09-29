@@ -73,10 +73,6 @@ essentially. Orgle is a bootstrap program written in C, used to generate
 C code for Worgle (this program here). At the highest level, the two
 programs share the same basic program structure.
 ** Initialization
-#+NAME:initialization
-#+BEGIN_SRC c
-
-#+END_SRC
 *** Initialize worgle data
 
 Worgle is initialized before stuff is loaded.
@@ -251,7 +247,6 @@ while(1) {
     }
 }
 #+END_SRC
-
 *** Parser Local Variables
 
 The parsing stage requires a local variable called =str= to be used from time
@@ -487,11 +482,15 @@ void worgle_begin_block(worgle_d *worg, worgle_string *name)
 MODE_BEGINCODE,
 #+END_SRC
 
+A parser set to mode =MODE_BEGINCODE= is only interested in finding the
+beginning block. If it doesn't, it returns a syntax error. If it does,
+it goes on to extract a potential new filename to tangle, which then
+gets appended to the Worgle file list.
+
 #+NAME: parse_mode_begincode
 #+BEGIN_SRC c
 if(read >= 11) {
     if(!strncmp(line, "#+BEGIN_SRC",11)) {
-        mode = MODE_CODE;
         <<begin_the_code>>
         if(parse_begin(line, read, &str) == 2) {
             worgle_append_file(&worg, &str);
@@ -510,14 +509,25 @@ rc = 1;
 
 ***** Extracting information from #+BEGIN_SRC
 
-MORE WORDS HERE.
+The begin source flag in org-mode can have a number of options,
+but the only one we really care about for this tangler is
+the ":tangle" option. 
 
 #+NAME: function_declarations
 #+BEGIN_SRC c
 static int parse_begin(char *line, size_t len, worgle_string *str);
 #+END_SRC
 
-MORE WORDS HERE.
+The state machine begins right after the BEGIN_SRC declaration, which
+is why the string is offset by 11.
+
+The state machine for this parser is linear, and has 5 modes:
+
+- mode 0: Skip whitespace after BEGIN_SRC
+- mode 1: Find ":tangle" pattern
+- mode 2: Ignore imediate whitespace after "tangle", and begin getting filename
+- mode 3: Get filename size by reading up to the next space or line break
+- mode 4: Don't do anything, wait for line to end.
 
 #+NAME: functions
 #+BEGIN_SRC c
@@ -540,14 +550,14 @@ static int parse_begin(char *line, size_t len, worgle_string *str)
     str->size = 0;
     while(n < len) {
         switch(mode) {
-            case 0:
+            case 0: /* initial spaces after BEGIN_SRC */
                 if(line[n] == ' ') {
                     n++;
                 } else {
                     mode = 1;
                 }
                 break;
-            case 1:
+            case 1: /* look for :tangle */
                 if(line[n] == ' ') {
                     mode = 0;
                     n++;
@@ -562,7 +572,7 @@ static int parse_begin(char *line, size_t len, worgle_string *str)
                     n++;
                 }
                 break;
-            case 2: /* spaces after tangle */
+            case 2: /* save file name, spaces after tangle */
                 if(line[n] != ' ') {
                     str->str = &line[n];
                     str->size++;
@@ -587,15 +597,24 @@ static int parse_begin(char *line, size_t len, worgle_string *str)
     return rc;
 }
 #+END_SRC
+***** Setting up code for a new read
+When a new codeblock has indeed been found, the mode is switched to =MODE_CODE=,
+and the =block_started= boolean flag gets set. In addition, the string used
+to keep track of the new block is reset.
+#+NAME: begin_the_code
+#+BEGIN_SRC c
+mode = MODE_CODE;
+worg.block_started = 1;
+worgle_string_reset(&worg.block);
+#+END_SRC
 ***** Appending a new file
-WORDS PLEASE
+If a new file is found, the filename gets appended to the file list
+via the function =worgle_append_file=.
 
 #+NAME:function_declarations
 #+BEGIN_SRC c
 void worgle_append_file(worgle_d *worg, worgle_string *filename);
 #+END_SRC
-
-WORDS PLEASE
 
 #+NAME: functions
 #+BEGIN_SRC c
@@ -604,25 +623,20 @@ void worgle_append_file(worgle_d *worg, worgle_string *filename)
     worgle_filelist_append(&worg->flist, filename, worg->curblock);
 }
 #+END_SRC
-***** Setting up code for a new read
-#+NAME: begin_the_code
-#+BEGIN_SRC c
-worg.block_started = 1;
-worgle_string_reset(&worg.block);
-#+END_SRC
 **** MODE_CODE
-
-TODO: WORDS HERE.
 
 #+NAME:parse_modes
 #+BEGIN_SRC c
 MODE_CODE
 #+END_SRC
 
-TODO: WORDS AND SECTIONS HERE.
+In =MODE_CODE=, actual code is parsed inside of the code block. The parser will
+keep reading chunks of code until one of two things happen: a code reference
+is found, or the =END_SRC= command is found.
 
 #+NAME: parse_mode_code
 #+BEGIN_SRC c
+
 if(read >= 9) {
     if(!strncmp(line, "#+END_SRC", 9)) {
         mode = MODE_ORG;
@@ -732,7 +746,6 @@ static int check_for_reference(char *line , size_t size, worgle_string *str)
     return (mode == 5);
 }
 #+END_SRC
-
 ** Generation
 
 The last phase of the program is code generation.
