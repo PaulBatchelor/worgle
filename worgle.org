@@ -49,16 +49,20 @@ to be a self-contained standalone CLI application.
 #include <stdlib.h>
 #include <string.h>
 
+<<enums>>
 <<structs>>
 <<function_declarations>>
 <<functions>>
 
 int main(int argc, char *argv[])
 {
+    <<local_variables>>
+    <<initialization>>
     printf("Sorry. No Worgling yet.\n");
     <<loading>>
     <<parsing>>
     <<generation>>
+    <<cleanup>>
     return 0;
 }
 
@@ -69,6 +73,96 @@ This aims to show a broad overview of how Orgle (and Worgle) will work
 essentially. Orgle is a bootstrap program written in C, used to generate
 C code for Worgle (this program here). At the highest level, the two
 programs share the same basic program structure.
+** Initialization
+#+NAME:initialization
+#+BEGIN_SRC c
+
+#+END_SRC
+*** Initialize worgle data
+
+Worgle is initialized before stuff is loaded.
+
+#+NAME: local_variables
+#+BEGIN_SRC c
+worgle_d worg;
+#+END_SRC
+
+#+NAME: initialization
+#+BEGIN_SRC c
+worgle_init(&worg);
+#+END_SRC
+*** Get and set filename
+
+The file name is currently aqcuired from the command line, so the
+program must check and make sure that there are the right number of
+arguments. If there isn't, return an error.
+
+# TODO: add better command line support with third-party library parg
+
+#+NAME: initialization
+#+BEGIN_SRC c
+if(argc < 2) {
+    fprintf(stderr, "Usage: %s filename.org\n", argv[0]);
+    return 1;
+}
+#+END_SRC
+
+The filename is then set inside of the Worgle struct.
+
+#+NAME: initialization
+#+BEGIN_SRC c
+worg.filename.str = argv[1];
+worg.filename.size = strlen(argv[1]);
+#+END_SRC
+
+*** Initialize return codes
+
+**** Main Return Code
+
+The main return code determines the overall state of the program.
+
+#+NAME: local_variables
+#+BEGIN_SRC c
+int rc;
+#+END_SRC
+
+By default, it is set to be okay, which is 0 on POSIX systems.
+
+#+NAME: initialization
+#+BEGIN_SRC c
+rc = 0;
+#+END_SRC
+**** Line Satus Code
+
+The getline function used by the parser returns a status code, which tells
+the program when it has reached the end of the file.
+
+#+NAME: local_variables
+#+BEGIN_SRC c
+int status;
+#+END_SRC
+
+This is set to be TRUE (1) by default.
+
+#+NAME: initialization
+#+BEGIN_SRC c
+status = 0;
+#+END_SRC
+**** Mode
+
+The overall parser mode state is set by the local variable =mode=.
+
+#+NAME: local_variables
+#+BEGIN_SRC c
+int mode;
+#+END_SRC
+
+It is set to be the initial mode of =MODE_ORG=.
+
+#+NAME: initialization
+#+BEGIN_SRC c
+mode = MODE_ORG;
+#+END_SRC
 ** Load file into memory
 
 The first thing the program will do is load the file.
@@ -79,10 +173,63 @@ is done due to the textual nature of the program. It is much easier to
 simply allocate everything in one big block and reference chunks, then to
 allocate smaller chunks as you go.
 
-#+NAME:loading
-#+BEGIN_SRC c
+*** Open file
 
+File is loaded into a local file handle =fp=.
+
+#+NAME: local_variables
+#+BEGIN_SRC c
+FILE *fp;
 #+END_SRC
+
+#+NAME: loading
+#+BEGIN_SRC c
+fp = fopen(argv[1], "r");
+
+if(fp == NULL) {
+    fprintf(stderr, "Could not find file %s\n", argv[1]);
+    return 1;
+}
+#+END_SRC
+*** Get file size
+The size is acquired by going to the end of the file and getting the current
+file position.
+
+#+NAME: local_variables
+#+BEGIN_SRC c
+size_t size;
+#+END_SRC
+
+#+NAME: loading
+#+BEGIN_SRC c
+fseek(fp, 0, SEEK_END);
+size = ftell(fp);
+#+END_SRC
+*** Allocate memory, read, and close
+Memory is allocated in a local buffer variable via =calloc=. The buffer
+is then stored inside of the worg struct.
+
+#+NAME: local_variables
+#+BEGIN_SRC c
+char *buf;
+#+END_SRC
+
+#+NAME: loading
+#+BEGIN_SRC c
+buf = calloc(1, size);
+worg.buf = buf;
+#+END_SRC
+
+The file is rewound back to the beginning and then read into the buffer. The
+file is no longer needed at this point, so it is closed.
+
+#+NAME: loading
+#+BEGIN_SRC c
+fseek(fp, 0, SEEK_SET);
+fread(buf, size, 1, fp);
+fclose(fp);
+#+END_SRC
+
 ** Parsing
 
 The second phase of the program is the parsing stage.
@@ -113,20 +260,38 @@ The state machine makes a distinction between the start of a new code
 block (=MODE_BEGINCODE=), which provides information like the name of
 the code block and optionally the name of the file to tangle to, and
 the code block itself (=MODE_CODE=).
+#+NAME: enums
+#+BEGIN_SRC c
+enum {
+<<parse_modes>>
+};
+#+END_SRC
 **** MODE_ORG
 
+#+NAME:parse_modes
+#+BEGIN_SRC c
+MODE_ORG,
+#+END_SRC
 ***** Extracting information from #+NAME
 
 ***** Beginning a new block
 
 **** MODE_BEGINCODE
 
+#+NAME:parse_modes
+#+BEGIN_SRC c
+MODE_BEGINCODE,
+#+END_SRC
 ***** Extracting information from #+BEGIN_SRC
 
 ***** Setting up code for a new read
 
 **** MODE_CODE
 
+#+NAME:parse_modes
+#+BEGIN_SRC c
+MODE_CODE
+#+END_SRC
 ***** Checking for #+END_SRC
 
 ***** Checking for references
@@ -151,7 +316,12 @@ write a string literal to disk, or a recursively expand block reference.
 #+BEGIN_SRC c
 
 #+END_SRC
-
+** Cleanup
+At the end up the program, all allocated memory is freed via =worgle_free=.
+#+NAME: cleanup
+#+BEGIN_SRC c
+worgle_free(&worg);
+#+END_SRC
 * Core Data Structures
 
 The Worgle/Orgle program is very much a data-structure driven program.
@@ -167,13 +337,219 @@ how the tangling works.
 <<worgle_hashmap>>
 <<worgle_file>>
 <<worgle_filelist>>
+<<worgle_struct>>
 #+END_SRC
-
 ** Top Level Struct
 
 All Worgle operations are contained in a top-level struct called =worgle_d=.
-For the most part, this struct aims to be dynamically populated inside of
-[[An Outline of What Worgle does]].
+For the most part, this struct aims to be dynamically populated.
+
+#+NAME:worgle_struct
+#+BEGIN_SRC c
+typedef struct {
+    <<worgle_struct_contents>>
+} worgle_d;
+#+END_SRC
+
+*** Worgle Initialization
+
+Worgle data is initialized using the function =worgle_init=.
+
+#+NAME:function_declarations
+#+BEGIN_SRC c
+void worgle_init(worgle_d *worg);
+#+END_SRC
+
+#+NAME:functions
+#+BEGIN_SRC c
+void worgle_init(worgle_d *worg)
+{
+<<worgle_init>>
+}
+#+END_SRC
+
+*** Worgle Deallocation
+
+When worgle is done, the program deallocates memory using the function
+=worgle_free=.
+
+#+NAME:function_declarations
+#+BEGIN_SRC c
+void worgle_free(worgle_d *worg);
+#+END_SRC
+
+#+NAME:functions
+#+BEGIN_SRC c
+void worgle_free(worgle_d *worg)
+{
+<<worgle_free>>
+}
+#+END_SRC
+
+*** Worgle Data
+**** Current Block Name
+The name of current block being parsed is stored in a variable called
+=block=.
+# this needs to be renamed.
+# this needs to be explained better: why not use the name in curblock?
+
+#+NAME:worgle_struct_contents
+#+BEGIN_SRC c
+worgle_string block; /* TODO: rename */
+#+END_SRC
+
+It is initialized to be an empty string.
+
+#+NAME:worgle_init
+#+BEGIN_SRC c
+worgle_string_init(&worg->block);
+#+END_SRC
+**** Current Line
+
+The starting line number of the current block is stored in a variable called
+=curline=.
+
+#+NAME:worgle_struct_contents
+#+BEGIN_SRC c
+size_t curline;
+#+END_SRC
+
+The current line is initialized to be negative value to mark that it has not
+been set yet.
+#+NAME:worgle_init
+#+BEGIN_SRC c
+worg->curline = -1;
+#+END_SRC
+**** Block Started Flag
+The block started flag is used by the parser to check whether or not a code
+block was started on the last iteration.
+
+#+NAME:worgle_struct_contents
+#+BEGIN_SRC c
+int block_started;
+#+END_SRC
+
+It is set to be FALSE (0).
+
+#+NAME:worgle_init
+#+BEGIN_SRC c
+worg->block_started = 0;
+#+END_SRC
+**** Dictionary
+
+All code blocks are stored in a dictionary, also referred to here as a hash map.
+
+#+NAME:worgle_struct_contents
+#+BEGIN_SRC c
+worgle_hashmap dict;
+#+END_SRC
+
+The dictionary is initialized using the function =worgle_hashmap_init=.
+#+NAME:worgle_init
+#+BEGIN_SRC c
+worgle_hashmap_init(&worg->dict);
+#+END_SRC
+
+When free-ing time comes around, the hashmap will free itself using the function
+=worgle_hashmap_free=.
+
+#+NAME: worgle_free
+#+BEGIN_SRC c
+worgle_hashmap_free(&worg->dict);
+#+END_SRC
+**** File List
+
+All files to be written to are stored in a local file list called =flist=.
+
+#+NAME:worgle_struct_contents
+#+BEGIN_SRC c
+worgle_filelist flist;
+#+END_SRC
+
+Initialization.
+
+#+NAME:worgle_init
+#+BEGIN_SRC c
+worgle_filelist_init(&worg->flist);
+#+END_SRC
+
+Destruction.
+
+#+NAME:worgle_free
+#+BEGIN_SRC c
+worgle_filelist_free(&worg->flist);
+#+END_SRC
+**** Text Buffer
+
+The text file parsed is loaded into memory and stored into a buffer called =buf=
+
+# TODO: put this into a data struct so that multiple org files can be read at
+# once
+#+NAME:worgle_struct_contents
+#+BEGIN_SRC c
+char *buf;
+#+END_SRC
+
+The loaded happens after initialization, so the buffer is set to be NULL for
+now.
+
+#+NAME:worgle_init
+#+BEGIN_SRC c
+worg->buf = NULL;
+#+END_SRC
+
+If the buffer is non-null, the memory will be freed.
+
+#+NAME: worgle_free
+#+BEGIN_SRC c
+if(worg->buf != NULL) free(worg->buf);
+#+END_SRC
+**** Current Block
+A pointer to the currently populated code block is stored in a variable called
+=curblock=.
+
+#+NAME:worgle_struct_contents
+#+BEGIN_SRC c
+worgle_block *curblock;
+#+END_SRC
+
+There is no block on startup, so set it to be NULL.
+#+NAME:worgle_init
+#+BEGIN_SRC c
+worg->curblock = NULL;
+#+END_SRC
+**** Line Number
+
+The currently parsed line number is stored in a variable called =linum=.
+
+#+NAME: worgle_struct_contents
+#+BEGIN_SRC c
+size_t linum;
+#+END_SRC
+
+The line number is incremented, so the starting value starts at 0. Line 1 is
+the first line. Do not be tempted to set this to be -1, because it won't work.
+
+#+NAME:worgle_init
+#+BEGIN_SRC c
+worg->linum = 0;
+#+END_SRC
+
+**** Filename
+
+The filename is stored inside of a worgle string called =filename=.
+
+#+NAME:worgle_struct_contents
+#+BEGIN_SRC c
+worgle_string filename;
+#+END_SRC
+
+This values does not get set on init, but it is zeroed out and initialized.
+
+#+NAME:worgle_init
+#+BEGIN_SRC c
+worgle_string_init(&worg->filename);
+#+END_SRC
 ** String
 A string is a wrapper around a raw =char= pointer and a size. This is used
 as the base string literal.
