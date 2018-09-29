@@ -50,6 +50,8 @@ to be a self-contained standalone CLI application.
 #include <stdlib.h>
 #include <string.h>
 
+<<structs>>
+
 int main(int argc, char *argv[])
 {
     printf("Sorry. No Worgling yet.\n");
@@ -154,6 +156,16 @@ write a string literal to disk, or a recursively expand block reference.
 The Worgle/Orgle program is very much a data-structure driven program.
 Understanding the hierarchy of data here will provide a clear picture for
 how the tangling works.
+
+#+NAME: structs
+#+BEGIN_SRC c
+<<worgle_string>>
+<<worgle_segment>>
+<<worgle_block>>
+<<worgle_blocklist>>
+<<worgle_hashmap>>
+#+END_SRC
+
 ** Top Level Struct
 
 All Worgle operations are contained in a top-level struct called =worgle_d=.
@@ -162,17 +174,53 @@ For the most part, this struct aims to be dynamically populated inside of
 ** String
 A string is a wrapper around a raw =char= pointer and a size. This is used
 as the base string literal.
+
+#+NAME: worgle_string
+#+BEGIN_SRC c
+typedef struct {
+    char *str;
+    size_t size;
+} worgle_string;
+#+END_SRC
 *** Reset or initialize a string
 *** Writing a String
 ** Segment
 
 A segment turns a string into a linked list component that has a type.
 A segment type flag can either be a text chunk or a reference.
+
+#+NAME: worgle_segment
+#+BEGIN_SRC c
+enum {
+<<worgle_segment_types>>
+};
+typedef struct worgle_segment {
+    int type;
+    worgle_string str;
+    <<worgle_segment_line_control>>
+    struct worgle_segment *nxt;
+} worgle_segment;
+#+END_SRC
+
+Segments also keep track of where they are in the original org file.
+This information can be used to generate line control preprocessor commands
+for C/C++.
+
+#+NAME: worgle_segment_line_control
+#+BEGIN_SRC c
+size_t linum;
+worgle_string *filename;
+#+END_SRC
 *** Text Chunk Type
 
 A text chunk is a literal string of text.
 
 When a text chunk segment is processed, it gets written to file directly.
+
+#+NAME: worgle_segment_types
+#+BEGIN_SRC c
+SEGTYPE_TEXT,
+#+END_SRC
 *** Reference Type
 
 A reference contains a string reference to another block.
@@ -180,11 +228,26 @@ A reference contains a string reference to another block.
 When a reference
 segment gets processed, it looks up the reference and processes all the
 segements in that code block.
+
+#+NAME: worgle_segment_types
+#+BEGIN_SRC c
+SEGTYPE_REFERENCE
+#+END_SRC
 *** Writing a Segment
 ** Code Block
 A code block is a top-level unit that stores some amount of code. It is
 made up of a list of segments. Every code block has a unique name.
 
+#+NAME: worgle_block
+#+BEGIN_SRC c
+typedef struct worgle_block {
+    int nsegs;
+    worgle_segment *head;
+    worgle_segment *tail;
+    worgle_string name;
+    struct worgle_block *nxt;
+} worgle_block;
+#+END_SRC
 *** Appending a segment to a code block
 *** Appending a codeblock to a code block
 
@@ -201,6 +264,14 @@ the segments.
 
 A code block list is a linked list of blocks, which is used inside of a
 hash map.
+#+NAME: worgle_blocklist
+#+BEGIN_SRC c
+typedef struct {
+    int nblocks;
+    worgle_block *head;
+    worgle_block *tail;
+} worgle_blocklist;
+#+END_SRC
 *** Block List Initialization
 *** Freeing a Block List
 *** Appending a Block
@@ -208,7 +279,13 @@ hash map.
 
 A hash map is a key-value data structure used as a dictionary for storing
 references to code blocks.
-
+#+NAME: worgle_hashmap
+#+BEGIN_SRC c
+typedef struct {
+    worgle_blocklist blk[256];
+    int nwords;
+} worgle_hashmap;
+#+END_SRC
 *** Hash map Initialization
 
 *** Freeing a Hash Map
@@ -221,6 +298,14 @@ an entry that exists, or make a new one.
 ** File
 An orgle file is an abstraction for a single file orgle can write to. Every
 file has a filename, and a top-level code block.
+#+NAME: worgle_file
+#+BEGIN_SRC c
+typedef struct worgle_file {
+    worgle_string filename;
+    worgle_block *top;
+    struct worgle_file *nxt;
+} worgle_file;
+#+END_SRC
 *** Initializing an orgle file
 *** Writing A File to Disk
 This will actually open a filehandle, and write the top-level code block to
@@ -228,6 +313,14 @@ disk.
 ** The File List
 
 A file list is a linked list of files.
+#+NAME: worgle_filelist
+#+BEGIN_SRC c
+typedef struct {
+    worgle_file *head;
+    worgle_file *tail;
+    int nfiles;
+} worgle_filelist;
+#+END_SRC
 *** Initializing a file list
 
 *** Freeing a file list
