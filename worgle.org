@@ -45,12 +45,13 @@ to be a self-contained standalone CLI application.
 
 #+NAME: worgle-top
 #+BEGIN_SRC c :tangle worgle.c
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 <<structs>>
+<<function_declarations>>
+<<functions>>
 
 int main(int argc, char *argv[])
 {
@@ -164,6 +165,8 @@ how the tangling works.
 <<worgle_block>>
 <<worgle_blocklist>>
 <<worgle_hashmap>>
+<<worgle_file>>
+<<worgle_filelist>>
 #+END_SRC
 
 ** Top Level Struct
@@ -183,7 +186,59 @@ typedef struct {
 } worgle_string;
 #+END_SRC
 *** Reset or initialize a string
+
+Strings in worgle are reset with the function =worgle_string_reset=.
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_string_reset(worgle_string *str);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_string_reset(worgle_string *str)
+{
+    str->str = NULL;
+    str->size = 0;
+}
+#+END_SRC
+
+A string being initialized is identical to a string being reset. The function
+=worgle_string_init= is just a wrapper around =worgle_string_reset=.
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_string_init(worgle_string *str);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_string_init(worgle_string *str)
+{
+    worgle_string_reset(str);
+}
+#+END_SRC
 *** Writing a String
+
+A string is written to a particular filehandle with the function
+=worgle_string_write=.Worgle strings are *not* zero-terminated
+and can't be used in functions like printf.
+
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+int worgle_string_write(FILE *fp, worgle_string *str);
+#+END_SRC
+
+This function is a wrapper around a call to =fwrite=.
+
+#+NAME: functions
+#+BEGIN_SRC c
+int worgle_string_write(FILE *fp, worgle_string *str)
+{
+    return fwrite(str->str, 1, str->size, fp);
+}
+#+END_SRC
 ** Segment
 
 A segment turns a string into a linked list component that has a type.
@@ -234,6 +289,47 @@ segements in that code block.
 SEGTYPE_REFERENCE
 #+END_SRC
 *** Writing a Segment
+
+A segment is written to a file handle using the function =worgle_segment_write=.
+In addition to taking in a filehandle and segment, a hashmap is also passed
+in in the event that the segment is a reference.
+
+On sucess, the function returns TRUE (1). On failure, FALSE (0).
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+int worgle_segment_write(worgle_segment *s, worgle_hashmap *h, FILE *fp);
+#+END_SRC
+
+Every segment writes a pre-processor macro indicating where it is located
+in the original orgle from. From there, things change depending on the
+type. If the segment is a chunk of text (=SEGTYPE_TEXT=), then the string
+is written. If the segment is a reference (=SEGTYPE_REFERENCE=), the
+function attempts to look up a block and write it to disk.
+
+#+NAME: functions
+#+BEGIN_SRC c
+int worgle_segment_write(worgle_segment *s, worgle_hashmap *h, FILE *fp)
+{
+    worgle_block *b;
+    fprintf(fp, "#line %lu \"", s->linum);
+    worgle_string_write(fp, s->filename);
+    fprintf(fp, "\"\n");
+    if(s->type == SEGTYPE_TEXT) {
+        worgle_string_write(fp, &s->str);
+    } else {
+        if(!worgle_hashmap_find(h, &s->str, &b)) {
+            fprintf(stderr, "Could not find reference segment '");
+            worgle_string_write(stderr, &s->str);
+            fprintf(stderr, "'\n");
+            return 0;
+        }
+        return worgle_block_write(b, h, fp);
+    }
+
+    return 1;
+}
+#+END_SRC
 ** Code Block
 A code block is a top-level unit that stores some amount of code. It is
 made up of a list of segments. Every code block has a unique name.
@@ -248,18 +344,186 @@ typedef struct worgle_block {
     struct worgle_block *nxt;
 } worgle_block;
 #+END_SRC
+*** Initializing a code block
+
+A worgle code block is initialized using the function =worgle_block_init=.
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_block_init(worgle_block *b);
+#+END_SRC
+
+The initialization will zero out all the variables related to the segment
+linked list, as well as initialize the string holding the name of the block.
+
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_block_init(worgle_block *b)
+{
+    b->nsegs = 0;
+    b->head = NULL;
+    b->tail = NULL;
+    b->nxt = NULL;
+    worgle_string_init(&b->name);
+}
+#+END_SRC
+*** Freeing a code block
+A code block is freed using the function =worgle_block_free=.
+
+#+NAME:function_declarations
+#+BEGIN_SRC c
+void worgle_block_free(worgle_block *lst);
+#+END_SRC
+
+This function iterates through the segment linked list contained
+inside the block, and frees each one. Since there is nothing to
+free below a segment, the standard free function is called directly.
+
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_block_free(worgle_block *lst)
+{
+    worgle_segment *s;
+    worgle_segment *nxt;
+    int n;
+    s = lst->head;
+    for(n = 0; n < lst->nsegs; n++) {
+        nxt = s->nxt;
+        free(s);
+        s = nxt;
+    }
+}
+#+END_SRC
 *** Appending a segment to a code block
-*** Appending a codeblock to a code block
 
-In both CWEB and Org-tangle, code blocks can be appeneded to in
-different sections. To do this,
-one must simply continue to append segments to the already existing block.
-This is all that is needed for the tangler, but more sophistication
-may be needed for the weaving code into human-readable documents.
-*** Writing a codeblock to filehandle
+A generic segment is appended to a code block with the function.
+=worgle_block_append_segment=.
+The block =b=, name of the block =str=, and type =type= are mandatory parameters
+which describe the segment. The location in the file is also required, so the
+line number =linum= and name of file =filename= are also provided as well.
+This function is called inside of a type-specific append function instead of
+being called directly.
 
-This is done by going through the list in the code block and writing all
-the segments.
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_block_append_segment(worgle_block *b,
+                                worgle_string *str,
+                                int type,
+                                size_t linum,
+                                worgle_string *filename);
+#+END_SRC
+
+It is worthwhile to note that it is in this function that a data
+segment type gets allocated.
+
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_block_append_segment(worgle_block *b,
+                                worgle_string *str,
+                                int type,
+                                size_t linum,
+                                worgle_string *filename)
+{
+    worgle_segment *s;
+    s = malloc(sizeof(worgle_segment));
+    s->str = *str;
+    s->type = type;
+    if(b->nsegs == 0) {
+        b->head = s;
+        b->tail = s;
+    }
+    s->linum = linum;
+    s->filename = filename;
+    b->tail->nxt = s;
+    b->tail = s;
+    b->nsegs++;
+}
+#+END_SRC
+
+**** Appending a string segment
+
+A string segment is appended to a code block using the function
+=worgle_block_append_string=.
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_block_append_string(worgle_block *b,
+                               worgle_string *str,
+                               size_t linum,
+                               worgle_string *filename);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_block_append_string(worgle_block *b,
+                               worgle_string *str,
+                               size_t linum,
+                               worgle_string *filename)
+{
+    worgle_block_append_segment(b, str, SEGTYPE_TEXT, linum, filename);
+}
+#+END_SRC
+**** Appending a reference segment
+
+A reference segment is appended to a code block using the function
+=worgle_block_append_reference=.
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_block_append_reference(worgle_block *b,
+                                  worgle_string *str,
+                                  size_t linum,
+                                  worgle_string *filename);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_block_append_reference(worgle_block *b,
+                                  worgle_string *str,
+                                  size_t linum,
+                                  worgle_string *filename)
+{
+    worgle_block_append_segment(b, str, SEGTYPE_REFERENCE, linum, filename);
+}
+#+END_SRC
+*** Appending a code block to a code block
+
+In both CWEB and Org-tangle, existing code blocks can be appeneded to in
+different sections. Because of how this program works, we get this functionality
+for free!
+*** Writing a code block to filehandle
+
+Writing a code block to a filehandle can be done using the function
+=worgle_block_write=. In addition to the file handle =fp=, an org block
+requires a hashmap, which is required in the lower level function
+=orgle_segment_write= for expanding code references.
+
+This function returns a boolean TRUE (1) on success or FALSE (0) on failure.
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+int worgle_block_write(worgle_block *b, worgle_hashmap *h, FILE *fp);
+#+END_SRC
+
+A code block iterates it's segment list, writing each segment to disk.
+
+#+NAME: functions
+#+BEGIN_SRC c
+int worgle_block_write(worgle_block *b, worgle_hashmap *h, FILE *fp)
+{
+    worgle_segment *s;
+    int n;
+    s = b->head;
+    for(n = 0; n < b->nsegs; n++) {
+        if(!worgle_segment_write(s, h, fp)) return 0;
+        s = s->nxt;
+    }
+
+    return 1;
+}
+#+END_SRC
+
 ** Code Block List
 
 A code block list is a linked list of blocks, which is used inside of a
@@ -273,8 +537,72 @@ typedef struct {
 } worgle_blocklist;
 #+END_SRC
 *** Block List Initialization
+
+A block list is initialized using the function =worgle_blocklist_init=.
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_blocklist_init(worgle_blocklist *lst);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_blocklist_init(worgle_blocklist *lst)
+{
+    lst->head = NULL;
+    lst->tail = NULL;
+    lst->nblocks = 0;
+}
+#+END_SRC
 *** Freeing a Block List
+
+Blocks allocated by the block list are freed using the function
+=worgle_blocklist_free=.
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_blocklist_free(worgle_blocklist *lst);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_blocklist_free(worgle_blocklist *lst)
+{
+    worgle_block *b;
+    worgle_block *nxt;
+    int n;
+    b = lst->head;
+    for(n = 0; n < lst->nblocks; n++) {
+        nxt = b->nxt;
+        worgle_block_free(b);
+        free(b);
+        b = nxt;
+    }
+}
+#+END_SRC
 *** Appending a Block
+
+An allocated block is appended to a block list using the function
+=worgle_blocklist_append=.
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_blocklist_append(worgle_blocklist *lst, worgle_block *b);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_blocklist_append(worgle_blocklist *lst, worgle_block *b)
+{
+    if(lst->nblocks == 0) {
+        lst->head = b;
+        lst->tail = b;
+    }
+    lst->tail->nxt = b;
+    lst->tail = b;
+    lst->nblocks++;
+}
+#+END_SRC
 ** Hash Map
 
 A hash map is a key-value data structure used as a dictionary for storing
@@ -288,16 +616,138 @@ typedef struct {
 #+END_SRC
 *** Hash map Initialization
 
+A hash map is initialized using the function =worgle_hashmap_init=
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_hashmap_init(worgle_hashmap *h);
+#+END_SRC
+
+A hashmap is composed of an array of block lists which must be initialized.
+
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_hashmap_init(worgle_hashmap *h)
+{
+    int n;
+    h->nwords = 0;
+    for(n = 0; n < 256; n++) {
+        worgle_blocklist_init(&h->blk[n]);
+    }
+}
+#+END_SRC
 *** Freeing a Hash Map
 
+Information allocated inside the hash map is freed using the function
+=worgle_hashmap_free=.
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_hashmap_free(worgle_hashmap *h);
+#+END_SRC
+
+To free a hash map is to free each block list in the array.
+
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_hashmap_free(worgle_hashmap *h)
+{
+    int n;
+    for(n = 0; n < 256; n++) {
+        worgle_blocklist_free(&h->blk[n]);
+    }
+}
+#+END_SRC
+*** Looking up an entry
+
+A hashmap lookup can be done with the function =worgle_hashmap_find=.
+This will attempt to look for a value with the key value =name=, and
+save it in the block pointer =b=. If nothing is found, the function returns
+FALSE (0). On success, TRUE (1).
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+int worgle_hashmap_find(worgle_hashmap *h, worgle_string *name, worgle_block **b);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+<<hashmap_hasher>>
+int worgle_hashmap_find(worgle_hashmap *h, worgle_string *name, worgle_block **b)
+{
+    int pos;
+    worgle_blocklist *lst;
+    int n;
+    worgle_block *blk;
+    pos = hash(name->str, name->size);
+    lst = &h->blk[pos];
+
+    blk = lst->head;
+    for(n = 0; n < lst->nblocks; n++) {
+        if(name->size == blk->name.size) {
+            if(!strncmp(name->str, blk->name.str, name->size)) {
+                *b = blk;
+                return 1;
+            }
+        }
+        blk = blk->nxt;
+    }
+    return 0;
+}
+#+END_SRC
+
+Like any hashmap, a hashing algorithm is used to to compute which list to place
+the entry in. This is one I've used on a number of projects now.
+
+#+NAME: hashmap_hasher
+#+BEGIN_SRC c
+static int hash(const char *str, size_t size)
+{
+    unsigned int h = 5381;
+    size_t i = 0;
+
+    for(i = 0; i < size; i++) {
+        h = ((h << 5) + h) ^ str[i];
+        h %= 0x7FFFFFFF;
+    }
+
+    return h % 256;
+}
+#+END_SRC
 *** Getting an entry
 
 To "get" an entry means to return a block if it exists or not. Return
-an entry that exists, or make a new one.
-*** Looking up an entry
+an entry that exists, or make a new one. This can be done with the function
+=worgle_hashmap_get=.
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+worgle_block * worgle_hashmap_get(worgle_hashmap *h, worgle_string *name);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+worgle_block * worgle_hashmap_get(worgle_hashmap *h, worgle_string *name)
+{
+    worgle_block *b;
+    worgle_blocklist *lst;
+    int pos;
+
+    if(worgle_hashmap_find(h, name, &b)) return b;
+    pos = hash(name->str, name->size);
+    b = NULL;
+    b = malloc(sizeof(worgle_block));
+    worgle_block_init(b);
+    b->name = *name;
+    lst = &h->blk[pos];
+    worgle_blocklist_append(lst, b);
+    return b;
+}
+#+END_SRC
 ** File
-An orgle file is an abstraction for a single file orgle can write to. Every
-file has a filename, and a top-level code block.
+A worgle file is an abstraction for a single file worgle will write to. Every
+file has a filename, and a top-level code block. A worgle does not have a
+filehandle. Files will only be created at the generation stage.
 #+NAME: worgle_file
 #+BEGIN_SRC c
 typedef struct worgle_file {
@@ -306,13 +756,51 @@ typedef struct worgle_file {
     struct worgle_file *nxt;
 } worgle_file;
 #+END_SRC
-*** Initializing an orgle file
-*** Writing A File to Disk
-This will actually open a filehandle, and write the top-level code block to
-disk.
+*** Writing A File to a filehandle
+
+A file is writen to a filehandle using the function =worgle_file_write=.
+A hashmap is also required because it contains all the named code blocks
+needed for any code expansion.
+
+#+NAME:function_declarations
+#+BEGIN_SRC c
+int worgle_file_write(worgle_file *f, worgle_hashmap *h);
+#+END_SRC
+
+A filehandle is opened, the top-most code block is written using
+=worgle_block_write=, and then the file is closed.
+
+Because worgle strings are not zero terminated, they must be copied to a
+temporary string buffer with a null terminator. Any filename greater than
+127 characters will be truncated.
+
+#+NAME: functions
+#+BEGIN_SRC c
+int worgle_file_write(worgle_file *f, worgle_hashmap *h)
+{
+    FILE *fp;
+    char tmp[128];
+    size_t n;
+    size_t size;
+    int rc;
+
+    if(f->filename.size > 128) size = 127;
+    else size = f->filename.size;
+    for(n = 0; n < size; n++) tmp[n] = f->filename.str[n];
+    tmp[size] = 0;
+
+    fp = fopen(tmp, "w");
+
+    rc = worgle_block_write(f->top, h, fp);
+
+    fclose(fp);
+    return rc;
+}
+#+END_SRC
+
 ** The File List
 
-A file list is a linked list of files.
+A file list is a linked list of worgle files.
 #+NAME: worgle_filelist
 #+BEGIN_SRC c
 typedef struct {
@@ -323,6 +811,104 @@ typedef struct {
 #+END_SRC
 *** Initializing a file list
 
+A file list is zeroed out and initialized using the function
+=worgle_filelist_init=.
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_filelist_init(worgle_filelist *flist);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_filelist_init(worgle_filelist *flist)
+{
+    flist->head = NULL;
+    flist->tail = NULL;
+    flist->nfiles = 0;
+}
+#+END_SRC
+
 *** Freeing a file list
 
+A filelist is freed using the function =worgle_filelist_free=.
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_filelist_free(worgle_filelist *flist);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_filelist_free(worgle_filelist *flist)
+{
+    worgle_file *f;
+    worgle_file *nxt;
+    int n;
+    f = flist->head;
+    for(n = 0; n < flist->nfiles; n++) {
+        nxt = f->nxt;
+        free(f);
+        f = nxt;
+    }
+}
+#+END_SRC
 *** Appending a file to a file list
+
+A file is appended to the file list using the function =worgle_filelist_append=.
+The name, as well as the well as the top-level code block are required here.
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_filelist_append(worgle_filelist *flist,
+                           worgle_string *name,
+                           worgle_block *top);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_filelist_append(worgle_filelist *flist,
+                           worgle_string *name,
+                           worgle_block *top)
+{
+    worgle_file *f;
+    f = malloc(sizeof(worgle_file));
+    f->filename = *name;
+    f->top = top;
+
+    if(flist->nfiles == 0) {
+        flist->head = f;
+        flist->tail = f;
+    }
+    flist->tail->nxt = f;
+    flist->tail = f;
+    flist->nfiles++;
+}
+#+END_SRC
+*** Writing a filelist to disk
+
+A file list can be appended using the function =worgle_filelist_write=.
+
+A hashmap containing all named code blocks all that is required.
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+int worgle_filelist_write(worgle_filelist *flist, worgle_hashmap *h);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+int worgle_filelist_write(worgle_filelist *flist, worgle_hashmap *h)
+{
+    worgle_file *f;
+    int n;
+
+    f = flist->head;
+    for(n = 0; n < flist->nfiles; n++) {
+        if(!worgle_file_write(f, h)) return 0;
+        f = f->nxt;
+    }
+
+    return 1;
+}
+#+END_SRC
