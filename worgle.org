@@ -3,7 +3,6 @@
 This is a work in progress. There's not a whole lot here yet.
 
 Don't run this yet!
-
 * What is Worgle?
 
 Hello, fellow human. I'm glad you could stop by.
@@ -38,7 +37,6 @@ be put into Worgle to make it more suitable for managing larger projects
 written in C.
 
 Following me so far? No? Yes? Great, let's get started.
-
 * Top-level files
 
 Like Orgle, Worgle is self contained inside of a single C file.
@@ -55,17 +53,19 @@ to be a self-contained standalone CLI application.
 int main(int argc, char *argv[])
 {
     printf("Sorry. No Worgling yet.\n");
+    <<loading>>
+    <<parsing>>
+    <<generation>>
     return 0;
 }
 
 #+END_SRC
-* An Outline of What Orgle and Worgle do
+* An Outline of What Worgle does
 
 This aims to show a broad overview of how Orgle (and Worgle) will work
 essentially. Orgle is a bootstrap program written in C, used to generate
 C code for Worgle (this program here). At the highest level, the two
 programs share the same basic program structure.
-
 ** Load file into memory
 
 The first thing the program will do is load the file.
@@ -76,6 +76,10 @@ is done due to the textual nature of the program. It is much easier to
 simply allocate everything in one big block and reference chunks, then to
 allocate smaller chunks as you go.
 
+#+NAME:loading
+#+BEGIN_SRC c
+
+#+END_SRC
 ** Parsing
 
 The second phase of the program is the parsing stage.
@@ -85,29 +89,44 @@ by skimming through the block up to a line break character, then pass
 that off to be parsed. Line by line, the parser will read the program and
 produce a structure of the tangled code in memory.
 
-*** Parsing the block name
+#+NAME:parsing
+#+BEGIN_SRC c
 
-A block begins with a name declaration. The extracted name is then used to
-acquire a block from the block dictionary. If no block exists with that name,
-a new codeblock entry is created. This becomes assigned to eb the active
-codeblock.
+#+END_SRC
+*** Reading a line at a time
 
-*** Tangling a file
+Despite being loaded into memory, the program still reads in code one line
+at a time. The parsing relies on new line feeds to denote the beginnings
+and endings of sections and code references.
 
-A top level block is the entry point for a particular file. This filename is
-appended to the end of the filelist.
+A special readline function has been written based on =getline= that reads
+lines of text from an allocated block of text.
+*** Parsing Modes
 
-*** Parsing segments
-**** Parsing Text Segments
+The parser is implemented as a relatively simple state machine, whose behavior
+shifts between parsing org-mode markup (=MODE_ORG=), and code blocks
+(=MODE_BEGINCODE= and =MODE_CODE=).
+The state machine makes a distinction between the start of a new code
+block (=MODE_BEGINCODE=), which provides information like the name of
+the code block and optionally the name of the file to tangle to, and
+the code block itself (=MODE_CODE=).
+**** MODE_ORG
 
-Text chunks are appended to the end of the active code block.
+***** Extracting information from #+NAME
 
-**** Parsing Reference Segments
+***** Beginning a new block
 
-References at this point are stored as text strings. A reference for them is
-searched in the block dictionary. If no entry is found, an empty code block is
-created.
+**** MODE_BEGINCODE
 
+***** Extracting information from #+BEGIN_SRC
+
+***** Setting up code for a new read
+
+**** MODE_CODE
+
+***** Checking for #+END_SRC
+
+***** Checking for references
 ** Generation
 
 The last phase of the program is code generation.
@@ -115,39 +134,56 @@ The last phase of the program is code generation.
 A parsed file generates a structure of how the code will look. The generation
 stage involves iterating through the structure and producing the code.
 
+Due to the hierarchical nature of the data structures,
+the generation stage is surprisingly elegant with a single expanding entry
+point.
+
+At the very top, generation
+consists of writing all the files in the filelist. Each file will then go
+and write the top-most block associated with that file. A block will then
+write the segment list it has embedded inside of it. A segment will either
+write a string literal to disk, or a recursively expand block reference.
+
+#+NAME:generation
+#+BEGIN_SRC c
+
+#+END_SRC
+
 * Core Data Structures
 
 The Worgle/Orgle program is very much a data-structure driven program.
 Understanding the hierarchy of data here will provide a clear picture for
 how the tangling works.
-
 ** Top Level Struct
 
-All orgle operations are contained in a top-level struct called =orgle_d=.
-
-** Code Block
-
-A code block is a top-level unit that stores some amount of code. It is
-made up of a list of segments. Every code block has a unique name.
-
-*** Segment
+All Worgle operations are contained in a top-level struct called =worgle_d=.
+For the most part, this struct aims to be dynamically populated inside of
+[[An Outline of What Worgle does]].
+** String
+A string is a wrapper around a raw =char= pointer and a size. This is used
+as the base string literal.
+*** Reset or initialize a string
+*** Writing a String
+** Segment
 
 A segment turns a string into a linked list component that has a type.
 A segment type flag can either be a text chunk or a reference.
-
-**** Text Chunk Type
+*** Text Chunk Type
 
 A text chunk is a literal string of text.
 
 When a text chunk segment is processed, it gets written to file directly.
-
-**** Reference Type
+*** Reference Type
 
 A reference contains a string reference to another block.
 
 When a reference
 segment gets processed, it looks up the reference and processes all the
 segements in that code block.
+*** Writing a Segment
+** Code Block
+A code block is a top-level unit that stores some amount of code. It is
+made up of a list of segments. Every code block has a unique name.
 
 *** Appending a segment to a code block
 *** Appending a codeblock to a code block
@@ -157,26 +193,43 @@ different sections. To do this,
 one must simply continue to append segments to the already existing block.
 This is all that is needed for the tangler, but more sophistication
 may be needed for the weaving code into human-readable documents.
-
 *** Writing a codeblock to filehandle
 
 This is done by going through the list in the code block and writing all
 the segments.
+** Code Block List
 
-** Block Dictionary
+A code block list is a linked list of blocks, which is used inside of a
+hash map.
+*** Block List Initialization
+*** Freeing a Block List
+*** Appending a Block
+** Hash Map
 
-A block dictionary is a key-value hash map for code blocks.
+A hash map is a key-value data structure used as a dictionary for storing
+references to code blocks.
 
-*** Dictionary Initialization
-*** Freeing Memory
-*** Adding a new entry
+*** Hash map Initialization
+
+*** Freeing a Hash Map
+
+*** Getting an entry
+
+To "get" an entry means to return a block if it exists or not. Return
+an entry that exists, or make a new one.
 *** Looking up an entry
-*** Looking up or adding a new entry
-Will return an existing entry or create a new entry. Useful
-for the initial parsing.
 ** File
 An orgle file is an abstraction for a single file orgle can write to. Every
 file has a filename, and a top-level code block.
 *** Initializing an orgle file
 *** Writing A File to Disk
-This will actually open a filehandle, and write the top-level code block to disk.
+This will actually open a filehandle, and write the top-level code block to
+disk.
+** The File List
+
+A file list is a linked list of files.
+*** Initializing a file list
+
+*** Freeing a file list
+
+*** Appending a file to a file list
