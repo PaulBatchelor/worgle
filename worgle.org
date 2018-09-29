@@ -51,6 +51,7 @@ to be a self-contained standalone CLI application.
 
 <<enums>>
 <<structs>>
+<<static_function_declarations>>
 <<function_declarations>>
 <<functions>>
 
@@ -58,12 +59,10 @@ int main(int argc, char *argv[])
 {
     <<local_variables>>
     <<initialization>>
-    printf("Sorry. No Worgling yet.\n");
     <<loading>>
     <<parsing>>
     <<generation>>
     <<cleanup>>
-    return 0;
 }
 
 #+END_SRC
@@ -241,7 +240,62 @@ produce a structure of the tangled code in memory.
 
 #+NAME:parsing
 #+BEGIN_SRC c
+while(1) {
+    <<getline>>
+    if(mode == MODE_ORG) {
+        <<parse_mode_org>>
+    } else if(mode == MODE_CODE) {
+        <<parse_mode_code>>
+    } else if(mode == MODE_BEGINCODE) {
+        <<parse_mode_begincode>>
+    }
+}
+#+END_SRC
 
+*** Parser Local Variables
+
+The parsing stage requires a local variable called =str= to be used from time
+to time. Not sure where else to put this.
+
+#+NAME: local_variables
+#+BEGIN_SRC c
+worgle_string str;
+#+END_SRC
+
+#+NAME: initialization
+#+BEGIN_SRC c
+worgle_string_init(&str);
+#+END_SRC
+
+=line= refers to the pointer address that the line will write to.
+
+#+NAME:local_variables
+#+BEGIN_SRC c
+char *line;
+#+END_SRC
+
+#+NAME:initialization
+#+BEGIN_SRC c
+line = NULL;
+#+END_SRC
+
+=pos= refers to the current buffer position.
+
+#+NAME:local_variables
+#+BEGIN_SRC c
+size_t pos;
+#+END_SRC
+
+#+NAME:initialization
+#+BEGIN_SRC c
+pos = 0;
+#+END_SRC
+
+This is the local variable =read=.
+
+#+NAME:local_variables
+#+BEGIN_SRC c
+size_t read;
 #+END_SRC
 *** Reading a line at a time
 
@@ -249,8 +303,71 @@ Despite being loaded into memory, the program still reads in code one line
 at a time. The parsing relies on new line feeds to denote the beginnings
 and endings of sections and code references.
 
+Before reading the line, the line number inside worgle is incremented.
+
 A special readline function has been written based on =getline= that reads
-lines of text from an allocated block of text.
+lines of text from an allocated block of text. This function is called
+=worgle_getline=.
+
+After the line has been read, the program checks the return code =status=.
+If all the lines of text have been read, the program breaks out of the
+while loop.
+
+#+NAME: getline
+#+BEGIN_SRC c
+worg.linum++;
+status = worgle_getline(buf, &line, &pos, &read, size);
+if(!status) break;
+#+END_SRC
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+static int worgle_getline(char *fullbuf,
+                  char **line,
+                  size_t *pos,
+                  size_t *line_size,
+                  size_t buf_size);
+#+END_SRC
+
+
+=fullbuf= refers to the full text buffer.
+
+=line= is a pointer where the current line will be stored.
+
+=pos= is the current buffer position.
+
+=line_size= is a variable written to that returns the size of the line. This
+includes the line break character.
+
+=buf_size= is the size of the whole buffer.
+
+#+NAME:functions
+#+BEGIN_SRC c
+static int worgle_getline(char *fullbuf,
+                  char **line,
+                  size_t *pos,
+                  size_t *line_size,
+                  size_t buf_size)
+{
+    size_t p;
+    size_t s;
+    *line_size = 0;
+    p = *pos;
+    *line = &fullbuf[p];
+    s = 0;
+    while(1) {
+        s++;
+        if(p >= buf_size) return 0;
+        if(fullbuf[p] == '\n') {
+            *pos = p + 1;
+            *line_size = s;
+            return 1;
+        }
+        p++;
+    }
+}
+#+END_SRC
+
 *** Parsing Modes
 
 The parser is implemented as a relatively simple state machine, whose behavior
@@ -272,9 +389,96 @@ enum {
 #+BEGIN_SRC c
 MODE_ORG,
 #+END_SRC
+
+When the parser is in =MODE_ORG=, it is only searching for the start
+of the next named block. When it finds a match, it extracts the name,
+gets ready to begin the a new block, and changes the mode =MODE_BEGINCODE=.
+
+#+NAME: parse_mode_org
+#+BEGIN_SRC c
+if(read >= 7) {
+    if(!strncmp(line, "#+NAME:",7)) {
+        mode = MODE_BEGINCODE;
+        parse_name(line, read, &str);
+        worgle_begin_block(&worg, &str);
+    }
+}
+#+END_SRC
 ***** Extracting information from #+NAME
 
+Name extraction of the current line is done with a function called =parse_name=.
+
+#+NAME: static_function_declarations
+#+BEGIN_SRC c
+static int parse_name(char *line, size_t len, worgle_string *str);
+#+END_SRC
+
+# TODO: words here
+
+#+NAME: functions
+#+BEGIN_SRC c
+static int parse_name(char *line, size_t len, worgle_string *str)
+{
+    size_t n;
+    size_t pos;
+    int mode;
+
+    line+=7;
+    len-=7;
+    /* *namelen = 0; */
+    str->size = 0;
+    str->str = NULL;
+    if(len <= 0) return 1;
+    pos = 0;
+    mode = 0;
+    for(n = 0; n < len; n++) {
+        if(mode == 2) break;
+        switch(mode) {
+            case 0:
+                if(line[n] == ' ') {
+
+                } else {
+                    str->str = &line[n];
+                    str->size++;
+                    pos++;
+                    mode = 1;
+                }
+                break;
+            case 1:
+                if(line[n] == 0xa) {
+                    mode = 2;
+                    break;
+                }
+                pos++;
+                str->size++;
+                break;
+            default:
+                break;
+        }
+    }
+    /* *namelen = pos; */
+    return 1;
+}
+#+END_SRC
 ***** Beginning a new block
+
+A new code block is started with the function =worgle_begin_block=.
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_begin_block(worgle_d *worg, worgle_string *name);
+#+END_SRC
+
+When a new block begins, the current block in Worgle is set to be
+a value retrieved from the block dictionary.
+
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_begin_block(worgle_d *worg, worgle_string *name)
+{
+    worg->curblock = worgle_hashmap_get(&worg->dict, name);
+}
+#+END_SRC
 
 **** MODE_BEGINCODE
 
@@ -282,19 +486,253 @@ MODE_ORG,
 #+BEGIN_SRC c
 MODE_BEGINCODE,
 #+END_SRC
+
+#+NAME: parse_mode_begincode
+#+BEGIN_SRC c
+if(read >= 11) {
+    if(!strncmp(line, "#+BEGIN_SRC",11)) {
+        mode = MODE_CODE;
+        <<begin_the_code>>
+        if(parse_begin(line, read, &str) == 2) {
+            worgle_append_file(&worg, &str);
+        }
+        continue;
+    } else {
+        fwrite(line, read, 1, stderr);
+        fprintf(stderr, "line %lu: Expected #+BEGIN_SRC\n", worg.linum);
+        rc = 1;
+        break;
+    }
+}
+fprintf(stderr, "line %lu: Expected #+BEGIN_SRC\n", worg.linum);
+rc = 1;
+#+END_SRC
+
 ***** Extracting information from #+BEGIN_SRC
 
-***** Setting up code for a new read
+MORE WORDS HERE.
 
+#+NAME: function_declarations
+#+BEGIN_SRC c
+static int parse_begin(char *line, size_t len, worgle_string *str);
+#+END_SRC
+
+MORE WORDS HERE.
+
+#+NAME: functions
+#+BEGIN_SRC c
+static int parse_begin(char *line, size_t len, worgle_string *str)
+{
+    size_t n;
+    int mode;
+    int rc;
+
+    line += 11;
+    len -= 11;
+
+    if(len <= 0) return 0;
+
+
+    mode = 0;
+    n = 0;
+    rc = 1;
+    str->str = NULL;
+    str->size = 0;
+    while(n < len) {
+        switch(mode) {
+            case 0:
+                if(line[n] == ' ') {
+                    n++;
+                } else {
+                    mode = 1;
+                }
+                break;
+            case 1:
+                if(line[n] == ' ') {
+                    mode = 0;
+                    n++;
+                } else {
+                    if(line[n] == ':') {
+                        if(!strncmp(line + n + 1, "tangle", 6)) {
+                            n+=7;
+                            mode = 2;
+                            rc = 2;
+                        }
+                    }
+                    n++;
+                }
+                break;
+            case 2: /* spaces after tangle */
+                if(line[n] != ' ') {
+                    str->str = &line[n];
+                    str->size++;
+                    mode = 3;
+                }
+                n++;
+                break;
+            case 3: /* read up to next space or line break */
+                if(line[n] == ' ' || line[n] == '\n') {
+                    mode = 4;
+                } else {
+                    str->size++;
+                }
+                n++;
+                break;
+            case 4: /* countdown til end */
+                n++;
+                break;
+        }
+    }
+
+    return rc;
+}
+#+END_SRC
+***** Appending a new file
+WORDS PLEASE
+
+#+NAME:function_declarations
+#+BEGIN_SRC c
+void worgle_append_file(worgle_d *worg, worgle_string *filename);
+#+END_SRC
+
+WORDS PLEASE
+
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_append_file(worgle_d *worg, worgle_string *filename)
+{
+    worgle_filelist_append(&worg->flist, filename, worg->curblock);
+}
+#+END_SRC
+***** Setting up code for a new read
+#+NAME: begin_the_code
+#+BEGIN_SRC c
+worg.block_started = 1;
+worgle_string_reset(&worg.block);
+#+END_SRC
 **** MODE_CODE
+
+TODO: WORDS HERE.
 
 #+NAME:parse_modes
 #+BEGIN_SRC c
 MODE_CODE
 #+END_SRC
-***** Checking for #+END_SRC
 
-***** Checking for references
+TODO: WORDS AND SECTIONS HERE.
+
+#+NAME: parse_mode_code
+#+BEGIN_SRC c
+if(read >= 9) {
+    if(!strncmp(line, "#+END_SRC", 9)) {
+        mode = MODE_ORG;
+        worg.block_started = 0;
+        worgle_append_string(&worg);
+        continue;
+    }
+}
+
+if(check_for_reference(line, read, &str)) {
+    worgle_append_string(&worg);
+    worgle_append_reference(&worg, &str);
+    worg.block_started = 1;
+    worgle_string_reset(&worg.block);
+    continue;
+}
+
+worg.block.size += read;
+
+if(worg.block_started) {
+    worg.block.str = line;
+    worg.block_started = 0;
+    worg.curline = worg.linum;
+}
+#+END_SRC
+
+#+NAME:function_declarations
+#+BEGIN_SRC c
+void worgle_append_string(worgle_d *worg);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_append_string(worgle_d *worg)
+{
+    if(worg->curblock == NULL) return;
+    worgle_block_append_string(worg->curblock,
+                              &worg->block,
+                              worg->curline,
+                              &worg->filename);
+}
+#+END_SRC
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_append_reference(worgle_d *worg, worgle_string *ref);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_append_reference(worgle_d *worg, worgle_string *ref)
+{
+    if(worg->curblock == NULL) return;
+    worgle_block_append_reference(worg->curblock,
+                                 ref,
+                                 worg->linum,
+                                 &worg->filename);
+}
+#+END_SRC
+
+#+NAME: static_function_declarations
+#+BEGIN_SRC c
+static int check_for_reference(char *line , size_t size, worgle_string *str);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+static int check_for_reference(char *line , size_t size, worgle_string *str)
+{
+    int mode;
+    size_t n;
+    mode = 0;
+
+    str->size = 0;
+    str->str = NULL;
+    for(n = 0; n < size; n++) {
+        if(mode < 0) break;
+        switch(mode) {
+            case 0: /* spaces */
+                if(line[n] == ' ') continue;
+                else if(line[n] == '<') mode = 1;
+                else mode = -1;
+                break;
+            case 1: /* second < */
+                if(line[n] == '<') mode = 2;
+                else mode = -1;
+                break;
+            case 2: /* word setup */
+                str->str = &line[n];
+                str->size++;
+                mode = 3;
+                break;
+            case 3: /* the word */
+                if(line[n] == '>') {
+                    mode = 4;
+                    break;
+                }
+                str->size++;
+                break;
+            case 4: /* last > */
+                if(line[n] == '>') mode = 5;
+                else mode = -1;
+                break;
+        }
+    }
+
+    return (mode == 5);
+}
+#+END_SRC
+
 ** Generation
 
 The last phase of the program is code generation.
@@ -314,13 +752,27 @@ write a string literal to disk, or a recursively expand block reference.
 
 #+NAME:generation
 #+BEGIN_SRC c
-
+if(!rc) if(!worgle_generate(&worg)) rc = 1;
 #+END_SRC
 ** Cleanup
 At the end up the program, all allocated memory is freed via =worgle_free=.
 #+NAME: cleanup
 #+BEGIN_SRC c
 worgle_free(&worg);
+return rc;
+#+END_SRC
+
+#+NAME:function_declarations
+#+BEGIN_SRC c
+int worgle_generate(worgle_d *worg);
+#+END_SRC
+
+#+NAME:functions
+#+BEGIN_SRC c
+int worgle_generate(worgle_d *worg)
+{
+    return worgle_filelist_write(&worg->flist, &worg->dict);
+}
 #+END_SRC
 * Core Data Structures
 
