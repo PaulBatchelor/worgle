@@ -1,8 +1,10 @@
-CFLAGS = -Wall -pedantic -g -O3
+CFLAGS = -Wall -pedantic -g -O3 -Iparg
 
 default: all
 
 ORGLE=./orgle
+
+OBJ=worgle.o parg/parg.o
 
 all: $(ORGLE) worgle
 
@@ -12,8 +14,8 @@ all: $(ORGLE) worgle
 orgle: orgle.c
 	$(CC) -std=c89 $(CFLAGS) $< -o $@
 
-worgle: worgle.c
-	$(CC) -std=c89 $(CFLAGS) $< -o $@
+worgle: $(OBJ)
+	$(CC) -std=c89 $(CFLAGS) $(OBJ) -o $@
 
 install: orgle
 	cp orgle /usr/local/bin
@@ -21,3 +23,4 @@ install: orgle
 clean:
 	$(RM) orgle worgle
 	$(RM) worgle.c
+	$(RM) $(OBJ)

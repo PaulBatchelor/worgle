@@ -48,7 +48,9 @@ to be a self-contained standalone CLI application.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "parg.h"
 
+<<global_variables>>
 <<enums>>
 <<structs>>
 <<static_function_declarations>>
@@ -92,12 +94,29 @@ The file name is currently aqcuired from the command line, so the
 program must check and make sure that there are the right number of
 arguments. If there isn't, return an error.
 
-# TODO: add better command line support with third-party library parg
+#+NAME: local_variables
+#+BEGIN_SRC c
+char *filename;
+#+END_SRC
 
 #+NAME: initialization
 #+BEGIN_SRC c
+filename = NULL;
 if(argc < 2) {
     fprintf(stderr, "Usage: %s filename.org\n", argv[0]);
+    return 1;
+}
+<<parse_cli_args>>
+<<check_filename>>
+#+END_SRC
+
+Check the filename.
+If the filename is not set inside by the command line, return an error,
+
+#+NAME:check_filename
+#+BEGIN_SRC c
+if(filename == NULL) {
+    fprintf(stderr, "No filename specified\n");
     return 1;
 }
 #+END_SRC
@@ -106,7 +125,7 @@ The filename is then set inside of the Worgle struct.
 
 #+NAME: initialization
 #+BEGIN_SRC c
-worg.filename.str = argv[1];
+worg.filename.str = filename;
 worg.filename.size = strlen(argv[1]);
 #+END_SRC
 
@@ -179,7 +198,7 @@ FILE *fp;
 
 #+NAME: loading
 #+BEGIN_SRC c
-fp = fopen(argv[1], "r");
+fp = fopen(filename, "r");
 
 if(fp == NULL) {
     fprintf(stderr, "Could not find file %s\n", argv[1]);
@@ -1142,7 +1161,8 @@ On sucess, the function returns TRUE (1). On failure, FALSE (0).
 int worgle_segment_write(worgle_segment *s, worgle_hashmap *h, FILE *fp);
 #+END_SRC
 
-Every segment writes a pre-processor macro indicating where it is located
+If the =use_debug= flag is enabled,
+the segment will write a pre-processor macro indicating where it is located
 in the original orgle from. From there, things change depending on the
 type. If the segment is a chunk of text (=SEGTYPE_TEXT=), then the string
 is written. If the segment is a reference (=SEGTYPE_REFERENCE=), the
@@ -1153,9 +1173,11 @@ function attempts to look up a block and write it to disk.
 int worgle_segment_write(worgle_segment *s, worgle_hashmap *h, FILE *fp)
 {
     worgle_block *b;
-    fprintf(fp, "#line %lu \"", s->linum);
-    worgle_string_write(fp, s->filename);
-    fprintf(fp, "\"\n");
+    if(use_debug) {
+        fprintf(fp, "#line %lu \"", s->linum);
+        worgle_string_write(fp, s->filename);
+        fprintf(fp, "\"\n");
+    }
     if(s->type == SEGTYPE_TEXT) {
         worgle_string_write(fp, &s->str);
     } else {
@@ -1752,4 +1774,54 @@ int worgle_filelist_write(worgle_filelist *flist, worgle_hashmap *h)
 
     return 1;
 }
+#+END_SRC
+* Command Line Arguments
+This section outlines command line arguments in Worgle.
+
+** Parsing command line flags
+
+Command line argument parsing is done using the third-party library
+[[https://github.com/jibsen/parg][parg]], included in this source distribution.
+
+#+NAME: local_variables
+#+BEGIN_SRC c
+struct parg_state ps;
+int c;
+#+END_SRC
+
+#+NAME: parse_cli_args
+#+BEGIN_SRC c
+parg_init(&ps);
+while((c = parg_getopt(&ps, argc, argv, "g")) != -1) {
+    switch(c) {
+        case 1:
+            filename = (char *)ps.optarg;
+            break;
+        case 'g':
+            <<turn_on_debug_macros>>
+            break;
+        default:
+            fprintf(stderr, "Unknown option -%c\n", c);
+            return 1;
+    }
+}
+#+END_SRC
+
+** Turning on debug macros
+
+Worgle has the ability to generate debug macros when generating C files.
+
+This will turn on a boolean flag called =use_debug= inside the worgle struct.
+
+#+NAME: turn_on_debug_macros
+#+BEGIN_SRC c
+use_debug = 1;
+#+END_SRC
+
+By default, =use_debug= is set to be false in order to allow other non-C
+languages to be used.
+
+#+NAME:global_variables
+#+BEGIN_SRC c
+static int use_debug = 0;
 #+END_SRC
