@@ -122,7 +122,7 @@ The filename is then set inside of the Worgle struct.
 #+NAME: initialization
 #+BEGIN_SRC c
 worg.filename.str = filename;
-worg.filename.size = strlen(argv[1]);
+worg.filename.size = strlen(filename);
 #+END_SRC
 
 *** Initialize return codes
