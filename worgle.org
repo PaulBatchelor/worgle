@@ -782,6 +782,15 @@ write a string literal to disk, or a recursively expand block reference.
 #+BEGIN_SRC c
 if(!rc) if(!worgle_generate(&worg)) rc = 1;
 #+END_SRC
+
+If the =use_warnings= flag is turned on, Worgle will scan the dictionary
+after generation and flag warnings about any unused blocks.
+
+#+NAME:generation
+#+BEGIN_SRC c
+if(use_warnings) rc = worgle_warn_unused(&worg);
+#+END_SRC
+
 ** Cleanup
 At the end up the program, all allocated memory is freed via =worgle_free=.
 #+NAME: cleanup
@@ -1144,6 +1153,33 @@ segements in that code block.
 #+BEGIN_SRC c
 SEGTYPE_REFERENCE
 #+END_SRC
+*** Initializing a Segment
+A segment is initialized with the function =worgle_segment_init=.
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_segment_init(worgle_segment *s,
+                        int type,
+                        worgle_string *str,
+                        worgle_string *filename,
+                        size_t linum);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_segment_init(worgle_segment *s,
+                        int type,
+                        worgle_string *str,
+                        worgle_string *filename,
+                        size_t linum)
+{
+   s->type = type;
+   s->str = *str;
+   s->filename = filename;
+   s->linum = linum;
+}
+
+#+END_SRC
 *** Writing a Segment
 
 A segment is written to a file handle using the function =worgle_segment_write=.
@@ -1165,7 +1201,10 @@ macros are written indicating the position from the original file. This
 only needs to happen for text blocks and not references.
 
 If the segment is a reference (=SEGTYPE_REFERENCE=), the
-function attempts to look up a block and write it to disk.
+function attempts to look up a block and write it to disk. If it cannot
+find the reference, a warning is flashed to screen. If the warning
+mode is soft, the error code returns TRUE. If warning errors are turned on,
+it returns FALSE.
 
 #+NAME: functions
 #+BEGIN_SRC c
@@ -1181,10 +1220,14 @@ int worgle_segment_write(worgle_segment *s, worgle_hashmap *h, FILE *fp)
         worgle_string_write(fp, &s->str);
     } else {
         if(!worgle_hashmap_find(h, &s->str, &b)) {
-            fprintf(stderr, "Could not find reference segment '");
+            fprintf(stderr, "Warning: could not find reference segment '");
             worgle_string_write(stderr, &s->str);
             fprintf(stderr, "'\n");
-            return 0;
+            if(use_warnings == 2) {
+                return 0;
+            } else {
+                return 1;
+            }
         }
         return worgle_block_write(b, h, fp);
     }
@@ -1203,6 +1246,7 @@ typedef struct worgle_block {
     worgle_segment *head;
     worgle_segment *tail;
     worgle_string name;
+    int am_i_used;
     struct worgle_block *nxt;
 } worgle_block;
 #+END_SRC
@@ -1226,6 +1270,7 @@ void worgle_block_init(worgle_block *b)
     b->head = NULL;
     b->tail = NULL;
     b->nxt = NULL;
+    b->am_i_used = 0;
     worgle_string_init(&b->name);
 }
 #+END_SRC
@@ -1289,14 +1334,11 @@ void worgle_block_append_segment(worgle_block *b,
 {
     worgle_segment *s;
     s = malloc(sizeof(worgle_segment));
-    s->str = *str;
-    s->type = type;
     if(b->nsegs == 0) {
         b->head = s;
         b->tail = s;
     }
-    s->linum = linum;
-    s->filename = filename;
+    worgle_segment_init(s, type, str, filename, linum);
     b->tail->nxt = s;
     b->tail = s;
     b->nsegs++;
@@ -1369,6 +1411,8 @@ int worgle_block_write(worgle_block *b, worgle_hashmap *h, FILE *fp);
 #+END_SRC
 
 A code block iterates it's segment list, writing each segment to disk.
+A block will also be marked as being used, which is useful for supplying
+warning information later.
 
 #+NAME: functions
 #+BEGIN_SRC c
@@ -1377,6 +1421,7 @@ int worgle_block_write(worgle_block *b, worgle_hashmap *h, FILE *fp)
     worgle_segment *s;
     int n;
     s = b->head;
+    b->am_i_used = 1;
     for(n = 0; n < b->nsegs; n++) {
         if(!worgle_segment_write(s, h, fp)) return 0;
         s = s->nxt;
@@ -1471,8 +1516,9 @@ A hash map is a key-value data structure used as a dictionary for storing
 references to code blocks.
 #+NAME: worgle_hashmap
 #+BEGIN_SRC c
+#define HASH_SIZE 256
 typedef struct {
-    worgle_blocklist blk[256];
+    worgle_blocklist blk[HASH_SIZE];
     int nwords;
 } worgle_hashmap;
 #+END_SRC
@@ -1493,7 +1539,7 @@ void worgle_hashmap_init(worgle_hashmap *h)
 {
     int n;
     h->nwords = 0;
-    for(n = 0; n < 256; n++) {
+    for(n = 0; n < HASH_SIZE; n++) {
         worgle_blocklist_init(&h->blk[n]);
     }
 }
@@ -1515,7 +1561,7 @@ To free a hash map is to free each block list in the array.
 void worgle_hashmap_free(worgle_hashmap *h)
 {
     int n;
-    for(n = 0; n < 256; n++) {
+    for(n = 0; n < HASH_SIZE; n++) {
         worgle_blocklist_free(&h->blk[n]);
     }
 }
@@ -1573,7 +1619,7 @@ static int hash(const char *str, size_t size)
         h %= 0x7FFFFFFF;
     }
 
-    return h % 256;
+    return h % HASH_SIZE;
 }
 #+END_SRC
 *** Getting an entry
@@ -1791,13 +1837,16 @@ int c;
 #+NAME: parse_cli_args
 #+BEGIN_SRC c
 parg_init(&ps);
-while((c = parg_getopt(&ps, argc, argv, "g")) != -1) {
+while((c = parg_getopt(&ps, argc, argv, "gW:")) != -1) {
     switch(c) {
         case 1:
             filename = (char *)ps.optarg;
             break;
         case 'g':
             <<turn_on_debug_macros>>
+            break;
+        case 'W':
+            <<turn_on_warnings>>
             break;
         default:
             fprintf(stderr, "Unknown option -%c\n", c);
@@ -1823,4 +1872,68 @@ languages to be used.
 #+NAME:global_variables
 #+BEGIN_SRC c
 static int use_debug = 0;
+#+END_SRC
+
+** Turning on Warnings (-W)
+
+Worgle can print out warnings about things like unused
+sections of code. By default, this is turned off.
+
+#+NAME:global_variables
+#+BEGIN_SRC c
+static int use_warnings = 0;
+#+END_SRC
+
+#+NAME: turn_on_warnings
+#+BEGIN_SRC c
+if(!strncmp(ps.optarg, "soft", 4)) {
+    use_warnings = 1;
+} else if(!strncmp(ps.optarg, "error", 5)) {
+    use_warnings = 2;
+} else {
+    fprintf(stderr, "Unidentified warning mode '%s'\n", ps.optarg);
+    return 1;
+}
+#+END_SRC
+
+*** Checking for unused blocks
+
+One thing that warnings can do is check for unused blocks.
+This is done after the files are generated with the function
+=worgle_warn_unused=.
+
+#+NAME:function_declarations
+#+BEGIN_SRC c
+int worgle_warn_unused(worgle_d *worg);
+#+END_SRC
+
+#+NAME:functions
+#+BEGIN_SRC c
+int worgle_warn_unused(worgle_d *worg)
+{
+    worgle_hashmap *dict;
+    worgle_block *blk;
+    worgle_blocklist *lst;
+    int n;
+    int b;
+    int rc;
+
+    dict = &worg->dict;
+    rc = 0;
+
+    for(n = 0; n < HASH_SIZE; n++) {
+        lst = &dict->blk[n];
+        blk = lst->head;
+        for(b = 0; b < lst->nblocks; b++) {
+            if(blk->am_i_used == 0) {
+                fprintf(stderr, "Warning: block '");
+                worgle_string_write(stderr, &blk->name);
+                fprintf(stderr, "' unused.\n");
+                if(use_warnings == 2) rc = 1;
+            }
+            blk = blk->nxt;
+        }
+    }
+    return rc;
+}
 #+END_SRC
