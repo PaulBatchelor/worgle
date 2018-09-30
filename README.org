@@ -9,9 +9,7 @@ literate programming (which often seems to be ignored in other non-emacs
 org-mode tanglers). Eventually, the hope is to introduce more WEB-like syntax
 and construct a backend for weave (export to HTML, TeX, etc).
 
-Worgle is not finished yet, but some things do work.
-
-** Why did you do it?
+** Moviations
 
 The initial motivation for building Worgle is performance.
 The tangling done by org-babel is embarassingly slow to the point of being
@@ -23,33 +21,19 @@ on a daily basis to write literate programs in C. It is perhaps one of the best
 literate programming tools out there. Now over 3 decades old,
 CWEB is definitely showing signs of old age.
 
-** What does it do now?
+** Features
 
-Worgle has yet to be written yet, but org-mode tangling of C code can be done
-using Orgle.
-Orgle is an included program designed to bootstrap Worgle. Orgle can parse
-named code blocks, do code expansion, and write multiple files. A nifty thing
-Orgle does is export line directive macros inside generated code. This allows
-compilers and debuggers to report line numbers in the org file rather than
-in the tangled C output, which is crucial for larger-scale programs.
+Right now, Worgle has just enough features to be useful.
 
-** What will it do later?
-
-The plan right now is to begin writing Worgle using Orgle. The first milestone
-will be writing Orgle inside of Org-mode. From there, the plan will be to
-introduce some command line flags and more forgiving syntax. Worgle will then
-be used on itself to build some sort of HTML output. Once Worgle is able to
-tangle and weave code together, nonstandard CWEB syntax will be introduced.
-
-That's the idea so far. At least.
+- Named code block declarations (NAME, BEGIN_SRC and END_SRC)
+- Noweb-style code block expansion (can be referenced before being declared)
+- Implicit code block appending
+- Tangling of multiple files in one org-document
 
 ** Anti-features
 
-The goal is to keep this small and to prevent bloat. My main intention
-is to build a tool similar in scope to CWEB that stays true to Knuths
-ideas on literate programming. Anything related to code evaluation will not
-be implemented. I'm not too keen on any of the various extension codes
-used for customization or parameters, so that won't be really considered either.
+Pretty much any of the advanced features of org-mode won't be implemented. Emacs
+is plenty good at handling that if you need it.
 
 * Compilation
 
