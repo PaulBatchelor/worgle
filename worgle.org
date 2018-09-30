@@ -1,8 +1,4 @@
-* Notice
-
-This is a work in progress. There's not a whole lot here yet.
-
-Don't run this yet!
+#+TITLE: Worgle
 * What is Worgle?
 
 Hello, fellow human. I'm glad you could stop by.
