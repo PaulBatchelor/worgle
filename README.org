@@ -77,6 +77,19 @@ gcc hello.c -o hello
 ./hello
 #+END_SRC
 
+* Performance
+
+A very casual performance test indicates that Worgle is able to tangle itself
+faster than Emacs by a factor of 1300x (!). The test is done using the shell
+script [[measure_performance.sh]].
+
+The results printed below are from a mid-2015 MacBook pro running High Sierra.
+
+#+BEGIN_EXAMPLE
+Org-babel-tangle (via Emacs): 0m1.318s
+Worgle: 0m0.001s
+#+END_EXAMPLE
+
 * License
 
 This project is placed under the public domain. Happy hacking, humans.
