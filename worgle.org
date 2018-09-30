@@ -1157,11 +1157,14 @@ On sucess, the function returns TRUE (1). On failure, FALSE (0).
 int worgle_segment_write(worgle_segment *s, worgle_hashmap *h, FILE *fp);
 #+END_SRC
 
-If the =use_debug= flag is enabled,
-the segment will write a pre-processor macro indicating where it is located
-in the original orgle from. From there, things change depending on the
-type. If the segment is a chunk of text (=SEGTYPE_TEXT=), then the string
-is written. If the segment is a reference (=SEGTYPE_REFERENCE=), the
+Different behaviors happen depending on the segment type.
+
+If the segment is a chunk of text (=SEGTYPE_TEXT=), then the string
+is written. If the =use_debug= global variable is enabled, then C preprocessor
+macros are written indicating the position from the original file. This
+only needs to happen for text blocks and not references.
+
+If the segment is a reference (=SEGTYPE_REFERENCE=), the
 function attempts to look up a block and write it to disk.
 
 #+NAME: functions
@@ -1169,12 +1172,12 @@ function attempts to look up a block and write it to disk.
 int worgle_segment_write(worgle_segment *s, worgle_hashmap *h, FILE *fp)
 {
     worgle_block *b;
-    if(use_debug) {
-        fprintf(fp, "#line %lu \"", s->linum);
-        worgle_string_write(fp, s->filename);
-        fprintf(fp, "\"\n");
-    }
     if(s->type == SEGTYPE_TEXT) {
+        if(use_debug) {
+            fprintf(fp, "#line %lu \"", s->linum);
+            worgle_string_write(fp, s->filename);
+            fprintf(fp, "\"\n");
+        }
         worgle_string_write(fp, &s->str);
     } else {
         if(!worgle_hashmap_find(h, &s->str, &b)) {

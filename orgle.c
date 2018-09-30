@@ -330,10 +330,10 @@ void orgle_block_append_reference(orgle_block *b,
 int orgle_segment_write(orgle_segment *s, orgle_hashmap *h, FILE *fp)
 {
     orgle_block *b;
-    fprintf(fp, "#line %lu \"", s->linum);
-    orgle_string_write(fp, s->filename);
-    fprintf(fp, "\"\n");
     if(s->type == SEGTYPE_TEXT) {
+        fprintf(fp, "#line %lu \"", s->linum);
+        orgle_string_write(fp, s->filename);
+        fprintf(fp, "\"\n");
         orgle_string_write(fp, &s->str);
     } else {
         if(!orgle_hashmap_find(h, &s->str, &b)) {
