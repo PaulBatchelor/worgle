@@ -2,7 +2,7 @@
 
 * What is this?
 
-Worgle is the Web ORg TanGLER. At the very least, it aims to be able to tangler
+Worgle is the Web ORg TanGLEr. At the very least, it aims to be able to tangler
 for literate programs written in a subset of org markup that is compatible with
 org-babel. This includes noweb style code expansion, a crucial aspect to
 literate programming (which often seems to be ignored in other non-emacs

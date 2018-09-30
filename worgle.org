@@ -1807,7 +1807,7 @@ while((c = parg_getopt(&ps, argc, argv, "g")) != -1) {
 }
 #+END_SRC
 
-** Turning on debug macros
+** Turning on debug macros (-g)
 
 Worgle has the ability to generate debug macros when generating C files.
 
