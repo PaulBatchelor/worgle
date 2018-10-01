@@ -1,0 +1,110 @@
+#+TITLE: Sorg
+
+* Introduction
+
+This is Sorg, the Simple Org parser, inspired by
+[[https://github.com/Gottox/smu][smu]]. Sorg takes in an input file or stream,
+converts it to HTML, and writes it to an output stream
+
+* Main loop
+
+#+NAME: main_loop
+#+BEGIN_SRC c :tangle sorg.c
+#include <stdio.h>
+#include <stdlib.h>
+
+static void parse(FILE *out, char *buf, size_t size)
+{
+    fwrite(buf, 1, size, out);
+}
+
+/* This code is public domain -- Will Hartung 4/9/09 */
+
+size_t sorg_getline(char **lineptr, size_t *n, FILE *stream) {
+    char *bufptr = NULL;
+    char *p = bufptr;
+    size_t size;
+    int c;
+
+    if (lineptr == NULL) {
+        return -1;
+    }
+    if (stream == NULL) {
+        return -1;
+    }
+    if (n == NULL) {
+        return -1;
+    }
+    bufptr = *lineptr;
+    size = *n;
+
+    c = fgetc(stream);
+    if (c == EOF) {
+        return -1;
+    }
+    if (bufptr == NULL) {
+        bufptr = malloc(128);
+        if (bufptr == NULL) {
+            return -1;
+        }
+        size = 128;
+    }
+    p = bufptr;
+    while(c != EOF) {
+        if ((p - bufptr) > (size - 1)) {
+            size = size + 128;
+            bufptr = realloc(bufptr, size);
+            if (bufptr == NULL) {
+                return -1;
+            }
+        }
+        *p++ = c;
+        if (c == '\n') {
+            break;
+        }
+        c = fgetc(stream);
+    }
+
+
+    *lineptr = bufptr;
+
+    /* Some text editors do not insert a linebreak on the last line.
+     * For these cases, shift everything by 1.
+     */
+
+    if(c == EOF) {
+        p = p + 1;
+        size += 1;
+    }
+    *p++ = '\0';
+    *n = size;
+
+    return p - bufptr - 1;
+}
+
+int main(int argc, char *argv[])
+{
+    FILE *in;
+    FILE *out;
+    char *line;
+    size_t read;
+    size_t n;
+
+    if(argc < 2) {
+        in = stdin;
+    } else {
+        in = fopen(argv[1], "r");
+    }
+
+    out = stdout;
+
+    line = NULL;
+    n = 0;
+
+    while((read = sorg_getline(&line, &n, in)) != -1) parse(out, line, read);
+
+    if(in != stdin) fclose(in);
+    if(line != NULL) free(line);
+    return 0;
+}
+#+END_SRC
