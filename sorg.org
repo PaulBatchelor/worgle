@@ -5,7 +5,6 @@
 This is Sorg, the Simple Org parser, inspired by
 [[https://github.com/Gottox/smu][smu]]. Sorg takes in an input file or stream,
 converts it to HTML, and writes it to an output stream
-
 * Main loop
 
 #+NAME: main_loop
@@ -13,13 +12,278 @@ converts it to HTML, and writes it to an output stream
 #include <stdio.h>
 #include <stdlib.h>
 
-static void parse(FILE *out, char *buf, size_t size)
+<<enums>>
+<<sorg_data>>
+<<function_declarations>>
+<<functions>>
+<<parsing_top>>
+<<getline>>
+
+int main(int argc, char *argv[])
 {
-    fwrite(buf, 1, size, out);
+    FILE *in;
+    FILE *out;
+    char *line;
+    size_t read;
+    size_t n;
+    sorg_d sorg;
+
+    if(argc < 2) {
+        in = stdin;
+    } else {
+        in = fopen(argv[1], "r");
+    }
+
+    out = stdout;
+
+    line = NULL;
+    n = 0;
+
+    sorg_init(&sorg);
+
+    while((read = sorg_getline(&line, &n, in)) != -1) {
+        parse(&sorg, out, line, read);
+    }
+
+    if(in != stdin) fclose(in);
+    if(line != NULL) free(line);
+    return 0;
 }
+#+END_SRC
+* Sorg Data
 
-/* This code is public domain -- Will Hartung 4/9/09 */
+All necessary data for sorg is encapsulated in a struct called =sorg_d=.
 
+#+NAME: sorg_data
+#+BEGIN_SRC c
+typedef struct {
+    <<sorg_data_contents>>
+} sorg_d;
+#+END_SRC
+
+Sorg data is initialized with the function =sorg_init=.
+
+#+NAME:functions
+#+BEGIN_SRC c
+void sorg_init(sorg_d *sorg) {
+    <<initialize_stuff>>
+}
+#+END_SRC
+
+The current mode of the state machine is stored in a variable called
+=mode=.
+
+#+NAME: sorg_data_contents
+#+BEGIN_SRC c
+int mode;
+#+END_SRC
+
+By default, it is set to be none, which is the general markdown
+mode.
+
+#+NAME: initialize_stuff
+#+BEGIN_SRC c
+sorg->mode = MODE_NONE;
+#+END_SRC
+
+* Parsing
+
+The top-level parsing function is twofold: it is designed to take in org
+markup, and then produce equivalent HTML output.
+
+Each character of the string is fed through a state machine. The mode of
+the state machine determines what kind of formatting to add. HTML
+formatting is tag based. A change *to* a state indicates the start
+of a particular tag. A change *from* from a particular state indicates
+the end of that particular tag.
+
+Text is written a block at a time using =fwrite=. Blocks are written
+any time a state changes. Blocks are also written at the end.
+
+#+NAME: parsing_top
+#+BEGIN_SRC c
+static void parse(sorg_d *sorg, FILE *out, char *buf, size_t size)
+{
+    size_t n;
+    size_t start;
+    size_t blksize;
+
+    n = 0;
+    start = 0;
+    blksize = 0;
+
+    while(n < size) {
+        switch(sorg->mode) {
+            case MODE_NONE:
+                if(is_header(sorg, &buf[n], size - n)) {
+                    print_header(sorg, buf, size, out);
+                    sorg->mode = MODE_NONE;
+                    return;
+                } else {
+                    sorg->mode = MODE_TEXT;
+                    start = n;
+                    blksize = 1;
+                }
+                break;
+            case MODE_TEXT:
+                blksize++;
+                n++;
+                break;
+        }
+    }
+
+
+    fwrite(buf + start, 1, blksize, out);
+    sorg->mode = MODE_NONE;
+}
+#+END_SRC
+
+** Type Enum
+#+NAME: enums
+#+BEGIN_SRC c
+enum {
+    <<types>>
+    MODE_NONE
+};
+#+END_SRC
+
+** None mode
+
+By default, the state machine begins in NONE mode. In this mode, the parser
+will be parsing the line for new states.
+
+** Headings
+
+Headers in org-mode always start at the beginning of the line, and
+must have a number of stars, followed by a space. This is checked for
+with the function =is_header=.
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+static int is_header(sorg_d *sorg, char *buf, size_t size);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+static int is_header(sorg_d *sorg, char *buf, size_t size)
+{
+    size_t s;
+
+    if(size == 0) return 0;
+
+    if(buf[0] != '*') return 0;
+
+    for(s = 1; s < size; s++) {
+        if(buf[s] == '*') {
+            continue;
+        } else if(buf[s] == ' ') {
+            return 1;
+        } else {
+            return 0;
+        }
+    }
+    return 0;
+}
+#+END_SRC
+
+If the line is indeed a header, the parser will scan the line again, this
+time counting the number of stars before the space indicating the header
+level. The header will then treat the rest of the line as the header text.
+This action is done with the function =print_header=.
+
+#+NAME:function_declarations
+#+BEGIN_SRC c
+static void print_header(sorg_d *sorg, char *buf, size_t size, FILE *out);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+static void print_header(sorg_d *sorg, char *buf, size_t size, FILE *out)
+{
+    size_t s;
+    size_t off;
+    int mode;
+    int level;
+    off = 0;
+    mode = 0;
+    level = 0;
+    for(s = 0; s < size; s++) {
+        if(mode == 2) break;
+        switch(mode) {
+            case 0: /* asterisks */
+                if(buf[off] != '*') {
+                    mode = 1;
+                    off++;
+                    break;
+                }
+                level++;
+                off++;
+                break;
+             case 1: /* spaces */
+                if(buf[off] != ' ') {
+                    mode = 2;
+                    break;
+                }
+        }
+    }
+
+    if(buf[size - 1] == '\n') size--; /* chomp */
+
+    fprintf(out, "<h%d>", level);
+    fwrite(buf + off, 1, size - off, out);
+    fprintf(out, "</h%d>\n", level);
+
+}
+#+END_SRC
+
+This line will then print this text to the output file between header
+tags.
+
+** Plain text
+
+#+NAME:types
+#+BEGIN_SRC c
+MODE_TEXT,
+#+END_SRC
+
+** Code Blocks
+
+All code blocks are assumed to begin with the =NAME= tag with the code
+block immediately following it on the next line.
+
+Code blocks begin and end with =BEGIN_SRC= and =END_SRC= tags. When a
+new code block declaration begins, the mode is set to be in code mode.
+
+#+NAME:types
+#+BEGIN_SRC c
+MODE_CODE,
+#+END_SRC
+
+Lines will remain in code mode until the =END_SRC= tag is found.
+
+** Encapsulated text
+All formatted text can be generally described as encapsulated text. Each
+formatting is surrounded by a special character (or characters). Because they
+are so similar, this kind of parsing can be generalized.
+*** The core mechanic
+*** Variations
+**** Italics
+**** Bold
+**** Preformatted
+**** Underline
+**** TeX math mode
+** Ordered Lists
+** Unordered Lists
+** "TODO" headings
+* Getline
+
+The Sorg parser parses a file one line at a time.
+
+Because the getline function is not part of the ANSI C standard, an
+implementation is used in it's place.
+
+#+NAME: getline
+#+BEGIN_SRC c
 size_t sorg_getline(char **lineptr, size_t *n, FILE *stream) {
     char *bufptr = NULL;
     char *p = bufptr;
@@ -82,29 +346,4 @@ size_t sorg_getline(char **lineptr, size_t *n, FILE *stream) {
     return p - bufptr - 1;
 }
 
-int main(int argc, char *argv[])
-{
-    FILE *in;
-    FILE *out;
-    char *line;
-    size_t read;
-    size_t n;
-
-    if(argc < 2) {
-        in = stdin;
-    } else {
-        in = fopen(argv[1], "r");
-    }
-
-    out = stdout;
-
-    line = NULL;
-    n = 0;
-
-    while((read = sorg_getline(&line, &n, in)) != -1) parse(out, line, read);
-
-    if(in != stdin) fclose(in);
-    if(line != NULL) free(line);
-    return 0;
-}
 #+END_SRC
