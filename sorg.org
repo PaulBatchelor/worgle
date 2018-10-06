@@ -122,7 +122,7 @@ any time a state changes. Blocks are also written at the end.
 
 #+NAME: parsing_top
 #+BEGIN_SRC c
-static void parse(sorg_d *sorg, FILE *out, char *buf, size_t size)
+static int parse(sorg_d *sorg, FILE *out, char *buf, size_t size)
 {
     sorg->pos = 0;
     sorg->off = 0;
@@ -131,10 +131,13 @@ static void parse(sorg_d *sorg, FILE *out, char *buf, size_t size)
     while(sorg->pos < size) {
         switch(sorg->mode) {
             case MODE_NONE:
-                if(is_header(sorg, &buf[sorg->pos], size - sorg->pos)) {
+                if(is_header(sorg, buf, size)) {
                     print_header(sorg, buf, size, out);
                     sorg->mode = MODE_NONE;
-                    return;
+                    return 1;
+                } else if(is_name(sorg, buf, size)) {
+                    print_name(sorg, buf, size, out);
+                    return 1;
                 } else {
                     sorg->mode = MODE_TEXT;
                     sorg->off = sorg->pos;
@@ -152,6 +155,7 @@ static void parse(sorg_d *sorg, FILE *out, char *buf, size_t size)
 
     fwrite(buf + sorg->off, 1, sorg->blksize, out);
     sorg->mode = MODE_NONE;
+    return 1;
 }
 #+END_SRC
 ** Type Enum
@@ -269,6 +273,91 @@ MODE_TEXT,
 All code blocks are assumed to begin with the =NAME= tag with the code
 block immediately following it on the next line.
 
+A NAME tag is found while the state machine is in NONE mode. It is
+done using the function =is_name=.
+
+#+NAME:function_declarations
+#+BEGIN_SRC c
+static int is_name(sorg_d *sorg, char *buf, size_t size);
+#+END_SRC
+
+#+NAME:functions
+#+BEGIN_SRC c
+static int is_name(sorg_d *sorg, char *buf, size_t size)
+{
+    const char *name = "#+NAME:";
+    const int name_size = 7;
+    size_t s;
+
+    if(size < name_size) return 0;
+
+    for(s = 0; s < name_size; s++) {
+        if(buf[s] != name[s]) return 0;
+    }
+
+    return 1;
+}
+#+END_SRC
+
+If a NAME tag is found, this changes the state machine to only look for
+the beginning of a code block.
+
+#+NAME:types
+#+BEGIN_SRC c
+MODE_BEGIN_CODE,
+#+END_SRC
+
+The NAME tag will also be printed to screen. This is a distinct difference
+between the regular emacs org-mode exporter and this one (and an
+important one!) Emacs will not export the name of the code block, which
+leads to more confusing readability!
+
+#+NAME:function_declarations
+#+BEGIN_SRC c
+static void print_name(sorg_d *sorg, char *buf, size_t size, FILE *out);
+#+END_SRC
+
+#+NAME:functions
+#+BEGIN_SRC c
+static void print_name(sorg_d *sorg, char *buf, size_t size, FILE *out)
+{
+    int mode;
+    size_t name_size;
+    size_t n;
+    size_t off;
+    buf+=7;
+    size -= 7;
+    name_size = 0;
+    mode = 1;
+
+    off = 0;
+
+    for(n = 0; n < size; n++) {
+        if(mode == 0) break;
+        switch(mode) {
+            case 1: /* spaces */
+                if(buf[n] == ' ') {
+                    break;
+                }
+                off = n;
+                mode = 2;
+                name_size = 1;
+                break;
+            case 2: /* count to line break*/
+                if(buf[n] == '\n' || buf[n] == ' ') {
+                    mode = 0;
+                    break;
+                }
+                name_size++;
+                break;
+        }
+    }
+    fprintf(out, "<p><b><i>&lt;&lt");
+    fwrite(buf + off, 1, name_size, out);
+    fprintf(out, "</b></i>&gt;&gt=</p>");
+}
+#+END_SRC
+
 Code blocks begin and end with =BEGIN_SRC= and =END_SRC= tags. When a
 new code block declaration begins, the mode is set to be in code mode.
 
@@ -278,7 +367,6 @@ MODE_CODE,
 #+END_SRC
 
 Lines will remain in code mode until the =END_SRC= tag is found.
-
 ** Formatted Text
 
 All formatted text can be generally described as encapsulated text. Each
