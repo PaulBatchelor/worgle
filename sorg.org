@@ -129,6 +129,8 @@ static int parse(sorg_d *sorg, FILE *out, char *buf, size_t size)
     sorg->off = 0;
     sorg->blksize = 0;
 
+    if(buf[0] == '\n') return 1;
+
     while(sorg->pos < size) {
         switch(sorg->mode) {
             case MODE_NONE:
@@ -161,7 +163,7 @@ static int parse(sorg_d *sorg, FILE *out, char *buf, size_t size)
                     sorg->blksize = 1;
                     sorg->off = sorg->pos;
                 } else {
-                    sorg->blksize++;
+                    if(buf[sorg->pos] != '\n') sorg->blksize++;
                     sorg->pos++;
                 }
                 break;
