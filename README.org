@@ -6,8 +6,11 @@ Worgle is the Web ORg TanGLEr. At the very least, it aims to be able to tangler
 for literate programs written in a subset of org markup that is compatible with
 org-babel. This includes noweb style code expansion, a crucial aspect to
 literate programming (which often seems to be ignored in other non-emacs
-org-mode tanglers). Eventually, the hope is to introduce more WEB-like syntax
-and construct a backend for weave (export to HTML, TeX, etc).
+org-mode tanglers).
+
+There is also a quick and dirty HTML renderer called [[./sorg.org][sorg]],
+useful for a fast and portable solution to rendering documents
+written in Worgle.
 
 ** Moviations
 
@@ -80,14 +83,21 @@ gcc hello.c -o hello
 * Performance
 
 A very casual performance test indicates that Worgle is able to tangle itself
-faster than Emacs by a factor of 1300x (!). The test is done using the shell
-script [[measure_performance.sh]].
+faster than Emacs by a factor of 1300x (!).
+
+The sorg parser has a speed-up boost of about 625x times on average. This one
+is a little less fair, because the emacs version produces a table of contents
+and does syntax highlighting.
+
+The test is done using the shell script [[measure_performance.sh]].
 
 The results printed below are from a mid-2015 MacBook pro running High Sierra.
 
 #+BEGIN_EXAMPLE
-Org-babel-tangle (via Emacs): 0m1.318s
+Org-babel-tangle (via Emacs): 0m1.390s
 Worgle: 0m0.001s
+Org-export-to-html (via Emacs): 0m2.605s
+Sorg: 0m0.004s
 #+END_EXAMPLE
 
 * License
