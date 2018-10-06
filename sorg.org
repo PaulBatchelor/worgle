@@ -46,6 +46,7 @@ int main(int argc, char *argv[])
         parse(&sorg, out, line, read);
     }
 
+    if(sorg.pmode == MODE_TEXT) fprintf(out, "</p>");
     if(in != stdin) fclose(in);
     if(line != NULL) free(line);
     return 0;
@@ -85,6 +86,21 @@ mode.
 #+NAME: initialize_stuff
 #+BEGIN_SRC c
 sorg->mode = MODE_NONE;
+#+END_SRC
+
+For logic for things such as paragraphs, sorg also keeps track of the
+previous mode, called =pmode=.
+
+#+NAME: sorg_data_contents
+#+BEGIN_SRC c
+int pmode;
+#+END_SRC
+
+Like mode, pmode is initialized to be =MODE_NONE=.
+
+#+NAME: initialize_stuff
+#+BEGIN_SRC c
+sorg->pmode = MODE_NONE;
 #+END_SRC
 
 Sorg internally keeps track of the current position (=pos=) in the line.
@@ -129,27 +145,40 @@ static int parse(sorg_d *sorg, FILE *out, char *buf, size_t size)
     sorg->off = 0;
     sorg->blksize = 0;
 
-    if(buf[0] == '\n') return 1;
+    if(buf[0] == '\n') {
+        if(sorg->pmode == MODE_TEXT) {
+            fprintf(out,"</p>\n");
+            sorg->pmode = MODE_NONE;
+        }
+        return 1;
+    }
 
     while(sorg->pos < size) {
         switch(sorg->mode) {
             case MODE_NONE:
                 if(is_header(sorg, buf, size)) {
+                    if(sorg->pmode == MODE_TEXT) fprintf(out, "</p>\n");
                     print_header(sorg, buf, size, out);
                     sorg->mode = MODE_NONE;
+                    sorg->pmode = sorg->mode;
                     return 1;
                 } else if(is_name(sorg, buf, size)) {
+                    if(sorg->pmode == MODE_TEXT) fprintf(out, "</p>\n");
                     print_name(sorg, buf, size, out);
                     sorg->mode = MODE_BEGIN_CODE;
+                    sorg->pmode = sorg->mode;
                     return 1;
                 } else if(is_title(sorg, buf, size)) {
+                    if(sorg->pmode == MODE_TEXT) fprintf(out, "</p>\n");
                     print_title(sorg, buf, size, out);
                     sorg->mode = MODE_NONE;
+                    sorg->pmode = sorg->mode;
                     return 1;
                 } else {
                     sorg->mode = MODE_TEXT;
                     sorg->off = sorg->pos;
                     sorg->blksize = 1;
+                    if(sorg->pmode != MODE_TEXT) fprintf(out, "<p>");
                 }
                 break;
             case MODE_TEXT:
@@ -216,6 +245,7 @@ static int parse(sorg_d *sorg, FILE *out, char *buf, size_t size)
 
     fwrite(buf + sorg->off, 1, sorg->blksize, out);
 
+    sorg->pmode = sorg->mode;
     if(sorg->mode != MODE_CODE) {
         sorg->mode = MODE_NONE;
     }
