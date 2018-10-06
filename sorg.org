@@ -86,8 +86,28 @@ mode.
 sorg->mode = MODE_NONE;
 #+END_SRC
 
-* Parsing
+Sorg internally keeps track of the current position (=pos=) in the line.
 
+TODO: better words here.
+off: starting offset
+blksize: text block size
+
+#+NAME: sorg_data_contents
+#+BEGIN_SRC c
+size_t pos;
+size_t off;
+size_t blksize;
+#+END_SRC
+
+#+NAME: initialize_stuff
+#+BEGIN_SRC c
+sorg->pos = 0;
+sorg->off = 0;
+sorg->blksize = 0;
+#+END_SRC
+
+* Parsing
+** Parsing Top
 The top-level parsing function is twofold: it is designed to take in org
 markup, and then produce equivalent HTML output.
 
@@ -104,40 +124,36 @@ any time a state changes. Blocks are also written at the end.
 #+BEGIN_SRC c
 static void parse(sorg_d *sorg, FILE *out, char *buf, size_t size)
 {
-    size_t n;
-    size_t start;
-    size_t blksize;
+    sorg->pos = 0;
+    sorg->off = 0;
+    sorg->blksize = 0;
 
-    n = 0;
-    start = 0;
-    blksize = 0;
-
-    while(n < size) {
+    while(sorg->pos < size) {
         switch(sorg->mode) {
             case MODE_NONE:
-                if(is_header(sorg, &buf[n], size - n)) {
+                if(is_header(sorg, &buf[sorg->pos], size - sorg->pos)) {
                     print_header(sorg, buf, size, out);
                     sorg->mode = MODE_NONE;
                     return;
                 } else {
                     sorg->mode = MODE_TEXT;
-                    start = n;
-                    blksize = 1;
+                    sorg->off = sorg->pos;
+                    sorg->blksize = 1;
                 }
                 break;
             case MODE_TEXT:
-                blksize++;
-                n++;
+                <<parse_formatted>>
+                sorg->blksize++;
+                sorg->pos++;
                 break;
         }
     }
 
 
-    fwrite(buf + start, 1, blksize, out);
+    fwrite(buf + sorg->off, 1, sorg->blksize, out);
     sorg->mode = MODE_NONE;
 }
 #+END_SRC
-
 ** Type Enum
 #+NAME: enums
 #+BEGIN_SRC c
@@ -146,7 +162,6 @@ enum {
     MODE_NONE
 };
 #+END_SRC
-
 ** None mode
 
 By default, the state machine begins in NONE mode. In this mode, the parser
@@ -239,7 +254,10 @@ static void print_header(sorg_d *sorg, char *buf, size_t size, FILE *out)
 This line will then print this text to the output file between header
 tags.
 
-** Plain text
+** Plain Text
+
+Plain text can be roughly defined as stuff in between headers that isn't
+a code block. In this mode, the parser looks for [[Formatted Text]].
 
 #+NAME:types
 #+BEGIN_SRC c
@@ -261,16 +279,172 @@ MODE_CODE,
 
 Lines will remain in code mode until the =END_SRC= tag is found.
 
-** Encapsulated text
+** Formatted Text
+
 All formatted text can be generally described as encapsulated text. Each
 formatting is surrounded by a special character (or characters). Because they
 are so similar, this kind of parsing can be generalized.
 *** The core mechanic
-*** Variations
-**** Italics
+
+First, the parser checks to see if an item is encapsulated by a particular
+delimeter =delim= of size =dsize=.
+If there are matching delimeters on the same line, then
+the text between is is considered to be encapsulated.
+
+NOTE: for now, =dsize= only works with a size of 1.
+
+#+NAME:function_declarations
+#+BEGIN_SRC c
+static int is_encapsulated(sorg_d *sorg,
+                    const char *delim,
+                    int dsize,
+                    char *buf,
+                    size_t size);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+static int is_encapsulated(sorg_d *sorg,
+                    const char *delim,
+                    int dsize,
+                    char *buf,
+                    size_t size)
+{
+    size_t s;
+    if(buf[0] != delim[0]) return 0;
+    size = size - 1;
+    for(s = 1; s < size; s++) if(buf[s] == delim[0]) return 1;
+    return 0;
+}
+#+END_SRC
+
+Once encapsulated text is found, the encapsulated text is printed to
+screen. In HTML, this means they are between HTML tags of a certain
+label. This function returns how many characters it parsed, so the parser
+knows to skip over them.
+
+#+NAME:function_declarations
+#+BEGIN_SRC c
+static size_t print_encapsulated(sorg_d *sorg,
+                          const char *delim,
+                          int dsize,
+                          char *buf,
+                          size_t size,
+                          const char *tag,
+                          FILE *out);
+#+END_SRC
+
+This function extracts the text in between the two delimiters and
+then prints it between the specified HTML tags. The trick with printing
+the text is factoring in offsets for *both* sets of delimiters. To avoid
+the leftmost delimiter, offset by the size of the delimiter. To avoid the
+rightmost delimiter, negate the size by two times the delimiter to compensate
+for both the rightmost and leftmost delimiter.
+
+#+NAME:functions
+#+BEGIN_SRC c
+static size_t print_encapsulated(sorg_d *sorg,
+                          const char *delim,
+                          int dsize,
+                          char *buf,
+                          size_t size,
+                          const char *tag,
+                          FILE *out)
+{
+    size_t off;
+    size_t s;
+    off = 1;
+    size = size - 1;
+    for(s = 1; s < size; s++) {
+        off++;
+        if(buf[s] == delim[0]) {
+            break;
+        }
+    }
+    fprintf(out, "<%s>", tag);
+    fwrite(buf + dsize, 1, off - 2*dsize, out);
+    fprintf(out, "</%s>", tag);
+    return off;
+}
+#+END_SRC
+
+In the parse loop, both =is_encapsulated= and =print_encapsulated=
+can be combined together in a function called =chk_encapsulated=. The
+=chk= is short for check, and the abbreviation only used to make sure
+the function call fits on the same line.
+
+On success, the function will return "true", causing the function
+to break out of the chain of if statments.
+
+#+NAME:function_declarations
+#+BEGIN_SRC c
+static int chk_encapsulated(sorg_d *sorg,
+                          const char *delim,
+                          int dsize,
+                          char *buf,
+                          size_t size,
+                          const char *tag,
+                          FILE *out);
+#+END_SRC
+
+#+NAME:functions
+#+BEGIN_SRC c
+static int chk_encapsulated(sorg_d *sorg,
+                          const char *delim,
+                          int dsize,
+                          char *buf,
+                          size_t size,
+                          const char *tag,
+                          FILE *out)
+{
+    if(is_encapsulated(sorg,
+                        delim,
+                        dsize,
+                        &buf[sorg->pos],
+                        size - sorg->pos))
+    {
+        fwrite(buf + sorg->off, 1, sorg->blksize - 1, out);
+        sorg->pos += print_encapsulated(sorg,
+                                        delim,
+                                        dsize,
+                                        &buf[sorg->pos],
+                                        size - sorg->pos,
+                                        tag,
+                                        out);
+        sorg->blksize = 1;
+        sorg->off = sorg->pos;
+        return 1;
+    }
+
+    return 0;
+}
+#+END_SRC
+
+*** Format Styles
 **** Bold
+
+#+NAME: parse_formatted
+#+BEGIN_SRC c
+if(chk_encapsulated(sorg, "*", 1, buf, size, "b", out)) break;
+#+END_SRC
+**** Italics
+
+#+NAME: parse_formatted
+#+BEGIN_SRC c
+if(chk_encapsulated(sorg, "/", 1, buf, size, "i", out)) break;
+#+END_SRC
 **** Preformatted
+
+#+NAME: parse_formatted
+#+BEGIN_SRC c
+if(chk_encapsulated(sorg, "=", 1, buf, size, "code", out)) break;
+#+END_SRC
 **** Underline
+
+#+NAME: parse_formatted
+#+BEGIN_SRC c
+if(chk_encapsulated(sorg, "_", 1, buf, size, "u", out)) break;
+#+END_SRC
 **** TeX math mode
 ** Ordered Lists
 ** Unordered Lists
