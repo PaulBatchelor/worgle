@@ -11,6 +11,7 @@ converts it to HTML, and writes it to an output stream
 #+BEGIN_SRC c :tangle sorg.c
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 <<enums>>
 <<sorg_data>>
@@ -147,8 +148,18 @@ static int parse(sorg_d *sorg, FILE *out, char *buf, size_t size)
                 break;
             case MODE_TEXT:
                 <<parse_formatted>>
-                sorg->blksize++;
-                sorg->pos++;
+                if(is_link(sorg, &buf[sorg->pos], size - sorg->pos)) {
+                    fwrite(buf + sorg->off, 1, sorg->blksize - 1, out);
+                    sorg->pos += print_link(sorg,
+                                            &buf[sorg->pos],
+                                            size - sorg->pos,
+                                            out);
+                    sorg->blksize = 1;
+                    sorg->off = sorg->pos;
+                } else {
+                    sorg->blksize++;
+                    sorg->pos++;
+                }
                 break;
             case MODE_BEGIN_CODE:
                 if(!is_begin(sorg, buf, size)) return 0;
@@ -295,9 +306,13 @@ static void print_header(sorg_d *sorg, char *buf, size_t size, FILE *out)
 
     if(buf[size - 1] == '\n') size--; /* chomp */
 
+    fprintf(out, "<a id=\"");
+    fwrite(buf + off, 1, size - off, out);
+    fprintf(out, "\">\n");
     fprintf(out, "<h%d>", level);
     fwrite(buf + off, 1, size - off, out);
     fprintf(out, "</h%d>\n", level);
+    fprintf(out, "</a>\n");
 
 }
 #+END_SRC
@@ -308,7 +323,8 @@ tags.
 ** Plain Text
 
 Plain text can be roughly defined as stuff in between headers that isn't
-a code block. In this mode, the parser looks for [[Formatted Text]].
+a code block. In this mode, the parser looks for
+[[Formatted Text][Formatted Text]].
 
 #+NAME:types
 #+BEGIN_SRC c
@@ -633,12 +649,96 @@ if(chk_encapsulated(sorg, "_", 1, buf, size, "u", out)) break;
 #+END_SRC
 **** TeX math mode
 This is not yet implemented.
-** Ordered Listss
+** Ordered Lists
 This is not yet implemented.
 ** Unordered Lists
 This is not yet implemented.
 ** TODO "TODO" headings
 This is not yet implemented.
+** Links
+
+A link can be found in Sorg using the function =is_link=.
+
+#+NAME:function_declarations
+#+BEGIN_SRC c
+static int is_link(sorg_d *sorg, char *buf, size_t size);
+#+END_SRC
+
+#+NAME:functions
+#+BEGIN_SRC c
+static int is_link(sorg_d *sorg, char *buf, size_t size)
+{
+    size_t n;
+
+    if(size < 5) return 0;
+
+    if(buf[0] != '[' || buf[1] != '[') return 0;
+
+    size -= 1; /* for lookahead */
+
+    for(n = 2; n < size; n++) {
+        if(buf[n] == ']' && buf[n + 1] == ']') return 1;
+    }
+
+    return 0;
+}
+#+END_SRC
+
+#+NAME:function_declarations
+#+BEGIN_SRC c
+static size_t print_link(sorg_d *sorg, char *buf, size_t size, FILE *out);
+#+END_SRC
+
+#+NAME:functions
+#+BEGIN_SRC c
+static size_t print_link(sorg_d *sorg, char *buf, size_t size, FILE *out)
+{
+    size_t off;
+    size_t n;
+    char *link;
+    size_t link_size;
+    char *name;
+    size_t name_size;
+    size_t tmp;
+
+
+    size -= 2;
+    size -= 1; /* for lookahead */
+
+    off = 2;
+    name_size = 0;
+    link_size = 0;
+    tmp = 0;
+    link = NULL;
+    name = NULL;
+    link = &buf[2];
+    for(n = 2; n < size; n++) {
+        off++;
+        tmp++;
+        if(buf[n] == ']' && buf[n + 1] == '[') {
+            link_size = tmp - 1;
+            tmp = 0;
+            name = &buf[n + 2];
+            n++;
+            off++;
+        } else if(buf[n] == ']' && buf[n + 1] == ']') {
+            name_size = tmp - 1;
+            off++;
+            break;
+        }
+    }
+    if(!strncmp(link, "https://", 8) || !strncmp(link, "http://", 7)) {
+        fprintf(out, "<a href=\"");
+    } else {
+        fprintf(out, "<a href=\"#");
+    }
+    fwrite(link, 1, link_size, out);
+    fprintf(out, "\">");
+    fwrite(name, 1, name_size, out);
+    fprintf(out, "</a>");
+    return off;
+}
+#+END_SRC
 * Getline
 
 The Sorg parser parses a file one line at a time.
