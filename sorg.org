@@ -346,7 +346,7 @@ static void print_header(sorg_d *sorg, char *buf, size_t size, FILE *out)
     if(buf[size - 1] == '\n') size--; /* chomp */
 
     fprintf(out, "<a id=\"");
-    fwrite(buf + off, 1, size - off, out);
+    spaces_to_underscores(buf + off, size - off, out);
     fprintf(out, "\">\n");
     fprintf(out, "<h%d>", level);
     fwrite(buf + off, 1, size - off, out);
@@ -838,17 +838,19 @@ static size_t print_link(sorg_d *sorg, char *buf, size_t size, FILE *out)
     }
     if(!strncmp(link, "https://", 8) || !strncmp(link, "http://", 7)) {
         fprintf(out, "<a href=\"");
+        fwrite(link, 1, link_size, out);
     } else {
         fprintf(out, "<a href=\"#");
+        spaces_to_underscores(link, link_size, out);
     }
-    fwrite(link, 1, link_size, out);
     fprintf(out, "\">");
     fwrite(name, 1, name_size, out);
     fprintf(out, "</a>");
     return off;
 }
 #+END_SRC
-* Getline
+* Miscellaneous Utilties
+** Getline
 
 The Sorg parser parses a file one line at a time.
 
@@ -906,8 +908,8 @@ size_t sorg_getline(char **lineptr, size_t *n, FILE *stream) {
     *lineptr = bufptr;
 
     /* Some text editors do not insert a linebreak on the last line.
-     * For these cases, shift everything by 1.
-     */
+    * For these cases, shift everything by 1.
+    */
 
     if(c == EOF) {
         p = p + 1;
@@ -919,4 +921,40 @@ size_t sorg_getline(char **lineptr, size_t *n, FILE *stream) {
     return p - bufptr - 1;
 }
 
+#+END_SRC
+** Spaces To Underscores
+
+As it turns out, some browsers,
+such as [[https://www.netsurf-browswer.org][netsurf]], don't work well when
+references have spaces in them. This function will take in a string and
+write it to a file handle, replacing the spaces ( ) to underscores (_).
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+static void spaces_to_underscores(const char *str, size_t size, FILE *out);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+static void spaces_to_underscores(const char *str, size_t size, FILE *out)
+{
+    size_t blksize;
+    size_t n;
+    size_t off;
+
+    off = 0;
+    blksize = 0;
+
+    for(n = 0; n < size; n++) {
+        blksize++;
+        if(str[n] == ' ') {
+            fwrite(str + off, 1, blksize - 1, out);
+            fputc('_', out);
+            blksize = 0;
+            off = n + 1;
+        }
+    }
+
+    fwrite(str + off, 1, blksize, out);
+}
 #+END_SRC
