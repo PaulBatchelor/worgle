@@ -812,7 +812,6 @@ static size_t print_link(sorg_d *sorg, char *buf, size_t size, FILE *out)
     size_t tmp;
 
 
-    size -= 2;
     size -= 1; /* for lookahead */
 
     off = 2;
