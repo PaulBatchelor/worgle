@@ -525,9 +525,9 @@ static void print_name(sorg_d *sorg, char *buf, size_t size, FILE *out)
                 break;
         }
     }
-    fprintf(out, "<p><b><i>&lt;&lt");
+    fprintf(out, "<div><b><i>&lt;&lt;");
     fwrite(buf + off, 1, name_size, out);
-    fprintf(out, "</b></i>&gt;&gt=</p>");
+    fprintf(out, "</b></i>&gt;&gt;=</div>");
 }
 #+END_SRC
 
