@@ -1,7 +1,6 @@
 #+TITLE:Worgle
 
 * What is this?
-
 Worgle is the Web ORg TanGLEr. At the very least, it aims to be able to tangler
 for literate programs written in a subset of org markup that is compatible with
 org-babel. This includes noweb style code expansion, a crucial aspect to
@@ -11,9 +10,7 @@ org-mode tanglers).
 There is also a quick and dirty HTML renderer called [[./sorg.org][sorg]],
 useful for a fast and portable solution to rendering documents
 written in Worgle.
-
 ** Moviations
-
 The initial motivation for building Worgle is performance.
 The tangling done by org-babel is embarassingly slow to the point of being
 useless for any projects larger than a script. Worgle aims to make org-tangle
@@ -23,29 +20,24 @@ The larger goal is to build a spirtual successor to CWEB, a program I use
 on a daily basis to write literate programs in C. It is perhaps one of the best
 literate programming tools out there. Now over 3 decades old,
 CWEB is definitely showing signs of old age.
-
 ** Features
-
 Right now, Worgle has just enough features to be useful.
 
+- Written in portable ANSI C
 - Named code block declarations (NAME, BEGIN_SRC and END_SRC)
 - Noweb-style code block expansion (can be referenced before being declared)
 - Implicit code block appending
 - Tangling of multiple files in one org-document
-
+- Line declarations C/C++ code (for easy debugging in GDB, Valgrind, etc)
+- Public Domain License
 ** Anti-features
-
 Pretty much any of the advanced features of org-mode won't be implemented. Emacs
-is plenty good at handling that if you need it.
-
+is plenty good at handling that if you really need it.
 * Compilation
-
 To compile, run =make=.
 
 To install, run =sudo make install=.
-
 * Sample code
-
 As it turns out, this README *is* the sample code. Cool, right?
 
 A code block for a simple hello world program in C looks like this:
@@ -70,17 +62,14 @@ This gets expanded to this code block below:
 printf("Orgle Worgle Borgle!\n");
 #+END_SRC
 
-The C code is tangled up using the =orgle= bootstrapper, which can then
-be compiled and run using a C compiler like GCC.
+To tangle, run:
 
 #+NAME: generate_and_run
 #+BEGIN_SRC sh
-./orgle README.org
+./worgle README.org
 gcc hello.c -o hello
 ./hello
 #+END_SRC
-
-* Performance
 
 A very casual performance test indicates that Worgle is able to tangle itself
 faster than Emacs by a factor of 1300x (!).
@@ -99,7 +88,5 @@ Worgle: 0m0.001s
 Org-export-to-html (via Emacs): 0m2.605s
 Sorg: 0m0.004s
 #+END_EXAMPLE
-
 * License
-
 This project is placed under the public domain. Happy hacking, humans.
