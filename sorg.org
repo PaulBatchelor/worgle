@@ -348,9 +348,15 @@ static void print_header(sorg_d *sorg, char *buf, size_t size, FILE *out)
     fprintf(out, "<a id=\"");
     spaces_to_underscores(buf + off, size - off, out);
     fprintf(out, "\">\n");
-    fprintf(out, "<h%d>", level);
-    fwrite(buf + off, 1, size - off, out);
-    fprintf(out, "</h%d>\n", level);
+    if(level < 6) {
+        fprintf(out, "<h%d>", level);
+        fwrite(buf + off, 1, size - off, out);
+        fprintf(out, "</h%d>\n", level);
+    } else {
+        fprintf(out, "<u><i>");
+        fwrite(buf + off, 1, size - off, out);
+        fprintf(out, "</i></u>\n");
+    }
     fprintf(out, "</a>\n");
 
 }
