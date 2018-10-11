@@ -30,9 +30,10 @@ worgle: $(OBJ)
 sorg: sorg.c parg/parg.o
 	$(CC) -std=c89 $(CFLAGS) sorg.c parg/parg.o -o $@
 
-install: orgle worgle
+install: all
 	cp orgle /usr/local/bin
 	cp worgle /usr/local/bin
+	cp sorg /usr/local/bin
 
 html: worgle.html
 
