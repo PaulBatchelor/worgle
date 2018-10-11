@@ -28,8 +28,8 @@ orgle: orgle.c
 worgle: $(OBJ)
 	$(CC) -std=c89 $(CFLAGS) $(OBJ) -o $@
 
-sorg: sorg.c
-	$(CC) -std=c89 $(CFLAGS) sorg.c -o $@
+sorg: sorg.c parg/parg.o
+	$(CC) -std=c89 $(CFLAGS) sorg.c parg/parg.o -o $@
 
 install: orgle worgle
 	cp orgle /usr/local/bin

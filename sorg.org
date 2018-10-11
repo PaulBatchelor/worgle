@@ -12,7 +12,9 @@ converts it to HTML, and writes it to an output stream
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "parg.h"
 
+<<global_variables>>
 <<enums>>
 <<sorg_data>>
 <<function_declarations>>
@@ -28,11 +30,16 @@ int main(int argc, char *argv[])
     size_t read;
     size_t n;
     sorg_d sorg;
+    char *filename;
+    <<local_variables>>
 
-    if(argc < 2) {
-        in = stdin;
-    } else {
-        in = fopen(argv[1], "r");
+    filename = NULL;
+    in = stdin;
+
+    <<parse_command_flags>>
+
+    if(filename != NULL) {
+        in = fopen(filename, "r");
     }
 
     out = stdout;
@@ -383,12 +390,12 @@ static void print_header(sorg_d *sorg, char *buf, size_t size, FILE *out)
     fprintf(out, "\">\n");
     if(level < 6) {
         fprintf(out, "<h%d>", level);
-        print_section(sorg, out);
+        if(use_secno) print_section(sorg, out);
         fwrite(buf + off, 1, size - off, out);
         fprintf(out, "</h%d>\n", level);
     } else {
         fprintf(out, "<u><i>");
-        print_section(sorg, out);
+        if(use_secno) print_section(sorg, out);
         fwrite(buf + off, 1, size - off, out);
         fprintf(out, "</i></u>\n");
     }
@@ -973,6 +980,52 @@ static void print_section(sorg_d *sorg, FILE *out)
     fputc(' ', out);
 }
 #+END_SRC
+* Command line parsing
+Command line argument parsing is done using the third-party library
+[[https://github.com/jibsen/parg][parg]], included in this source distribution.
+
+#+NAME: local_variables
+#+BEGIN_SRC c
+struct parg_state ps;
+int c;
+#+END_SRC
+
+#+NAME: parse_command_flags
+#+BEGIN_SRC c
+parg_init(&ps);
+while((c = parg_getopt(&ps, argc, argv, "st:")) != -1) {
+    switch(c) {
+        case 1:
+            filename = (char *)ps.optarg;
+            break;
+        case 't':
+            break;
+        case 's':
+            <<turn_on_sections>>
+            break;
+        default:
+            fprintf(stderr, "Unknown option -%c\n", c);
+            return 1;
+    }
+}
+#+END_SRC
+** Turn on section numbers (-s)
+
+The "-t" flag will turn on section numbers.
+This will set a global variable =use_secno= to be 1.
+
+#+NAME: turn_on_sections
+#+BEGIN_SRC c
+use_secno = 1;
+#+END_SRC
+
+By default, the =use_secno= global is 0.
+
+#+NAME: global_variables
+#+BEGIN_SRC c
+static int use_secno = 0;
+#+END_SRC
+
 * Miscellaneous Utilties
 ** Getline
 
