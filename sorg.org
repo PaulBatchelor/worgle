@@ -54,6 +54,7 @@ int main(int argc, char *argv[])
     }
 
     if(sorg.pmode == MODE_TEXT) fprintf(out, "</p>");
+    if(mktoc && sorg.depth >= 0) fprintf(out, "</ul>");
     if(in != stdin) fclose(in);
     if(line != NULL) free(line);
     return 0;
@@ -147,13 +148,17 @@ for(i = 0; i < SORG_MAXSEC; i++) sorg->secpos[i] = 0;
 #+END_SRC
 
 The current section depth is kept track in an integer called =depth=.
+The previous depth is also recorded. This is needed for generating
+the table of contents with indentation.
 
 #+NAME: sorg_data_contents
 #+BEGIN_SRC c
 int depth;
+int pdepth;
 #+END_SRC
 
-It is set to be an initial value of -1. Functions aiming to read this
+=depth= and =pdepth= is set to be an initial value of -1. Functions
+aiming to read this
 value should do a bounds check before using this variable. Depth corresponds
 to array position in =secpos=, so be sure that the depth is in between
 0 and =SORG_MAXSEC=.
@@ -161,6 +166,7 @@ to array position in =secpos=, so be sure that the depth is in between
 #+NAME: initialize_stuff
 #+BEGIN_SRC c
 sorg->depth = -1;
+sorg->pdepth = -1;
 #+END_SRC
 * Parsing
 ** Parsing Top
@@ -176,6 +182,11 @@ the end of that particular tag.
 Text is written a block at a time using =fwrite=. Blocks are written
 any time a state changes. Blocks are also written at the end.
 
+Parsing behavior will change based on the state of the flag =mktoc=.
+If enabled, the parser will be set up to
+[[Table of Contents Parsing Mode][generate a table of contents]].
+Otherwise, it is just [[Normal Parsing Mode][the regular parser]].
+*** The Parse Function
 #+NAME: parsing_top
 #+BEGIN_SRC c
 static int parse(sorg_d *sorg, FILE *out, char *buf, size_t size)
@@ -184,111 +195,139 @@ static int parse(sorg_d *sorg, FILE *out, char *buf, size_t size)
     sorg->off = 0;
     sorg->blksize = 0;
 
-    if(buf[0] == '\n') {
-        if(sorg->pmode == MODE_TEXT) {
-            fprintf(out,"</p>\n");
-            sorg->pmode = MODE_NONE;
-        }
-        return 1;
-    }
-
-    while(sorg->pos < size) {
-        switch(sorg->mode) {
-            case MODE_NONE:
-                if(is_header(sorg, buf, size)) {
-                    if(sorg->pmode == MODE_TEXT) fprintf(out, "</p>\n");
-                    print_header(sorg, buf, size, out);
-                    sorg->mode = MODE_NONE;
-                    sorg->pmode = sorg->mode;
-                    return 1;
-                } else if(is_name(sorg, buf, size)) {
-                    if(sorg->pmode == MODE_TEXT) fprintf(out, "</p>\n");
-                    print_name(sorg, buf, size, out);
-                    sorg->mode = MODE_BEGIN_CODE;
-                    sorg->pmode = sorg->mode;
-                    return 1;
-                } else if(is_title(sorg, buf, size)) {
-                    if(sorg->pmode == MODE_TEXT) fprintf(out, "</p>\n");
-                    print_title(sorg, buf, size, out);
-                    sorg->mode = MODE_NONE;
-                    sorg->pmode = sorg->mode;
-                    return 1;
-                } else {
-                    sorg->mode = MODE_TEXT;
-                    sorg->off = sorg->pos;
-                    sorg->blksize = 1;
-                    if(sorg->pmode != MODE_TEXT) fprintf(out, "<p>");
-                }
-                break;
-            case MODE_TEXT:
-                <<parse_formatted>>
-                if(is_link(sorg, &buf[sorg->pos], size - sorg->pos)) {
-                    fwrite(buf + sorg->off, 1, sorg->blksize - 1, out);
-                    sorg->pos += print_link(sorg,
-                                            &buf[sorg->pos],
-                                            size - sorg->pos,
-                                            out);
-                    sorg->blksize = 1;
-                    sorg->off = sorg->pos;
-                } else {
-                    if(buf[sorg->pos] != '\n') sorg->blksize++;
-                    sorg->pos++;
-                }
-                break;
-            case MODE_BEGIN_CODE:
-                if(!is_begin(sorg, buf, size)) return 0;
-                else {
-                    fprintf(out, "\n<p><code>");
-                    sorg->mode = MODE_CODE;
-                    return 1;
-                }
-                break;
-            case MODE_CODE:
-                if(is_end(sorg, buf, size)) {
-                    sorg->mode = MODE_NONE;
-                    fprintf(out, "\n</code></p>\n");
-                    return 1;
-                }
-                sorg->blksize++;
-                switch(buf[sorg->pos]) {
-                    case '<':
-                        fwrite(buf + sorg->off, 1, sorg->blksize - 1, out);
-                        sorg->off = sorg->pos + 1;
-                        sorg->blksize = 0;
-                        fprintf(out, "&lt;");
-                        break;
-                    case '>':
-                        fwrite(buf + sorg->off, 1, sorg->blksize - 1, out);
-                        sorg->off = sorg->pos + 1;
-                        sorg->blksize = 0;
-                        fprintf(out, "&gt;");
-                        break;
-                    case '\n':
-                        fwrite(buf + sorg->off, 1, sorg->blksize - 1, out);
-                        sorg->off = sorg->pos + 1;
-                        sorg->blksize = 0;
-                        fprintf(out, "<br>\n");
-                        break;
-                    case ' ':
-                        fwrite(buf + sorg->off, 1, sorg->blksize - 1, out);
-                        sorg->off = sorg->pos + 1;
-                        sorg->blksize = 0;
-                        fprintf(out, "&nbsp;");
-                        break;
-                }
-                sorg->pos++;
-                break;
-        }
-    }
-
-
-    fwrite(buf + sorg->off, 1, sorg->blksize, out);
-
-    sorg->pmode = sorg->mode;
-    if(sorg->mode != MODE_CODE) {
-        sorg->mode = MODE_NONE;
+    if(mktoc) {
+        <<toc_parse_mode>>
+    } else {
+        <<normal_parse_mode>>
     }
     return 1;
+}
+#+END_SRC
+*** Normal Parsing Mode
+This is the regular parsing mode, which converts all org syntax into HTML.
+#+NAME: normal_parse_mode
+#+BEGIN_SRC c
+if(buf[0] == '\n') {
+    if(sorg->pmode == MODE_TEXT) {
+        fprintf(out,"</p>\n");
+        sorg->pmode = MODE_NONE;
+    }
+    return 1;
+}
+
+while(sorg->pos < size) {
+    switch(sorg->mode) {
+        case MODE_NONE:
+            if(is_header(sorg, buf, size)) {
+                if(sorg->pmode == MODE_TEXT) fprintf(out, "</p>\n");
+                print_header(sorg, buf, size, out);
+                sorg->mode = MODE_NONE;
+                sorg->pmode = sorg->mode;
+                return 1;
+            } else if(is_name(sorg, buf, size)) {
+                if(sorg->pmode == MODE_TEXT) fprintf(out, "</p>\n");
+                print_name(sorg, buf, size, out);
+                sorg->mode = MODE_BEGIN_CODE;
+                sorg->pmode = sorg->mode;
+                return 1;
+            } else if(is_title(sorg, buf, size)) {
+                if(sorg->pmode == MODE_TEXT) fprintf(out, "</p>\n");
+                print_title(sorg, buf, size, out);
+                sorg->mode = MODE_NONE;
+                sorg->pmode = sorg->mode;
+                return 1;
+            } else {
+                sorg->mode = MODE_TEXT;
+                sorg->off = sorg->pos;
+                sorg->blksize = 1;
+                if(sorg->pmode != MODE_TEXT) fprintf(out, "<p>");
+            }
+            break;
+        case MODE_TEXT:
+            <<parse_formatted>>
+            if(is_link(sorg, &buf[sorg->pos], size - sorg->pos)) {
+                fwrite(buf + sorg->off, 1, sorg->blksize - 1, out);
+                sorg->pos += print_link(sorg,
+                                        &buf[sorg->pos],
+                                        size - sorg->pos,
+                                        out);
+                sorg->blksize = 1;
+                sorg->off = sorg->pos;
+            } else {
+                if(buf[sorg->pos] != '\n') sorg->blksize++;
+                sorg->pos++;
+            }
+            break;
+        case MODE_BEGIN_CODE:
+            if(!is_begin(sorg, buf, size)) return 0;
+            else {
+                fprintf(out, "\n<p><code>");
+                sorg->mode = MODE_CODE;
+                return 1;
+            }
+            break;
+        case MODE_CODE:
+            if(is_end(sorg, buf, size)) {
+                sorg->mode = MODE_NONE;
+                fprintf(out, "\n</code></p>\n");
+                return 1;
+            }
+            sorg->blksize++;
+            switch(buf[sorg->pos]) {
+                case '<':
+                    fwrite(buf + sorg->off, 1, sorg->blksize - 1, out);
+                    sorg->off = sorg->pos + 1;
+                    sorg->blksize = 0;
+                    fprintf(out, "&lt;");
+                    break;
+                case '>':
+                    fwrite(buf + sorg->off, 1, sorg->blksize - 1, out);
+                    sorg->off = sorg->pos + 1;
+                    sorg->blksize = 0;
+                    fprintf(out, "&gt;");
+                    break;
+                case '\n':
+                    fwrite(buf + sorg->off, 1, sorg->blksize - 1, out);
+                    sorg->off = sorg->pos + 1;
+                    sorg->blksize = 0;
+                    fprintf(out, "<br>\n");
+                    break;
+                case ' ':
+                    fwrite(buf + sorg->off, 1, sorg->blksize - 1, out);
+                    sorg->off = sorg->pos + 1;
+                    sorg->blksize = 0;
+                    fprintf(out, "&nbsp;");
+                    break;
+            }
+            sorg->pos++;
+            break;
+    }
+}
+
+
+fwrite(buf + sorg->off, 1, sorg->blksize, out);
+
+sorg->pmode = sorg->mode;
+if(sorg->mode != MODE_CODE) {
+    sorg->mode = MODE_NONE;
+}
+#+END_SRC
+*** Table of Contents Parsing Mode
+This mode is turned on with a switch from
+[[Turn On Section Numbers (-t)][the command line flags.]]
+When enabled, the parser is only interested in parsing and printing
+headers. The rest, it skips.
+
+#+NAME: toc_parse_mode
+#+BEGIN_SRC c
+if(buf[0] == '\n') {
+    return 1;
+}
+
+if(is_title(sorg, buf, size)) {
+    print_title(sorg, buf, size, out);
+}else if(is_header(sorg, buf, size)) {
+    print_header(sorg, buf, size, out);
 }
 #+END_SRC
 ** Type Enum
@@ -305,7 +344,7 @@ By default, the state machine begins in NONE mode. In this mode, the parser
 will be parsing the line for new states.
 
 ** Headings
-
+*** Check for Header
 Headers in org-mode always start at the beginning of the line, and
 must have a number of stars, followed by a space. This is checked for
 with the function =is_header=.
@@ -337,7 +376,7 @@ static int is_header(sorg_d *sorg, char *buf, size_t size)
     return 0;
 }
 #+END_SRC
-
+*** Print Header
 If the line is indeed a header, the parser will scan the line again, this
 time counting the number of stars before the space indicating the header
 level. (Note: Since the title is reserved for header 1, the largest
@@ -345,7 +384,7 @@ heading size starts at level 2.)
 
 The header will then treat the rest of the line as the header text.
 This action is done with the function =print_header=.
-
+**** Print Header Function
 #+NAME:function_declarations
 #+BEGIN_SRC c
 static void print_header(sorg_d *sorg, char *buf, size_t size, FILE *out);
@@ -385,22 +424,11 @@ static void print_header(sorg_d *sorg, char *buf, size_t size, FILE *out)
     if(buf[size - 1] == '\n') size--; /* chomp */
 
     <<update_section_depth>>
-    fprintf(out, "<a id=\"");
-    spaces_to_underscores(buf + off, size - off, out);
-    fprintf(out, "\">\n");
-    if(level < 6) {
-        fprintf(out, "<h%d>", level);
-        if(use_secno) print_section(sorg, out);
-        fwrite(buf + off, 1, size - off, out);
-        fprintf(out, "</h%d>\n", level);
+    if(mktoc) {
+        <<print_toc_header>>
     } else {
-        fprintf(out, "<u><i>");
-        if(use_secno) print_section(sorg, out);
-        fwrite(buf + off, 1, size - off, out);
-        fprintf(out, "</i></u>\n");
+        <<print_normal_header>>
     }
-    fprintf(out, "</a>\n");
-
 }
 #+END_SRC
 
@@ -411,9 +439,64 @@ to the problem.
 Level in this parser starts at header level 2, so the value needs to be
 subtracted by 2 in order to work with the internal section counters.
 
+
 #+NAME:update_section_depth
 #+BEGIN_SRC c
 update_section_depth(sorg, level - 2);
+#+END_SRC
+**** Normal Header Printing
+#+NAME: print_normal_header
+#+BEGIN_SRC c
+fprintf(out, "<a id=\"");
+spaces_to_underscores(buf + off, size - off, out);
+fprintf(out, "\">\n");
+if(level < 6) {
+    fprintf(out, "<h%d>", level);
+    if(use_secno) print_section(sorg, out);
+    fwrite(buf + off, 1, size - off, out);
+    fprintf(out, "</h%d>\n", level);
+} else {
+    fprintf(out, "<u><i>");
+    if(use_secno) print_section(sorg, out);
+    fwrite(buf + off, 1, size - off, out);
+    fprintf(out, "</i></u>\n");
+}
+fprintf(out, "</a>\n");
+#+END_SRC
+**** TOC Header Printing
+A TOC section heading in HTML is a list item in an unordered list. HTML
+supports nested lists with automatic indentation, which makes presenting
+the hierarchy a little more elegant (no need to compute indentations
+manually!). However, the program needs to be responsible when to
+start and end unordered lists. To do this, we need to keep track
+of the previous section depth as well as the current one. When
+the depth changes, one has to update the unordered lists.
+
+A new unordered
+list will only begin when there is a new subsection created, so this
+only occurs when the current depth is greater than the previous one.
+
+When the depth goes up a level, this indicates that the currently
+populated list needs to be closed with an end tag. *However*, sometimes
+the depth will go up more than one level, which means that each of those
+lists will need to be closed. For this reason, a variable number of end
+tags need to be printed. The number of necessary closed tags needed
+is obtained from getting the difference between the current depth
+and the previous depth. (Note: I missed this edge case on the first go).
+#+NAME: print_toc_header
+#+BEGIN_SRC c
+if(sorg->depth > sorg->pdepth) {
+    fprintf(out, "<ul>");
+} else if(sorg->depth < sorg->pdepth) {
+    for(s = 0; s < (sorg->pdepth - sorg->depth); s++)
+    fprintf(out, "</ul>");
+}
+fprintf(out, "<li><a href=\"%s#", indxfile);
+spaces_to_underscores(buf + off, size - off, out);
+fprintf(out, "\">");
+if(use_secno) print_section(sorg, out);
+fwrite(buf + off, 1, size - off, out);
+fprintf(out, "</a></li>\n");
 #+END_SRC
 ** Titles
 
@@ -949,6 +1032,7 @@ static void update_section_depth(sorg_d *sorg, int depth)
     } else {
         sorg->secpos[depth]++;
     }
+    sorg->pdepth = sorg->depth;
     sorg->depth = depth;
 }
 #+END_SRC
@@ -999,6 +1083,7 @@ while((c = parg_getopt(&ps, argc, argv, "st:")) != -1) {
             filename = (char *)ps.optarg;
             break;
         case 't':
+            <<generate_toc>>
             break;
         case 's':
             <<turn_on_sections>>
@@ -1024,6 +1109,27 @@ By default, the =use_secno= global is 0.
 #+NAME: global_variables
 #+BEGIN_SRC c
 static int use_secno = 0;
+#+END_SRC
+
+** Generate Table of Contents (-t)
+
+This argument flag will generate a table of contents. The flag has
+an input parameter, which should be the name of the HTML filename containing
+the full documentation.
+
+#+NAME: generate_toc
+#+BEGIN_SRC c
+mktoc = 1;
+indxfile = (char *)ps.optarg;
+#+END_SRC
+
+By default, the filename is set to NULL, and the =mktoc= variable is set
+to be false.
+
+#+NAME: global_variables
+#+BEGIN_SRC c
+static char *indxfile = NULL;
+static int mktoc = 0;
 #+END_SRC
 
 * Miscellaneous Utilties

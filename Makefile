@@ -10,7 +10,6 @@ SORG=./sorg
 EMACS=emacs
 
 OBJ=worgle.o parg/parg.o
-HTML=worgle.html
 
 WORGLE_FLAGS=-Werror -g
 
@@ -35,16 +34,14 @@ install: orgle worgle
 	cp orgle /usr/local/bin
 	cp worgle /usr/local/bin
 
-html: $(HTML)
+html: worgle.html
 
 %.html: %.org
-	$(EMACS) --batch -f package-initialize \
-		-l org \
-		--eval '(find-file "$<")' \
-		--eval '(org-html-export-to-html)'
+	$(SORG) -s $< > $@
+	$(SORG) -t $@ -s $< > $*_toc.html
 
 clean:
 	$(RM) orgle worgle sorg
 	$(RM) worgle.c
 	$(RM) $(OBJ)
-	$(RM) $(HTML)
+	$(RM) worgle.html worgle_toc.html
