@@ -218,7 +218,10 @@ if(buf[0] == '\n') {
 while(sorg->pos < size) {
     switch(sorg->mode) {
         case MODE_NONE:
-            if(is_header(sorg, buf, size)) {
+            if(is_comment(sorg, buf, size)) {
+                sorg->mode = MODE_NONE;
+                return 1;
+            } if(is_header(sorg, buf, size)) {
                 if(sorg->pmode == MODE_TEXT) fprintf(out, "</p>\n");
                 print_header(sorg, buf, size, out);
                 sorg->mode = MODE_NONE;
@@ -338,11 +341,6 @@ enum {
     MODE_NONE
 };
 #+END_SRC
-** None mode
-
-By default, the state machine begins in NONE mode. In this mode, the parser
-will be parsing the line for new states.
-
 ** Headings
 *** Check for Header
 Headers in org-mode always start at the beginning of the line, and
@@ -987,6 +985,28 @@ static size_t print_link(sorg_d *sorg, char *buf, size_t size, FILE *out)
     fwrite(name, 1, name_size, out);
     fprintf(out, "</a>");
     return off;
+}
+#+END_SRC
+** Comments
+A comment in org-mode is denoted by "# " (space included).
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+static int is_comment(sorg_d *sorg, char *line, size_t size);
+#+END_SRC
+
+In addition for checking for the pattern "# ", the =is_comment=
+function will also check if the line contains only a "#". This will
+be interpretted as a comment as well.
+
+#+NAME: functions
+#+BEGIN_SRC c
+static int is_comment(sorg_d *sorg, char *line, size_t size)
+{
+    if(size <= 0) return 0;
+    if(size == 2 && line[0] == '#') return 1;
+    if(line[0] == '#' && line[1] == ' ') return 1;
+    return 0;
 }
 #+END_SRC
 * Sections
