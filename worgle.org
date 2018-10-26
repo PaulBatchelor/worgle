@@ -143,10 +143,14 @@ is done due to the textual nature of the program. It is much easier to
 simply allocate everything in one big block and reference chunks, then to
 allocate smaller chunks as you go.
 *** Loadfile function
+
+# TODO: merge with parse.
 #+NAME: loading
 #+BEGIN_SRC c
-rc = loadfile(&worg, 0);
-if(!rc) goto cleanup;
+for(i = 0; i < worg.nbuffers; i++) {
+    rc = loadfile(&worg, i);
+    if(!rc) goto cleanup;
+}
 #+END_SRC
 A file is loaded into a textbuffer via the function =loadfile=. In the
 worg startup sequence, the buffer list has been preallocated with the
@@ -241,9 +245,17 @@ produce a structure of the tangled code in memory.
 
 Parsing is done via the function =parse_file=.
 
+#+NAME: local_variables
+#+BEGIN_SRC c
+int i;
+#+END_SRC
+
 #+NAME: parsing
 #+BEGIN_SRC c
-rc = parse_file(&worg, filename, 0);
+for(i = 0; i < worg.nbuffers; i++) {
+    rc = parse_file(&worg, i);
+    if(rc) goto cleanup;
+}
 #+END_SRC
 
 The =parse_file= function will parse a file whose filename is located
@@ -251,12 +263,12 @@ in the index position denoted by =file=.
 
 #+NAME: function_declarations
 #+BEGIN_SRC c
-int parse_file(worgle_d *worg, char *filename, int file);
+int parse_file(worgle_d *worg, int file);
 #+END_SRC
 
 #+NAME: functions
 #+BEGIN_SRC c
-int parse_file(worgle_d *worg, char *filename, int file)
+int parse_file(worgle_d *worg, int file)
 {
     char *buf;
     size_t size;
@@ -1042,7 +1054,7 @@ buffers known as =buflist=.
 #+NAME:worgle_struct_contents
 #+BEGIN_SRC c
 worgle_textbuf *curbuf;
-worgle_textbuf buffers[1];
+worgle_textbuf *buffers;
 int nbuffers;
 #+END_SRC
 
@@ -1051,8 +1063,8 @@ now.
 
 #+NAME:worgle_init
 #+BEGIN_SRC c
-worgle_textbuf_zero(&worg->buffers[0]);
 worg->curbuf = NULL;
+worg->buffers = NULL;
 worg->nbuffers = 0;
 #+END_SRC
 
@@ -1061,8 +1073,9 @@ If the buffer is non-null, the memory will be freed.
 #+NAME: worgle_free
 #+BEGIN_SRC c
 for(i = 0; i < worg->nbuffers; i++) {
-    worgle_textbuf_free(&worg->buffers[0]);
+    worgle_textbuf_free(&worg->buffers[i]);
 }
+if(worg->nbuffers > 0) free(worg->buffers);
 #+END_SRC
 **** Current Block
 A pointer to the currently populated code block is stored in a variable called
@@ -2085,6 +2098,12 @@ static void append_filename(worgle_d *worg, char *filename)
     int pos;
     pos = worg->nbuffers;
     worg->nbuffers++;
+    if(worg->nbuffers == 1) {
+        worg->buffers = calloc(1, sizeof(worgle_textbuf));
+    } else {
+        worg->buffers = realloc(worg->buffers,
+                                sizeof(worgle_textbuf) * worg->nbuffers);
+    }
     str = &worg->buffers[pos].filename;
     str->str = filename;
     str->size = strlen(filename);
