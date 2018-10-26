@@ -142,22 +142,52 @@ a file stream, this parser will load the entire file into memory. This
 is done due to the textual nature of the program. It is much easier to
 simply allocate everything in one big block and reference chunks, then to
 allocate smaller chunks as you go.
-
-*** Open file
-
-File is loaded into a local file handle =fp=.
-
-#+NAME: local_variables
-#+BEGIN_SRC c
-FILE *fp;
-#+END_SRC
-
+*** Loadfile function
 #+NAME: loading
 #+BEGIN_SRC c
+rc = loadfile(&worg, 0);
+if(!rc) goto cleanup;
+#+END_SRC
+A file is loaded into a textbuffer via the function =loadfile=. In the
+worg startup sequence, the buffer list has been preallocated with the
+filename after parsing the command line arguments (see <<append_filename>>).
+It is in this stage that the memory block is allocated and the file loaded into
+it. The file will be allocated and loaded into the file located in index
+position =file=.
+
+On success, the function will return TRUE (1). On failure, FALSE (0).
+#+NAME: function_declarations
+#+BEGIN_SRC c
+static int loadfile(worgle_d *worg, int file);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+static int loadfile(worgle_d *worg, int file)
+{
+    <<loadfile_localvars>>
+    <<loadfile>>
+    return 1;
+}
+#+END_SRC
+*** Open file
+File is loaded into a local file handle =fp=.
+
+#+NAME: loadfile_localvars
+#+BEGIN_SRC c
+FILE *fp;
+char *filename;
+worgle_textbuf *txt;
+#+END_SRC
+
+#+NAME: loadfile
+#+BEGIN_SRC c
+txt = &worg->buffers[file];
+filename = txt->filename.str;
 fp = fopen(filename, "r");
 
 if(fp == NULL) {
-    fprintf(stderr, "Could not find file %s\n", argv[1]);
+    fprintf(stderr, "Could not find file %s\n", filename);
     return 1;
 }
 #+END_SRC
@@ -165,12 +195,12 @@ if(fp == NULL) {
 The size is acquired by going to the end of the file and getting the current
 file position.
 
-#+NAME: local_variables
+#+NAME: loadfile_localvars
 #+BEGIN_SRC c
 size_t size;
 #+END_SRC
 
-#+NAME: loading
+#+NAME: loadfile
 #+BEGIN_SRC c
 fseek(fp, 0, SEEK_END);
 size = ftell(fp);
@@ -179,22 +209,21 @@ size = ftell(fp);
 Memory is allocated in a local buffer variable via =calloc=. The buffer
 is then stored inside of the worg struct.
 
-#+NAME: local_variables
+#+NAME: loadfile_localvars
 #+BEGIN_SRC c
 char *buf;
 #+END_SRC
 
-#+NAME: loading
+#+NAME: loadfile
 #+BEGIN_SRC c
 buf = calloc(1, size);
-worgle_textbuf_init(&worg.buffers[0], buf, size);
-/* worg.buf = buf; */
+worgle_textbuf_init(&worg->buffers[file], buf, size);
 #+END_SRC
 
 The file is rewound back to the beginning and then read into the buffer. The
 file is no longer needed at this point, so it is closed.
 
-#+NAME: loading
+#+NAME: loadfile
 #+BEGIN_SRC c
 fseek(fp, 0, SEEK_SET);
 fread(buf, size, 1, fp);
@@ -829,6 +858,7 @@ if(use_warnings) rc = worgle_warn_unused(&worg);
 At the end up the program, all allocated memory is freed via =worgle_free=.
 #+NAME: cleanup
 #+BEGIN_SRC c
+cleanup:
 worgle_free(&worg);
 return rc;
 #+END_SRC
@@ -906,7 +936,8 @@ void worgle_free(worgle_d *worg);
 #+BEGIN_SRC c
 void worgle_free(worgle_d *worg)
 {
-<<worgle_free>>
+    int i;
+    <<worgle_free>>
 }
 #+END_SRC
 
@@ -1012,6 +1043,7 @@ buffers known as =buflist=.
 #+BEGIN_SRC c
 worgle_textbuf *curbuf;
 worgle_textbuf buffers[1];
+int nbuffers;
 #+END_SRC
 
 The loaded happens after initialization, so the buffer is set to be NULL for
@@ -1020,14 +1052,17 @@ now.
 #+NAME:worgle_init
 #+BEGIN_SRC c
 worgle_textbuf_zero(&worg->buffers[0]);
-worg->curbuf = &worg->buffers[0]; /* hard coded for now */
+worg->curbuf = NULL;
+worg->nbuffers = 0;
 #+END_SRC
 
 If the buffer is non-null, the memory will be freed.
 
 #+NAME: worgle_free
 #+BEGIN_SRC c
-worgle_textbuf_free(&worg->buffers[0]);
+for(i = 0; i < worg->nbuffers; i++) {
+    worgle_textbuf_free(&worg->buffers[0]);
+}
 #+END_SRC
 **** Current Block
 A pointer to the currently populated code block is stored in a variable called
@@ -1912,7 +1947,6 @@ void worgle_textbuf_free(worgle_textbuf *txt)
 #+END_SRC
 * Command Line Arguments
 This section outlines command line arguments in Worgle.
-
 ** Parsing command line flags
 
 Command line argument parsing is done using the third-party library
@@ -2048,8 +2082,10 @@ list.
 static void append_filename(worgle_d *worg, char *filename)
 {
     worgle_string *str;
-
-    str = &worg->buffers[0].filename;
+    int pos;
+    pos = worg->nbuffers;
+    worg->nbuffers++;
+    str = &worg->buffers[pos].filename;
     str->str = filename;
     str->size = strlen(filename);
 }
