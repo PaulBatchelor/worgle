@@ -127,8 +127,6 @@ worg.filename.size = strlen(filename);
 
 *** Initialize return codes
 
-**** Main Return Code
-
 The main return code determines the overall state of the program.
 
 #+NAME: local_variables
@@ -142,37 +140,7 @@ By default, it is set to be okay, which is 0 on POSIX systems.
 #+BEGIN_SRC c
 rc = 0;
 #+END_SRC
-**** Line Satus Code
 
-The getline function used by the parser returns a status code, which tells
-the program when it has reached the end of the file.
-
-#+NAME: local_variables
-#+BEGIN_SRC c
-int status;
-#+END_SRC
-
-This is set to be TRUE (1) by default.
-
-#+NAME: initialization
-#+BEGIN_SRC c
-status = 0;
-#+END_SRC
-**** Mode
-
-The overall parser mode state is set by the local variable =mode=.
-
-#+NAME: local_variables
-#+BEGIN_SRC c
-int mode;
-#+END_SRC
-
-It is set to be the initial mode of =MODE_ORG=.
-
-#+NAME: initialization
-#+BEGIN_SRC c
-mode = MODE_ORG;
-#+END_SRC
 ** Load file into memory
 
 The first thing the program will do is load the file.
@@ -249,64 +217,136 @@ by skimming through the block up to a line break character, then pass
 that off to be parsed. Line by line, the parser will read the program and
 produce a structure of the tangled code in memory.
 
-#+NAME:parsing
+Parsing is done via the function =parse_file=.
+
+#+NAME: parsing
 #+BEGIN_SRC c
-while(1) {
-    <<getline>>
-    if(mode == MODE_ORG) {
-        <<parse_mode_org>>
-    } else if(mode == MODE_CODE) {
-        <<parse_mode_code>>
-    } else if(mode == MODE_BEGINCODE) {
-        <<parse_mode_begincode>>
+/* while(1) { */
+/*     <<getline>> */
+/*     if(mode == MODE_ORG) { */
+/*         <<parse_mode_org>> */
+/*     } else if(mode == MODE_CODE) { */
+/*         <<parse_mode_code>> */
+/*     } else if(mode == MODE_BEGINCODE) { */
+/*         <<parse_mode_begincode>> */
+/*     } */
+/* } */
+rc = parse_file(&worg, filename, buf, size);
+#+END_SRC
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+int parse_file(worgle_d *worg, char *filename, char *buf, size_t size);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+int parse_file(worgle_d *worg, char *filename, char *buf, size_t size)
+{
+    <<parser_local_variables>>
+    <<parser_initialization>>
+    while(1) {
+        <<getline>>
+        if(mode == MODE_ORG) {
+            <<parse_mode_org>>
+        } else if(mode == MODE_CODE) {
+            <<parse_mode_code>>
+        } else if(mode == MODE_BEGINCODE) {
+            <<parse_mode_begincode>>
+        }
     }
+    return rc;
 }
 #+END_SRC
-*** Parser Local Variables
 
+*** Parser Local Variables
 The parsing stage requires a local variable called =str= to be used from time
 to time. Not sure where else to put this.
 
-#+NAME: local_variables
+#+NAME: parser_local_variables
 #+BEGIN_SRC c
 worgle_string str;
 #+END_SRC
 
-#+NAME: initialization
+#+NAME: parser_initialization
 #+BEGIN_SRC c
 worgle_string_init(&str);
 #+END_SRC
 
 =line= refers to the pointer address that the line will write to.
 
-#+NAME:local_variables
+#+NAME: parser_local_variables
 #+BEGIN_SRC c
 char *line;
 #+END_SRC
 
-#+NAME:initialization
+#+NAME: parser_initialization
 #+BEGIN_SRC c
 line = NULL;
 #+END_SRC
 
 =pos= refers to the current buffer position.
 
-#+NAME:local_variables
+#+NAME: parser_local_variables
 #+BEGIN_SRC c
 size_t pos;
 #+END_SRC
 
-#+NAME:initialization
+#+NAME: parser_initialization
 #+BEGIN_SRC c
 pos = 0;
 #+END_SRC
 
 This is the local variable =read=.
 
-#+NAME:local_variables
+#+NAME: parser_local_variables
 #+BEGIN_SRC c
 size_t read;
 #+END_SRC
+
+The overall parser mode state is set by the local variable =mode=.
+
+#+NAME: parser_local_variables
+#+BEGIN_SRC c
+int mode;
+#+END_SRC
+
+It is set to be the initial mode of =MODE_ORG=.
+
+#+NAME: parser_initialization
+#+BEGIN_SRC c
+mode = MODE_ORG;
+#+END_SRC
+
+The main return code determines the overall state of the program.
+
+#+NAME: parser_local_variables
+#+BEGIN_SRC c
+int rc;
+#+END_SRC
+
+By default, it is set to be okay, which is 0 on POSIX systems.
+
+#+NAME: parser_initialization
+#+BEGIN_SRC c
+rc = 0;
+#+END_SRC
+
+The getline function used by the parser returns a status code, which tells
+the program when it has reached the end of the file.
+
+#+NAME: parser_local_variables
+#+BEGIN_SRC c
+int status;
+#+END_SRC
+
+This is set to be TRUE (1) by default.
+
+#+NAME: parser_initialization
+#+BEGIN_SRC c
+status = 0;
+#+END_SRC
+
 *** Reading a line at a time
 
 Despite being loaded into memory, the program still reads in code one line
@@ -325,7 +365,7 @@ while loop.
 
 #+NAME: getline
 #+BEGIN_SRC c
-worg.linum++;
+worg->linum++;
 status = worgle_getline(buf, &line, &pos, &read, size);
 if(!status) break;
 #+END_SRC
@@ -410,7 +450,7 @@ if(read >= 7) {
     if(!strncmp(line, "#+NAME:",7)) {
         mode = MODE_BEGINCODE;
         parse_name(line, read, &str);
-        worgle_begin_block(&worg, &str);
+        worgle_begin_block(worg, &str);
     }
 }
 #+END_SRC
@@ -508,17 +548,17 @@ if(read >= 11) {
     if(!strncmp(line, "#+BEGIN_SRC",11)) {
         <<begin_the_code>>
         if(parse_begin(line, read, &str) == 2) {
-            worgle_append_file(&worg, &str);
+            worgle_append_file(worg, &str);
         }
         continue;
     } else {
         fwrite(line, read, 1, stderr);
-        fprintf(stderr, "line %lu: Expected #+BEGIN_SRC\n", worg.linum);
+        fprintf(stderr, "line %lu: Expected #+BEGIN_SRC\n", worg->linum);
         rc = 1;
         break;
     }
 }
-fprintf(stderr, "line %lu: Expected #+BEGIN_SRC\n", worg.linum);
+fprintf(stderr, "line %lu: Expected #+BEGIN_SRC\n", worg->linum);
 rc = 1;
 #+END_SRC
 
@@ -619,8 +659,8 @@ to keep track of the new block is reset.
 #+NAME: begin_the_code
 #+BEGIN_SRC c
 mode = MODE_CODE;
-worg.block_started = 1;
-worgle_string_reset(&worg.block);
+worg->block_started = 1;
+worgle_string_reset(&worg->block);
 #+END_SRC
 ***** Appending a new file
 If a new file is found, the filename gets appended to the file list
@@ -655,26 +695,26 @@ is found, or the =END_SRC= command is found.
 if(read >= 9) {
     if(!strncmp(line, "#+END_SRC", 9)) {
         mode = MODE_ORG;
-        worg.block_started = 0;
-        worgle_append_string(&worg);
+        worg->block_started = 0;
+        worgle_append_string(worg);
         continue;
     }
 }
 
 if(check_for_reference(line, read, &str)) {
-    worgle_append_string(&worg);
-    worgle_append_reference(&worg, &str);
-    worg.block_started = 1;
-    worgle_string_reset(&worg.block);
+    worgle_append_string(worg);
+    worgle_append_reference(worg, &str);
+    worg->block_started = 1;
+    worgle_string_reset(&worg->block);
     continue;
 }
 
-worg.block.size += read;
+worg->block.size += read;
 
-if(worg.block_started) {
-    worg.block.str = line;
-    worg.block_started = 0;
-    worg.curline = worg.linum;
+if(worg->block_started) {
+    worg->block.str = line;
+    worg->block_started = 0;
+    worg->curline = worg->linum;
 }
 #+END_SRC
 
