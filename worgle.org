@@ -121,8 +121,8 @@ The filename is then set inside of the Worgle struct.
 
 #+NAME: initialization
 #+BEGIN_SRC c
-worg.filename.str = filename;
-worg.filename.size = strlen(filename);
+worg.curfilename.str = filename;
+worg.curfilename.size = strlen(filename);
 #+END_SRC
 
 *** Initialize return codes
@@ -195,7 +195,7 @@ char *buf;
 #+NAME: loading
 #+BEGIN_SRC c
 buf = calloc(1, size);
-worg.buf = buf;
+/* worg.buf = buf; */
 #+END_SRC
 
 The file is rewound back to the beginning and then read into the buffer. The
@@ -221,16 +221,6 @@ Parsing is done via the function =parse_file=.
 
 #+NAME: parsing
 #+BEGIN_SRC c
-/* while(1) { */
-/*     <<getline>> */
-/*     if(mode == MODE_ORG) { */
-/*         <<parse_mode_org>> */
-/*     } else if(mode == MODE_CODE) { */
-/*         <<parse_mode_code>> */
-/*     } else if(mode == MODE_BEGINCODE) { */
-/*         <<parse_mode_begincode>> */
-/*     } */
-/* } */
 rc = parse_file(&worg, filename, buf, size);
 #+END_SRC
 
@@ -243,6 +233,7 @@ int parse_file(worgle_d *worg, char *filename, char *buf, size_t size);
 #+BEGIN_SRC c
 int parse_file(worgle_d *worg, char *filename, char *buf, size_t size)
 {
+    worg->buf = buf;
     <<parser_local_variables>>
     <<parser_initialization>>
     while(1) {
@@ -731,7 +722,7 @@ void worgle_append_string(worgle_d *worg)
     worgle_block_append_string(worg->curblock,
                               &worg->block,
                               worg->curline,
-                              &worg->filename);
+                              &worg->curfilename);
 }
 #+END_SRC
 
@@ -748,7 +739,7 @@ void worgle_append_reference(worgle_d *worg, worgle_string *ref)
     worgle_block_append_reference(worg->curblock,
                                  ref,
                                  worg->linum,
-                                 &worg->filename);
+                                 &worg->curfilename);
 }
 #+END_SRC
 
@@ -1070,14 +1061,14 @@ The filename is stored inside of a worgle string called =filename=.
 
 #+NAME:worgle_struct_contents
 #+BEGIN_SRC c
-worgle_string filename;
+worgle_string curfilename;
 #+END_SRC
 
 This values does not get set on init, but it is zeroed out and initialized.
 
 #+NAME:worgle_init
 #+BEGIN_SRC c
-worgle_string_init(&worg->filename);
+worgle_string_init(&worg->curfilename);
 #+END_SRC
 ** String
 A string is a wrapper around a raw =char= pointer and a size. This is used
