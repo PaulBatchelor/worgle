@@ -191,6 +191,8 @@ If enabled, the parser will be set up to
 Otherwise, it is just [[Normal Parsing Mode][the regular parser]].
 *** The Parse Function
 
+# TODO: why is blksize=1 again?
+
 #+NAME: function_declarations
 #+BEGIN_SRC c
 static int parse(sorg_d *sorg, FILE *out, char *buf, size_t size);
