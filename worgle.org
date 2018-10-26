@@ -857,6 +857,7 @@ how the tangling works.
 <<worgle_hashmap>>
 <<worgle_file>>
 <<worgle_filelist>>
+<<worgle_textbuf>>
 <<worgle_struct>>
 #+END_SRC
 ** Top Level Struct
@@ -1849,6 +1850,83 @@ int worgle_filelist_write(worgle_filelist *flist, worgle_hashmap *h)
     }
 
     return 1;
+}
+#+END_SRC
+** Text Buffer
+Files in memory are stored in a text buffer known as a =worgle_textbuf=.
+
+# TODO: implmement
+
+#+NAME: worgle_textbuf
+#+BEGIN_SRC c
+typedef struct {
+    char *buf;
+    size_t size;
+    worgle_string filename;
+} worgle_textbuf;
+#+END_SRC
+
+*** Zeroing out a text buffer
+A text buffer is zeroed out with the function =worgle_textbuf_zero=.
+This is action will set things to be NULL an zero.
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_textbuf_zero(worgle_textbuf *txt);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_textbuf_zero(worgle_textbuf *txt)
+{
+    txt->buf = NULL;
+    worgle_string_init(&txt->filename);
+    txt->size = 0;
+}
+#+END_SRC
+*** Initializing a text buffer
+A text buffer is fully initialized with the function =worgle_textbuf_init=.
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_textbuf_init(worgle_textbuf *txt,
+                         char *name,
+                         size_t namesize,
+                         char *buf,
+                         size_t bufsize);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_textbuf_init(worgle_textbuf *txt,
+                         char *name,
+                         size_t namesize,
+                         char *buf,
+                         size_t bufsize)
+{
+    txt->buf = buf;
+    txt->size = bufsize;
+    txt->filename.size = namesize;
+    txt->filename.str = name;
+}
+#+END_SRC
+*** Freeing a text buffer
+A text buffer is in charge of freeing a buffer it holds. This is done
+with the function =worgle_textbuf_free=. It is assumed that
+the memory for the filename string is handled elsewhere. It is also
+assumed that the buffer was allocated via system =malloc=, so it
+uses the system =free= function.
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_textbuf_free(worgle_textbuf *txt);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_textbuf_free(worgle_textbuf *txt)
+{
+    if(txt->buf != NULL) free(txt->buf);
+    worgle_textbuf_zero(txt);
 }
 #+END_SRC
 * Command Line Arguments
