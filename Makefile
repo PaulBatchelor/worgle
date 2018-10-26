@@ -43,6 +43,6 @@ html: worgle.html
 
 clean:
 	$(RM) orgle worgle sorg
-	$(RM) worgle.c
+	$(RM) worgle.c sorg.c
 	$(RM) $(OBJ)
 	$(RM) worgle.html worgle_toc.html

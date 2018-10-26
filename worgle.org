@@ -117,14 +117,6 @@ if(filename == NULL) {
 }
 #+END_SRC
 
-The filename is then set inside of the Worgle struct.
-
-#+NAME: initialization
-#+BEGIN_SRC c
-worg.curfilename.str = filename;
-worg.curfilename.size = strlen(filename);
-#+END_SRC
-
 *** Initialize return codes
 
 The main return code determines the overall state of the program.
@@ -195,6 +187,7 @@ char *buf;
 #+NAME: loading
 #+BEGIN_SRC c
 buf = calloc(1, size);
+worgle_textbuf_init(&worg.buffers[0], buf, size);
 /* worg.buf = buf; */
 #+END_SRC
 
@@ -221,19 +214,29 @@ Parsing is done via the function =parse_file=.
 
 #+NAME: parsing
 #+BEGIN_SRC c
-rc = parse_file(&worg, filename, buf, size);
+rc = parse_file(&worg, filename, 0);
 #+END_SRC
+
+The =parse_file= function will parse a file whose filename is located
+in the index position denoted by =file=.
 
 #+NAME: function_declarations
 #+BEGIN_SRC c
-int parse_file(worgle_d *worg, char *filename, char *buf, size_t size);
+int parse_file(worgle_d *worg, char *filename, int file);
 #+END_SRC
 
 #+NAME: functions
 #+BEGIN_SRC c
-int parse_file(worgle_d *worg, char *filename, char *buf, size_t size)
+int parse_file(worgle_d *worg, char *filename, int file)
 {
-    worg->buf = buf;
+    char *buf;
+    size_t size;
+    worgle_textbuf *curbuf;
+
+    curbuf = &worg->buffers[file];
+    buf = curbuf->buf;
+    size = curbuf->size;
+    worg->curbuf = curbuf;
     <<parser_local_variables>>
     <<parser_initialization>>
     while(1) {
@@ -722,7 +725,7 @@ void worgle_append_string(worgle_d *worg)
     worgle_block_append_string(worg->curblock,
                               &worg->block,
                               worg->curline,
-                              &worg->curfilename);
+                              &worg->curbuf->filename);
 }
 #+END_SRC
 
@@ -739,7 +742,7 @@ void worgle_append_reference(worgle_d *worg, worgle_string *ref)
     worgle_block_append_reference(worg->curblock,
                                  ref,
                                  worg->linum,
-                                 &worg->curfilename);
+                                 &worg->curbuf->filename);
 }
 #+END_SRC
 
@@ -1001,14 +1004,14 @@ Destruction.
 worgle_filelist_free(&worg->flist);
 #+END_SRC
 **** Text Buffer
-
-The text file parsed is loaded into memory and stored into a buffer called =buf=
-
-# TODO: put this into a data struct so that multiple org files can be read at
-# once
+Text files are loaded into buffers, encapsulated as a type
+=worgle_textbuf=. The currently used text buffer is stored in
+the variable =curbuf=. Buffers are stored in an array of text
+buffers known as =buflist=.
 #+NAME:worgle_struct_contents
 #+BEGIN_SRC c
-char *buf;
+worgle_textbuf *curbuf;
+worgle_textbuf buffers[1];
 #+END_SRC
 
 The loaded happens after initialization, so the buffer is set to be NULL for
@@ -1016,14 +1019,15 @@ now.
 
 #+NAME:worgle_init
 #+BEGIN_SRC c
-worg->buf = NULL;
+worgle_textbuf_zero(&worg->buffers[0]);
+worg->curbuf = &worg->buffers[0]; /* hard coded for now */
 #+END_SRC
 
 If the buffer is non-null, the memory will be freed.
 
 #+NAME: worgle_free
 #+BEGIN_SRC c
-if(worg->buf != NULL) free(worg->buf);
+worgle_textbuf_free(&worg->buffers[0]);
 #+END_SRC
 **** Current Block
 A pointer to the currently populated code block is stored in a variable called
@@ -1056,21 +1060,6 @@ the first line. Do not be tempted to set this to be -1, because it won't work.
 worg->linum = 0;
 #+END_SRC
 
-**** Filename
-
-The filename is stored inside of a worgle string called =filename=.
-
-#+NAME:worgle_struct_contents
-#+BEGIN_SRC c
-worgle_string curfilename;
-#+END_SRC
-
-This values does not get set on init, but it is zeroed out and initialized.
-
-#+NAME:worgle_init
-#+BEGIN_SRC c
-worgle_string_init(&worg->curfilename);
-#+END_SRC
 ** String
 A string is a wrapper around a raw =char= pointer and a size. This is used
 as the base string literal.
@@ -1855,8 +1844,6 @@ int worgle_filelist_write(worgle_filelist *flist, worgle_hashmap *h)
 ** Text Buffer
 Files in memory are stored in a text buffer known as a =worgle_textbuf=.
 
-# TODO: implmement
-
 #+NAME: worgle_textbuf
 #+BEGIN_SRC c
 typedef struct {
@@ -1889,8 +1876,6 @@ A text buffer is fully initialized with the function =worgle_textbuf_init=.
 #+NAME: function_declarations
 #+BEGIN_SRC c
 void worgle_textbuf_init(worgle_textbuf *txt,
-                         char *name,
-                         size_t namesize,
                          char *buf,
                          size_t bufsize);
 #+END_SRC
@@ -1898,15 +1883,11 @@ void worgle_textbuf_init(worgle_textbuf *txt,
 #+NAME: functions
 #+BEGIN_SRC c
 void worgle_textbuf_init(worgle_textbuf *txt,
-                         char *name,
-                         size_t namesize,
                          char *buf,
                          size_t bufsize)
 {
     txt->buf = buf;
     txt->size = bufsize;
-    txt->filename.size = namesize;
-    txt->filename.str = name;
 }
 #+END_SRC
 *** Freeing a text buffer
@@ -1950,6 +1931,7 @@ while((c = parg_getopt(&ps, argc, argv, "gW:")) != -1) {
     switch(c) {
         case 1:
             filename = (char *)ps.optarg;
+            <<append_filename>>
             break;
         case 'g':
             <<turn_on_debug_macros>>
@@ -2044,5 +2026,31 @@ int worgle_warn_unused(worgle_d *worg)
         }
     }
     return rc;
+}
+#+END_SRC
+
+** Appending filenames
+
+#+NAME: append_filename
+#+BEGIN_SRC c
+append_filename(&worg, (char *)ps.optarg);
+#+END_SRC
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+static void append_filename(worgle_d *worg, char *filename);
+#+END_SRC
+
+For now, just append the file name to the first item on the
+list.
+#+NAME: functions
+#+BEGIN_SRC c
+static void append_filename(worgle_d *worg, char *filename)
+{
+    worgle_string *str;
+
+    str = &worg->buffers[0].filename;
+    str->str = filename;
+    str->size = strlen(filename);
 }
 #+END_SRC
