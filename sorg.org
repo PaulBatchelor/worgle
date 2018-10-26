@@ -191,8 +191,6 @@ If enabled, the parser will be set up to
 Otherwise, it is just [[Normal Parsing Mode][the regular parser]].
 *** The Parse Function
 
-# TODO: why is blksize=1 again?
-
 #+NAME: function_declarations
 #+BEGIN_SRC c
 static int parse(sorg_d *sorg, FILE *out, char *buf, size_t size);
@@ -204,7 +202,7 @@ static int parse(sorg_d *sorg, FILE *out, char *buf, size_t size)
 {
     sorg->pos = 0;
     sorg->off = 0;
-    sorg->blksize = 1; /* if things blow up, change back to 0 */
+    sorg->blksize = 0;
     if(mktoc) {
         <<toc_parse_mode>>
     } else {
@@ -266,7 +264,7 @@ while(sorg->pos < size) {
         case MODE_TEXT:
             <<parse_formatted>>
             if(is_link(sorg, &buf[sorg->pos], size - sorg->pos)) {
-                fwrite(buf + sorg->off, 1, sorg->blksize - 1, out);
+                print_text(sorg, buf, out);
                 sorg->pos += print_link(sorg,
                                         &buf[sorg->pos],
                                         size - sorg->pos,
@@ -274,7 +272,7 @@ while(sorg->pos < size) {
                 sorg->blksize = 1;
                 sorg->off = sorg->pos;
             } else if(is_block_ref(sorg, &buf[sorg->pos], size - sorg->pos)) {
-                fwrite(buf + sorg->off, 1, sorg->blksize - 1, out);
+                print_text(sorg, buf, out);
                 sorg->pos += print_block_ref(sorg,
                                         &buf[sorg->pos],
                                         size - sorg->pos,
@@ -613,6 +611,25 @@ a code block. In this mode, the parser looks for
 #+NAME:types
 #+BEGIN_SRC c
 MODE_TEXT,
+#+END_SRC
+*** Writing a block of text
+A block of text is written using the function |print_text|.
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void print_text(sorg_d *sorg, char *buf, FILE *out);
+#+END_SRC
+
+This code is a wrapper around |fwrite|.
+
+#+NAME: functions
+#+BEGIN_SRC c
+void print_text(sorg_d *sorg, char *buf, FILE *out)
+{
+    if(sorg->blksize > 0) {
+        printf("are we here?\n");
+        fwrite(buf + sorg->off, 1, sorg->blksize - 1, out);
+    }
+}
 #+END_SRC
 
 ** Code Blocks
@@ -1103,6 +1120,21 @@ static void print_ulist_item(sorg_d *sorg, char *buf, size_t size, FILE *out);
 dashes and any immediate whitespace proceding it. It will end right before
 the line break.
 
+This is an interesting function because it recursively calls the top-level
+parse function in order to format the item string. This has caused some
+initial bugs to surface. Inside of =MODE_TEXT=, previous blocks of text
+get written before any formattings happen. This parser function gets called
+directly into =MODE_TEXT=, instead of being called from =MODE_NONE=. We
+do this because we only want to limit the parsing scope to things inside
+of text. This is a break from previous assumptions. Up to this point, it
+has always been assumed that there is always a block sizes of at least one.
+Now there are cases where there are empty block sizes, and nothing to
+handle for that. For some reason, blocks in text mode are printed N-1. When
+N is 0, you get negative values which results in undefined behavior. To
+combat this, the function =print_text= does a zero check.
+
+# TODO: why do we need to do blksize - 1
+
 #+NAME: functions
 #+BEGIN_SRC c
 static void print_ulist_item(sorg_d *sorg, char *buf, size_t size, FILE *out)
@@ -1147,6 +1179,7 @@ static void print_ulist_item(sorg_d *sorg, char *buf, size_t size, FILE *out)
     sorg->pos = s_pos;
 
     sorg->mode = MODE_ULIST;
+    sorg->pmode = MODE_ULIST;
     /* fwrite(buf + off, len, 1, out); */
     fprintf(out, "</p></li>\n");
 }
