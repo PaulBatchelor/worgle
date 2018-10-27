@@ -37,6 +37,14 @@ install: all
 
 html: worgle.html
 
+maps:
+	$(WORGLE) $(WORGLE_FLAGS) -m worgle_map.org worgle.org
+	$(SORG) -s worgle_map.org > worgle_map.html
+	$(SORG) -t worgle_map.html -s worgle_map.org > worgle_map_toc.html
+	$(WORGLE) $(WORGLE_FLAGS) -m sorg_map.org sorg.org
+	$(SORG) -s sorg_map.org > sorg_map.html
+	$(SORG) -t sorg_map.html -s sorg_map.org > sorg_map_toc.html
+
 %.html: %.org
 	$(SORG) -s $< > $@
 	$(SORG) -t $@ -s $< > $*_toc.html
