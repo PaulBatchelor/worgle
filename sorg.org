@@ -626,7 +626,6 @@ This code is a wrapper around |fwrite|.
 void print_text(sorg_d *sorg, char *buf, FILE *out)
 {
     if(sorg->blksize > 0) {
-        printf("are we here?\n");
         fwrite(buf + sorg->off, 1, sorg->blksize - 1, out);
     }
 }
