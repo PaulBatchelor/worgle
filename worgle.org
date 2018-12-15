@@ -78,7 +78,6 @@ generated.
 <<function_declarations>>
 #endif
 #+END_SRC
-
 * An Outline of What Worgle does
 
 This aims to show a broad overview of how Orgle (and Worgle) will work
@@ -1130,6 +1129,12 @@ worg->linum = 0;
 A string is a wrapper around a raw =char= pointer and a size. This is used
 as the base string literal.
 
+#+NAME: worgle_string_contents
+#+BEGIN_SRC c
+char *str;
+size_t size;
+#+END_SRC
+
 #+NAME: typedefs
 #+BEGIN_SRC c
 typedef struct worgle_string worgle_string;
@@ -1138,14 +1143,19 @@ typedef struct worgle_string worgle_string;
 #+NAME: worgle_string
 #+BEGIN_SRC c
 struct worgle_string {
-    char *str;
-    size_t size;
+    <<worgle_string_contents>>
 };
 #+END_SRC
 
 *** Reset or initialize a string
 
 Strings in worgle are reset with the function =worgle_string_reset=.
+
+#+NAME: worgle_string_init
+#+BEGIN_SRC c
+str->str = NULL;
+str->size = 0;
+#+END_SRC
 
 #+NAME: function_declarations
 #+BEGIN_SRC c
@@ -1156,8 +1166,7 @@ void worgle_string_reset(worgle_string *str);
 #+BEGIN_SRC c
 void worgle_string_reset(worgle_string *str)
 {
-    str->str = NULL;
-    str->size = 0;
+    <<worgle_string_init>>
 }
 #+END_SRC
 
@@ -1212,11 +1221,16 @@ enum {
 <<worgle_segment_types>>
 };
 struct worgle_segment {
-    int type;
-    worgle_string str;
-    <<worgle_segment_line_control>>
-    worgle_segment *nxt;
+    <<worgle_segment_contents>>
 };
+#+END_SRC
+
+#+NAME: worgle_segment_contents
+#+BEGIN_SRC c
+int type;
+worgle_string str;
+<<worgle_segment_line_control>>
+worgle_segment *nxt;
 #+END_SRC
 
 Segments also keep track of where they are in the original org file.
@@ -1270,12 +1284,16 @@ void worgle_segment_init(worgle_segment *s,
                         worgle_string *filename,
                         size_t linum)
 {
-   s->type = type;
-   s->str = *str;
-   s->filename = filename;
-   s->linum = linum;
+   <<worgle_segment_init>>
 }
+#+END_SRC
 
+#+NAME: worgle_segment_init
+#+BEGIN_SRC c
+s->type = type;
+s->str = *str;
+s->filename = filename;
+s->linum = linum;
 #+END_SRC
 *** Writing a Segment
 
@@ -1344,13 +1362,18 @@ typedef struct worgle_block worgle_block;
 #+NAME: worgle_block
 #+BEGIN_SRC c
 struct worgle_block {
-    int nsegs;
-    worgle_segment *head;
-    worgle_segment *tail;
-    worgle_string name;
-    int am_i_used;
-    worgle_block *nxt;
+    <<worgle_block_contents>>
 };
+#+END_SRC
+
+#+NAME: worgle_block_contents
+#+BEGIN_SRC c
+int nsegs;
+worgle_segment *head;
+worgle_segment *tail;
+worgle_string name;
+int am_i_used;
+worgle_block *nxt;
 #+END_SRC
 *** Initializing a code block
 
@@ -1368,13 +1391,18 @@ linked list, as well as initialize the string holding the name of the block.
 #+BEGIN_SRC c
 void worgle_block_init(worgle_block *b)
 {
-    b->nsegs = 0;
-    b->head = NULL;
-    b->tail = NULL;
-    b->nxt = NULL;
-    b->am_i_used = 0;
-    worgle_string_init(&b->name);
+    <<worgle_block_init>>
 }
+#+END_SRC
+
+#+NAME: worgle_block_init
+#+BEGIN_SRC c
+b->nsegs = 0;
+b->head = NULL;
+b->tail = NULL;
+b->nxt = NULL;
+b->am_i_used = 0;
+worgle_string_init(&b->name);
 #+END_SRC
 *** Freeing a code block
 A code block is freed using the function =worgle_block_free=.
@@ -1777,10 +1805,15 @@ typedef struct worgle_file worgle_file;
 #+NAME: worgle_file
 #+BEGIN_SRC c
 struct worgle_file {
-    worgle_string filename;
-    worgle_block *top;
-    worgle_file *nxt;
+    <<worgle_file_contents>>
 };
+#+END_SRC
+
+#+NAME: worgle_file_contents
+#+BEGIN_SRC c
+worgle_string filename;
+worgle_block *top;
+worgle_file *nxt;
 #+END_SRC
 *** Writing A File to a filehandle
 
@@ -1906,6 +1939,7 @@ void worgle_filelist_append(worgle_filelist *flist,
     f = malloc(sizeof(worgle_file));
     f->filename = *name;
     f->top = top;
+    <<worgle_file_set_id>>
 
     if(flist->nfiles == 0) {
         flist->head = f;
@@ -2016,6 +2050,120 @@ void worgle_textbuf_free(worgle_textbuf *txt)
     if(txt->buf != NULL) free(txt->buf);
     worgle_textbuf_zero(txt);
 }
+#+END_SRC
+** UUID
+Every data structure has a Universally Unique Identifier (UUID). This concept
+was added later on in order to better accomodate the Worgle Database interface.
+*** Worgle Long Typedef
+All UUIDs have a type of =worgle_long=, which is set to be an unsigned long.
+UUIDs begin at 1, with 0 indicating an uninitialized or unset ID number.
+#+NAME:typedefs
+#+BEGIN_SRC c
+typedef unsigned long worgle_long;
+#+END_SRC
+*** String ID
+A worgle string ID is set with =worgle_string_id_set= and retrieved with
+=worgle_string_id_get=.
+
+#+NAME: worgle_string_contents
+#+BEGIN_SRC c
+worgle_long id;
+#+END_SRC
+#+NAME: worgle_string_init
+#+BEGIN_SRC c
+str->id = 0;
+#+END_SRC
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+worgle_long worgle_string_id_get(worgle_string *str);
+void worgle_string_id_set(worgle_string *str, worgle_long id);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+worgle_long worgle_string_id_get(worgle_string *str)
+{
+    return str->id;
+}
+void worgle_string_id_set(worgle_string *str, worgle_long id)
+{
+    str->id = id;
+}
+#+END_SRC
+*** Segment ID
+A segment ID is retrieved using =worgle_segment_id_get= and set using
+=worgle_segment_id_set=.
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+worgle_long worgle_segment_id_get(worgle_segment *s);
+void worgle_segment_id_set(worgle_segment *s, worgle_long id);
+#+END_SRC
+
+#+NAME: worgle_segment_contents
+#+BEGIN_SRC c
+worgle_long id;
+#+END_SRC
+
+#+NAME: worgle_segment_init
+#+BEGIN_SRC c
+s->id = 0;
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+worgle_long worgle_segment_id_get(worgle_segment *s)
+{
+    return s->id;
+}
+
+void worgle_segment_id_set(worgle_segment *s, worgle_long id)
+{
+    s->id = id;
+}
+#+END_SRC
+*** Block ID
+A block ID is retrieved using =worgle_block_id_get= and set using
+=worgle_block_id_set=.
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+worgle_long worgle_block_id_get(worgle_block *b);
+void worgle_block_id_set(worgle_block *b, worgle_long id);
+#+END_SRC
+
+#+NAME: worgle_block_contents
+#+BEGIN_SRC c
+worgle_long id;
+#+END_SRC
+
+#+NAME: worgle_block_init
+#+BEGIN_SRC c
+b->id = 0;
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+worgle_long worgle_block_id_get(worgle_block *b)
+{
+    return b->id;
+}
+
+void worgle_block_id_set(worgle_block *b, worgle_long id)
+{
+    b->id = id;
+}
+#+END_SRC
+*** File ID
+#+NAME: worgle_file_contents
+#+BEGIN_SRC c
+worgle_long id;
+#+END_SRC
+
+#+NAME: worgle_file_set_id
+#+BEGIN_SRC c
+f->id = 0;
 #+END_SRC
 * Command Line Arguments
 This section outlines command line arguments in Worgle.
