@@ -4,28 +4,35 @@ CFLAGS = -Wall -pedantic -g -O3 -Iparg
 
 default: all
 
+# Orgle is a simple org tangler written C. It is used to build worglite.
 ORGLE=./orgle
+
+# Worglite is a liteweight version of worgle, used to build worgle components.
+WORGLITE=./worglite
 WORGLE=./worgle
 SORG=./sorg
 EMACS=emacs
 
-OBJ=worgle.o parg/parg.o
+OBJ=worgle.o parg/parg.o db.o
 
 WORGLE_FLAGS=-Werror -g
 
-all: $(ORGLE) $(WORGLE) $(SORG)
+all: $(ORGLE) $(WORGLITE) $(WORGLE) $(SORG)
 
 worgle.c: worgle.org
 	$(ORGLE) $<
 
 %.c: %.org
-	$(WORGLE) $(WORGLE_FLAGS) $<
+	$(WORGLITE) $(WORGLE_FLAGS) $<
 
 orgle: orgle.c
 	$(CC) -std=c89 $(CFLAGS) $< -o $@
 
 worgle: $(OBJ)
 	$(CC) -std=c89 $(CFLAGS) $(OBJ) -o $@
+
+worglite: worgle.c parg/parg.o
+	$(CC) -std=c89 -DWORGLITE $(CFLAGS) $^ -o $@
 
 sorg: sorg.c parg/parg.o
 	$(CC) -std=c89 $(CFLAGS) sorg.c parg/parg.o -o $@
@@ -50,7 +57,9 @@ maps:
 	$(SORG) -t $@ -s $< > $*_toc.html
 
 clean:
-	$(RM) orgle worgle sorg
-	$(RM) worgle.c sorg.c
+	$(RM) orgle worgle sorg worglite
 	$(RM) $(OBJ)
 	$(RM) worgle.html worgle_toc.html
+	$(RM) sorg.c
+	$(RM) worgle.c worgle.h
+	$(RM) db.c db.h

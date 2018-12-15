@@ -10,3 +10,44 @@ display portions of the program in interesting ways.
 Instead of using the SQLite API to generate the database directly, the Worgle
 database interface will write SQL INSERT statements to be read by the sqlite3
 command line interface.
+** Worgle Database Top
+*** Top-level files
+The worgle database interface generates a single C and header file.
+
+# functions and function_declarations correspond to the main worgle.org file
+
+#+NAME: db-top
+#+BEGIN_SRC c :tangle db.c
+#include <stdio.h>
+#include "worgle.h"
+#include "db.h"
+<<functions>>
+#+END_SRC
+#+NAME: db-header
+#+BEGIN_SRC c :tangle db.h
+#ifndef WORGLE_DB_H
+#define WORGLE_DB_H
+<<function_declarations>>
+#endif
+#+END_SRC
+*** Top-level function
+The SQLite database generation is done with the function =worgle_db_generate=.
+It will write SQLite commands to a file handle =fp=.
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_db_generate(worgle_d *worg, FILE *fp);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_db_generate(worgle_d *worg, FILE *fp)
+{
+
+}
+#+END_SRC
+** SQLite Schemas
+The following section describes the SQLite schemas for all the tables
+needed by Worgle.
+*** Segment Schema
+*** Block Schema
+*** File Schema
