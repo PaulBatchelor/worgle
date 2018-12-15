@@ -576,6 +576,7 @@ a value retrieved from the block dictionary.
 void worgle_begin_block(worgle_d *worg, worgle_string *name)
 {
     worg->curblock = worgle_hashmap_get(&worg->dict, name);
+    <<worgle_block_set_id>>
 }
 #+END_SRC
 
@@ -615,7 +616,7 @@ rc = 1;
 
 The begin source flag in org-mode can have a number of options,
 but the only one we really care about for this tangler is
-the ":tangle" option. 
+the ":tangle" option.
 
 #+NAME: function_declarations
 #+BEGIN_SRC c
@@ -724,7 +725,9 @@ void worgle_append_file(worgle_d *worg, worgle_string *filename);
 #+BEGIN_SRC c
 void worgle_append_file(worgle_d *worg, worgle_string *filename)
 {
-    worgle_filelist_append(&worg->flist, filename, worg->curblock);
+    worgle_file *f;
+    f = worgle_filelist_append(&worg->flist, filename, worg->curblock);
+    <<worgle_file_set_id>>
 }
 #+END_SRC
 **** MODE_CODE
@@ -776,11 +779,13 @@ void worgle_append_string(worgle_d *worg);
 #+BEGIN_SRC c
 void worgle_append_string(worgle_d *worg)
 {
+    worgle_segment *seg;
     if(worg->curblock == NULL) return;
-    worgle_block_append_string(worg->curblock,
-                              &worg->block,
-                              worg->curline,
-                              &worg->curbuf->filename);
+    seg = worgle_block_append_string(worg->curblock,
+                                     &worg->block,
+                                     worg->curline,
+                                     &worg->curbuf->filename);
+    <<worgle_segment_string_set_id>>
 }
 #+END_SRC
 
@@ -793,11 +798,12 @@ void worgle_append_reference(worgle_d *worg, worgle_string *ref);
 #+BEGIN_SRC c
 void worgle_append_reference(worgle_d *worg, worgle_string *ref)
 {
+    worgle_segment *seg;
     if(worg->curblock == NULL) return;
-    worgle_block_append_reference(worg->curblock,
-                                 ref,
-                                 worg->linum,
-                                 &worg->curbuf->filename);
+    seg = worgle_block_append_reference(worg->curblock,
+                                        ref,
+                                        worg->linum,
+                                        &worg->curbuf->filename);
 }
 #+END_SRC
 
@@ -1432,7 +1438,6 @@ void worgle_block_free(worgle_block *lst)
 }
 #+END_SRC
 *** Appending a segment to a code block
-
 A generic segment is appended to a code block with the function.
 =worgle_block_append_segment=.
 The block =b=, name of the block =str=, and type =type= are mandatory parameters
@@ -1444,11 +1449,11 @@ being called directly.
 
 #+NAME: function_declarations
 #+BEGIN_SRC c
-void worgle_block_append_segment(worgle_block *b,
-                                worgle_string *str,
-                                int type,
-                                size_t linum,
-                                worgle_string *filename);
+worgle_segment* worgle_block_append_segment(worgle_block *b,
+                                            worgle_string *str,
+                                            int type,
+                                            size_t linum,
+                                            worgle_string *filename);
 #+END_SRC
 
 It is worthwhile to note that it is in this function that a data
@@ -1456,11 +1461,11 @@ segment type gets allocated.
 
 #+NAME: functions
 #+BEGIN_SRC c
-void worgle_block_append_segment(worgle_block *b,
-                                worgle_string *str,
-                                int type,
-                                size_t linum,
-                                worgle_string *filename)
+worgle_segment* worgle_block_append_segment(worgle_block *b,
+                                            worgle_string *str,
+                                            int type,
+                                            size_t linum,
+                                            worgle_string *filename)
 {
     worgle_segment *s;
     s = malloc(sizeof(worgle_segment));
@@ -1472,6 +1477,7 @@ void worgle_block_append_segment(worgle_block *b,
     b->tail->nxt = s;
     b->tail = s;
     b->nsegs++;
+    return s;
 }
 #+END_SRC
 
@@ -1482,7 +1488,7 @@ A string segment is appended to a code block using the function
 
 #+NAME: function_declarations
 #+BEGIN_SRC c
-void worgle_block_append_string(worgle_block *b,
+worgle_segment* worgle_block_append_string(worgle_block *b,
                                worgle_string *str,
                                size_t linum,
                                worgle_string *filename);
@@ -1490,12 +1496,12 @@ void worgle_block_append_string(worgle_block *b,
 
 #+NAME: functions
 #+BEGIN_SRC c
-void worgle_block_append_string(worgle_block *b,
-                               worgle_string *str,
-                               size_t linum,
-                               worgle_string *filename)
+worgle_segment* worgle_block_append_string(worgle_block *b,
+                                           worgle_string *str,
+                                           size_t linum,
+                                           worgle_string *filename)
 {
-    worgle_block_append_segment(b, str, SEGTYPE_TEXT, linum, filename);
+    return worgle_block_append_segment(b, str, SEGTYPE_TEXT, linum, filename);
 }
 #+END_SRC
 **** Appending a reference segment
@@ -1505,20 +1511,21 @@ A reference segment is appended to a code block using the function
 
 #+NAME: function_declarations
 #+BEGIN_SRC c
-void worgle_block_append_reference(worgle_block *b,
-                                  worgle_string *str,
-                                  size_t linum,
-                                  worgle_string *filename);
+worgle_segment* worgle_block_append_reference(worgle_block *b,
+                                              worgle_string *str,
+                                              size_t linum,
+                                              worgle_string *filename);
 #+END_SRC
 
 #+NAME: functions
 #+BEGIN_SRC c
-void worgle_block_append_reference(worgle_block *b,
-                                  worgle_string *str,
-                                  size_t linum,
-                                  worgle_string *filename)
+worgle_segment* worgle_block_append_reference(worgle_block *b,
+                                              worgle_string *str,
+                                              size_t linum,
+                                              worgle_string *filename)
 {
-    worgle_block_append_segment(b, str, SEGTYPE_REFERENCE, linum, filename);
+    return worgle_block_append_segment(b, str, SEGTYPE_REFERENCE,
+                                       linum, filename);
 }
 #+END_SRC
 *** Appending a code block to a code block
@@ -1924,14 +1931,14 @@ The name, as well as the well as the top-level code block are required here.
 
 #+NAME: function_declarations
 #+BEGIN_SRC c
-void worgle_filelist_append(worgle_filelist *flist,
+worgle_file* worgle_filelist_append(worgle_filelist *flist,
                            worgle_string *name,
                            worgle_block *top);
 #+END_SRC
 
 #+NAME: functions
 #+BEGIN_SRC c
-void worgle_filelist_append(worgle_filelist *flist,
+worgle_file* worgle_filelist_append(worgle_filelist *flist,
                            worgle_string *name,
                            worgle_block *top)
 {
@@ -1939,7 +1946,7 @@ void worgle_filelist_append(worgle_filelist *flist,
     f = malloc(sizeof(worgle_file));
     f->filename = *name;
     f->top = top;
-    <<worgle_file_set_id>>
+    <<worgle_file_init_id>>
 
     if(flist->nfiles == 0) {
         flist->head = f;
@@ -1948,6 +1955,7 @@ void worgle_filelist_append(worgle_filelist *flist,
     flist->tail->nxt = f;
     flist->tail = f;
     flist->nfiles++;
+    return f;
 }
 #+END_SRC
 *** Writing a filelist to disk
@@ -2061,39 +2069,72 @@ UUIDs begin at 1, with 0 indicating an uninitialized or unset ID number.
 #+BEGIN_SRC c
 typedef unsigned long worgle_long;
 #+END_SRC
-*** String ID
-A worgle string ID is set with =worgle_string_id_set= and retrieved with
-=worgle_string_id_get=.
+*** Top-level UUID counter
+UUID management is done via a reference counter called =UUID_count=.
+#+NAME: worgle_struct_contents
+#+BEGIN_SRC c
+worgle_long UUID_count;
+#+END_SRC
+It is initialized to be 1, the first valid UUID.
+When using the counter, the Worgle process will return then increment. This
+will ensure that the UUID will be valid no matter what.
+#+NAME: worgle_init
+#+BEGIN_SRC c
+worg->UUID_count = 1;
+#+END_SRC
 
-#+NAME: worgle_string_contents
-#+BEGIN_SRC c
-worgle_long id;
-#+END_SRC
-#+NAME: worgle_string_init
-#+BEGIN_SRC c
-str->id = 0;
-#+END_SRC
+A new UUID is generated by returning the UUID_counter, then
+incrementing it.
 
 #+NAME: function_declarations
 #+BEGIN_SRC c
-worgle_long worgle_string_id_get(worgle_string *str);
-void worgle_string_id_set(worgle_string *str, worgle_long id);
+worgle_long worgle_uuid_new(worgle_d *worg);
 #+END_SRC
 
 #+NAME: functions
 #+BEGIN_SRC c
-worgle_long worgle_string_id_get(worgle_string *str)
+worgle_long worgle_uuid_new(worgle_d *worg)
 {
-    return str->id;
-}
-void worgle_string_id_set(worgle_string *str, worgle_long id)
-{
-    str->id = id;
+    return worg->UUID_count++;
 }
 #+END_SRC
+
+# # Not String IDs are needed! Keeping it commented it out for now.
+# *** String ID
+# A worgle string ID is set with =worgle_string_id_set= and retrieved with
+# =worgle_string_id_get=.
+#
+# #+NAME: worgle_string_contents
+# #+BEGIN_SRC c
+# worgle_long id;
+# #+END_SRC
+# #+NAME: worgle_string_init
+# #+BEGIN_SRC c
+# str->id = 0;
+# #+END_SRC
+#
+# #+NAME: function_declarations
+# #+BEGIN_SRC c
+# worgle_long worgle_string_id_get(worgle_string *str);
+# void worgle_string_id_set(worgle_string *str, worgle_long id);
+# #+END_SRC
+#
+# #+NAME: functions
+# #+BEGIN_SRC c
+# worgle_long worgle_string_id_get(worgle_string *str)
+# {
+#     return str->id;
+# }
+# void worgle_string_id_set(worgle_string *str, worgle_long id)
+# {
+#     str->id = id;
+# }
+# #+END_SRC
 *** Segment ID
 A segment ID is retrieved using =worgle_segment_id_get= and set using
-=worgle_segment_id_set=.
+=worgle_segment_id_set=. This is the lowest level component where a
+UUID is required. The =worgle_string= type is lower than a =worgle_segment=,
+but it is always encapsulated in a =worgle_segment=.
 
 #+NAME: function_declarations
 #+BEGIN_SRC c
@@ -2122,6 +2163,19 @@ void worgle_segment_id_set(worgle_segment *s, worgle_long id)
 {
     s->id = id;
 }
+#+END_SRC
+
+Segment UUIDs are assigned in two places: when a reference is assigned,
+and when string is assigned.
+
+#+NAME: worgle_segment_string_set_id
+#+BEGIN_SRC c
+worgle_segment_id_set(seg, worgle_uuid_new(worg));
+#+END_SRC
+
+#+NAME: worgle_segment_reference_set_id
+#+BEGIN_SRC c
+worgle_segment_id_set(seg, worgle_uuid_new(worg));
 #+END_SRC
 *** Block ID
 A block ID is retrieved using =worgle_block_id_get= and set using
@@ -2155,15 +2209,46 @@ void worgle_block_id_set(worgle_block *b, worgle_long id)
     b->id = id;
 }
 #+END_SRC
+
+The worgle block ID is set inside of =worgle_begin_block= when
+a [[Beginning a new block][new block is started]].
+In this section a previously allocated block is retrieved, or a new
+block is created entirely. A newly allocated block will have an id
+of 0. If this is the case, the block will be assigned a UUID.
+
+#+NAME: worgle_block_set_id
+#+BEGIN_SRC c
+if(worgle_block_id_get(worg->curblock) == 0) {
+    worgle_block_id_set(worg->curblock, worgle_uuid_new(worg));
+}
+#+END_SRC
 *** File ID
 #+NAME: worgle_file_contents
 #+BEGIN_SRC c
 worgle_long id;
 #+END_SRC
 
-#+NAME: worgle_file_set_id
+#+NAME: worgle_file_init_id
 #+BEGIN_SRC c
 f->id = 0;
+#+END_SRC
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_file_id_set(worgle_file *f, worgle_long id);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_file_id_set(worgle_file *f, worgle_long id)
+{
+    f->id = id;
+}
+#+END_SRC
+
+#+NAME: worgle_file_set_id
+#+BEGIN_SRC c
+worgle_file_id_set(f, worgle_uuid_new(worg));
 #+END_SRC
 * Command Line Arguments
 This section outlines command line arguments in Worgle.
