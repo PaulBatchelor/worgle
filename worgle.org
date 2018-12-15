@@ -45,12 +45,12 @@ to be a self-contained standalone CLI application.
 #include <stdlib.h>
 #include <string.h>
 #include "parg.h"
+#include "worgle.h"
 
 <<global_variables>>
 <<enums>>
 <<structs>>
 <<static_function_declarations>>
-<<function_declarations>>
 <<functions>>
 
 int main(int argc, char *argv[])
@@ -65,6 +65,20 @@ int main(int argc, char *argv[])
 }
 
 #+END_SRC
+
+In more recent developments of Worgle, a corresponding header file will be
+generated with the C file. This is needed so that other C files can be
+generated.
+
+#+NAME: worgle-header
+#+BEGIN_SRC c :tangle worgle.h
+#ifndef WORGLE_H
+#define WORGLE_H
+<<typedefs>>
+<<function_declarations>>
+#endif
+#+END_SRC
+
 * An Outline of What Worgle does
 
 This aims to show a broad overview of how Orgle (and Worgle) will work
@@ -889,7 +903,6 @@ worgle_free(&worg);
 return rc;
 #+END_SRC
 * Core Data Structures
-
 The Worgle/Orgle program is very much a data-structure driven program.
 Understanding the hierarchy of data here will provide a clear picture for
 how the tangling works.
@@ -907,15 +920,19 @@ how the tangling works.
 <<worgle_struct>>
 #+END_SRC
 ** Top Level Struct
-
 All Worgle operations are contained in a top-level struct called =worgle_d=.
 For the most part, this struct aims to be dynamically populated.
 
+#+NAME:typedefs
+#+BEGIN_SRC c
+typedef struct worgle_d worgle_d;
+#+END_SRC
+
 #+NAME:worgle_struct
 #+BEGIN_SRC c
-typedef struct {
+struct worgle_d {
     <<worgle_struct_contents>>
-} worgle_d;
+};
 #+END_SRC
 
 *** Worgle Initialization
@@ -1113,13 +1130,19 @@ worg->linum = 0;
 A string is a wrapper around a raw =char= pointer and a size. This is used
 as the base string literal.
 
+#+NAME: typedefs
+#+BEGIN_SRC c
+typedef struct worgle_string worgle_string;
+#+END_SRC
+
 #+NAME: worgle_string
 #+BEGIN_SRC c
-typedef struct {
+struct worgle_string {
     char *str;
     size_t size;
-} worgle_string;
+};
 #+END_SRC
+
 *** Reset or initialize a string
 
 Strings in worgle are reset with the function =worgle_string_reset=.
@@ -1175,21 +1198,25 @@ int worgle_string_write(FILE *fp, worgle_string *str)
 }
 #+END_SRC
 ** Segment
-
 A segment turns a string into a linked list component that has a type.
 A segment type flag can either be a text chunk or a reference.
+
+#+NAME: typedefs
+#+BEGIN_SRC c
+typedef struct worgle_segment worgle_segment;
+#+END_SRC
 
 #+NAME: worgle_segment
 #+BEGIN_SRC c
 enum {
 <<worgle_segment_types>>
 };
-typedef struct worgle_segment {
+struct worgle_segment {
     int type;
     worgle_string str;
     <<worgle_segment_line_control>>
-    struct worgle_segment *nxt;
-} worgle_segment;
+    worgle_segment *nxt;
+};
 #+END_SRC
 
 Segments also keep track of where they are in the original org file.
@@ -1309,16 +1336,21 @@ int worgle_segment_write(worgle_segment *s, worgle_hashmap *h, FILE *fp)
 A code block is a top-level unit that stores some amount of code. It is
 made up of a list of segments. Every code block has a unique name.
 
+#+NAME: typedefs
+#+BEGIN_SRC c
+typedef struct worgle_block worgle_block;
+#+END_SRC
+
 #+NAME: worgle_block
 #+BEGIN_SRC c
-typedef struct worgle_block {
+struct worgle_block {
     int nsegs;
     worgle_segment *head;
     worgle_segment *tail;
     worgle_string name;
     int am_i_used;
-    struct worgle_block *nxt;
-} worgle_block;
+    worgle_block *nxt;
+};
 #+END_SRC
 *** Initializing a code block
 
@@ -1502,16 +1534,21 @@ int worgle_block_write(worgle_block *b, worgle_hashmap *h, FILE *fp)
 #+END_SRC
 
 ** Code Block List
-
 A code block list is a linked list of blocks, which is used inside of a
 hash map.
+
+#+NAME: typedefs
+#+BEGIN_SRC c
+typedef struct worgle_blocklist worgle_blocklist;
+#+END_SRC
+
 #+NAME: worgle_blocklist
 #+BEGIN_SRC c
-typedef struct {
+struct worgle_blocklist {
     int nblocks;
     worgle_block *head;
     worgle_block *tail;
-} worgle_blocklist;
+};
 #+END_SRC
 *** Block List Initialization
 
@@ -1581,16 +1618,21 @@ void worgle_blocklist_append(worgle_blocklist *lst, worgle_block *b)
 }
 #+END_SRC
 ** Hash Map
-
 A hash map is a key-value data structure used as a dictionary for storing
 references to code blocks.
+
+#+NAME: typedefs
+#+BEGIN_SRC c
+typedef struct worgle_hashmap worgle_hashmap;
+#+END_SRC
+
 #+NAME: worgle_hashmap
 #+BEGIN_SRC c
 #define HASH_SIZE 256
-typedef struct {
+struct worgle_hashmap {
     worgle_blocklist blk[HASH_SIZE];
     int nwords;
-} worgle_hashmap;
+};
 #+END_SRC
 *** Hash map Initialization
 
@@ -1726,13 +1768,19 @@ worgle_block * worgle_hashmap_get(worgle_hashmap *h, worgle_string *name)
 A worgle file is an abstraction for a single file worgle will write to. Every
 file has a filename, and a top-level code block. A worgle does not have a
 filehandle. Files will only be created at the generation stage.
+
+#+NAME: typedefs
+#+BEGIN_SRC c
+typedef struct worgle_file worgle_file;
+#+END_SRC
+
 #+NAME: worgle_file
 #+BEGIN_SRC c
-typedef struct worgle_file {
+struct worgle_file {
     worgle_string filename;
     worgle_block *top;
-    struct worgle_file *nxt;
-} worgle_file;
+    worgle_file *nxt;
+};
 #+END_SRC
 *** Writing A File to a filehandle
 
@@ -1777,15 +1825,20 @@ int worgle_file_write(worgle_file *f, worgle_hashmap *h)
 #+END_SRC
 
 ** The File List
-
 A file list is a linked list of worgle files.
+
+#+NAME: typedefs
+#+BEGIN_SRC c
+typedef struct worgle_filelist worgle_filelist;
+#+END_SRC
+
 #+NAME: worgle_filelist
 #+BEGIN_SRC c
-typedef struct {
+struct worgle_filelist {
     worgle_file *head;
     worgle_file *tail;
     int nfiles;
-} worgle_filelist;
+};
 #+END_SRC
 *** Initializing a file list
 
@@ -1893,13 +1946,18 @@ int worgle_filelist_write(worgle_filelist *flist, worgle_hashmap *h)
 ** Text Buffer
 Files in memory are stored in a text buffer known as a =worgle_textbuf=.
 
+#+NAME: typedefs
+#+BEGIN_SRC c
+typedef struct worgle_textbuf worgle_textbuf;
+#+END_SRC
+
 #+NAME: worgle_textbuf
 #+BEGIN_SRC c
-typedef struct {
+struct worgle_textbuf {
     char *buf;
     size_t size;
     worgle_string filename;
-} worgle_textbuf;
+};
 #+END_SRC
 
 *** Zeroing out a text buffer
