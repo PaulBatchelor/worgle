@@ -43,7 +43,7 @@ void worgle_db_generate(worgle_d *worg, FILE *fp);
 #+BEGIN_SRC c
 void worgle_db_generate(worgle_d *worg, FILE *fp)
 {
-
+    <<schemas>>
 }
 #+END_SRC
 ** SQLite Schemas
@@ -67,13 +67,34 @@ enum {
     SEGMENT_REFERENCE
 };
 #+END_SRC
+
+#+NAME: schemas
+#+BEGIN_SRC c
+fprintf(fp, "CREATE TABLE segments(\n");
+fprintf(fp, "id INTEGER PRIMARY KEY,\n");
+fprintf(fp, "type INTEGER,\n");
+fprintf(fp, "linum INTEGER,\n");
+fprintf(fp, "filename TEXT,\n");
+fprintf(fp, "next_segment INTEGER\n");
+fprintf(fp, ");");
+#+END_SRC
 *** Block Schema
 The block schema contains the following items:
 
 - the UUID
-- the UUID of the head
+- the UUID of the segment head
 - the name of the block
 - the UUID of the next block
+
+#+NAME: schemas
+#+BEGIN_SRC c
+fprintf(fp, "CREATE TABLE block(\n");
+fprintf(fp, "id INTEGER PRIMARY KEY,\n");
+fprintf(fp, "head_segment INTEGER,\n");
+fprintf(fp, "name TEXT,\n");
+fprintf(fp, "next_block INTEGER\n");
+fprintf(fp, ");");
+#+END_SRC
 *** File Schema
 A file name table contains the following:
 
@@ -81,6 +102,16 @@ A file name table contains the following:
 - filename
 - the top-level block
 - the UUID for the next file (0 if there is no next file)
+
+#+NAME: schemas
+#+BEGIN_SRC c
+fprintf(fp, "CREATE TABLE file(\n");
+fprintf(fp, "id INTEGER PRIMARY KEY,\n");
+fprintf(fp, "filename TEXT,\n");
+fprintf(fp, "type INTEGER,\n");
+fprintf(fp, "next_file INTEGER\n");
+fprintf(fp, ");");
+#+END_SRC
 *** UUID Schema
 Every single UUID is logged into a single table. This table has every single
 UUID and their type.
@@ -97,4 +128,12 @@ enum {
     RES_BLOCK,
     RES_SEGMENT
 };
+#+END_SRC
+
+#+NAME: schemas
+#+BEGIN_SRC c
+fprintf(fp, "CREATE TABLE resources(\n");
+fprintf(fp, "id INTEGER PRIMARY KEY,\n");
+fprintf(fp, "type INTEGER\n");
+fprintf(fp, ");");
 #+END_SRC
