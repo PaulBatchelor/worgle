@@ -49,5 +49,24 @@ void worgle_db_generate(worgle_d *worg, FILE *fp)
 The following section describes the SQLite schemas for all the tables
 needed by Worgle.
 *** Segment Schema
+The segment schema contains the following items:
+
+- the UUID
+- the type (stored as integer)
+- the line number
+- the file (filename, not UUID) that it belongs to
+- the UUID of the next segment
 *** Block Schema
+The block schema contains the following items:
+
+- the UUID
+- the UUID of the head
+- the name of the block
+- the UUID of the next block
 *** File Schema
+A file name table contains the following:
+
+- UUID
+- filename
+- the top-level block
+- the UUID for the next file (0 if there is no next file)
