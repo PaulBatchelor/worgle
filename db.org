@@ -1,0 +1,12 @@
+#+TITLE: Worgle Database
+* Worgle Database (WIP)
+This section outlines the portion of Worgle which handles database
+export. At the time of writing, this feature does not exist yet.
+The main idea behind this is to be able to take a program Org, and
+export all the metadata into a SQLite database. In the future, other
+programs will be written to query the generated database and dynamically
+display portions of the program in interesting ways.
+
+Instead of using the SQLite API to generate the database directly, the Worgle
+database interface will write SQL INSERT statements to be read by the sqlite3
+command line interface.
