@@ -21,6 +21,7 @@ The worgle database interface generates a single C and header file.
 #include <stdio.h>
 #include "worgle.h"
 #include "db.h"
+<<macros>>
 <<functions>>
 #+END_SRC
 #+NAME: db-header
@@ -56,6 +57,16 @@ The segment schema contains the following items:
 - the line number
 - the file (filename, not UUID) that it belongs to
 - the UUID of the next segment
+
+The types for segments are defined in an ENUM.
+
+#+NAME: macros
+#+BEGIN_SRC c
+enum {
+    SEGMENT_STRING,
+    SEGMENT_REFERENCE
+};
+#+END_SRC
 *** Block Schema
 The block schema contains the following items:
 
@@ -70,3 +81,20 @@ A file name table contains the following:
 - filename
 - the top-level block
 - the UUID for the next file (0 if there is no next file)
+*** UUID Schema
+Every single UUID is logged into a single table. This table has every single
+UUID and their type.
+
+- UUID
+- type (as an integer)
+
+The integer-based types are defined as enums below:
+
+#+NAME: macros
+#+BEGIN_SRC c
+enum {
+    RES_FILE,
+    RES_BLOCK,
+    RES_SEGMENT
+};
+#+END_SRC
