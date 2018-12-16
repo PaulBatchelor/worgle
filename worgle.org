@@ -1370,6 +1370,27 @@ int worgle_segment_write(worgle_segment *s, worgle_hashmap *h, FILE *fp)
     return 1;
 }
 #+END_SRC
+*** Segment Type Checks
+All segment types can be checked with a few functions, without needing to know
+any of the type macros.
+#+NAME: function_declarations
+#+BEGIN_SRC c
+int worgle_segment_is_text(worgle_segment *s);
+int worgle_segment_is_reference(worgle_segment *s);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+int worgle_segment_is_text(worgle_segment *s)
+{
+    return s->type == SEGTYPE_TEXT;
+}
+
+int worgle_segment_is_reference(worgle_segment *s)
+{
+    return s->type == SEGTYPE_REFERENCE;
+}
+#+END_SRC
 ** Code Block
 A code block is a top-level unit that stores some amount of code. It is
 made up of a list of segments. Every code block has a unique name.
@@ -2438,7 +2459,7 @@ static void append_filename(worgle_d *worg, char *filename)
     str->size = strlen(filename);
 }
 #+END_SRC
-* Generate Database (-d)
+** Generate Database (-d)
 This flag will turn on database generation, assuming that it is enabled.
 
 #+NAME:global_variables

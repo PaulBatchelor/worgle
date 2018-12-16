@@ -153,26 +153,26 @@ Table population tangle insert is done inside the function =worgle_db_generate=.
 
 #+NAME: inserts
 #+BEGIN_SRC c
-worgle_db_insert_filelist(fp, &worg->flist);
+worgle_db_insert_filelist(worg, &worg->flist, fp);
 #+END_SRC
 **** Filelist Insert
 The top-level part of the code walks through the file list inside of
 =worgle_db_insert_filelist=.
 #+NAME: function_declarations
 #+BEGIN_SRC c
-void worgle_db_insert_filelist(FILE *fp, worgle_filelist *flist);
+void worgle_db_insert_filelist(worgle_d *worg, worgle_filelist *flist, FILE *fp);
 #+END_SRC
 
 #+NAME: functions
 #+BEGIN_SRC c
-void worgle_db_insert_filelist(FILE *fp, worgle_filelist *flist)
+void worgle_db_insert_filelist(worgle_d *worg, worgle_filelist *flist, FILE *fp)
 {
     worgle_file *f;
     int n;
 
     f = flist->head;
     for(n = 0; n < flist->nfiles; n++) {
-        worgle_db_insert_file(fp, f);
+        worgle_db_insert_file(worg, f, fp);
         f = f->nxt;
     }
 }
@@ -181,12 +181,12 @@ void worgle_db_insert_filelist(FILE *fp, worgle_filelist *flist)
 A file is inserted with the function =worgle_db_insert_file=.
 #+NAME: function_declarations
 #+BEGIN_SRC c
-void worgle_db_insert_file(FILE *fp, worgle_file *file);
+void worgle_db_insert_file(worgle_d *worg, worgle_file *file, FILE *fp);
 #+END_SRC
 
 #+NAME: functions
 #+BEGIN_SRC c
-void worgle_db_insert_file(FILE *fp, worgle_file *file)
+void worgle_db_insert_file(worgle_d *worg, worgle_file *file, FILE *fp)
 {
     worgle_long next_id;
 
@@ -199,24 +199,28 @@ void worgle_db_insert_file(FILE *fp, worgle_file *file)
     fprintf(fp, "\"");
     worgle_string_write(fp, &file->filename);
     fprintf(fp, "\");\n");
-    worgle_db_insert_block(fp, file->top);
+    worgle_db_insert_block(worg, file->top, fp);
 }
 #+END_SRC
 **** Block Insert
 A block is inserted with the function =worgle_db_insert_block=.
 #+NAME:function_declarations
 #+BEGIN_SRC c
-void worgle_db_insert_block(FILE *fp, worgle_block *block);
+void worgle_db_insert_block(worgle_d *worg, worgle_block *block, FILE *fp);
 #+END_SRC
 
 #+NAME:functions
 #+BEGIN_SRC c
-void worgle_db_insert_block(FILE *fp, worgle_block *block)
+void worgle_db_insert_block(worgle_d *worg, worgle_block *block, FILE *fp)
 {
     worgle_segment *s;
     int n;
     worgle_long next_segment;
+    int new_insert;
+    worgle_block *blk;
+    worgle_hashmap *hm;
     s = block->head;
+    hm = &worg->dict;
     fprintf(fp, "INSERT INTO block(id, head_segment, next_block, name)\n");
     fprintf(fp, "VALUES(%lu, %lu, %lu, ",
             block->id,
@@ -225,9 +229,13 @@ void worgle_db_insert_block(FILE *fp, worgle_block *block)
     fprintf(fp, "\"");
     worgle_string_write(fp, &block->name);
     fprintf(fp, "\");\n");
-    fprintf(fp,
-    "INSERT INTO segments(id, type, linum, next_segment, str) VALUES\n");
+    new_insert = 1;
     for(n = 0; n < block->nsegs; n++) {
+        if(new_insert) {
+            new_insert = 0;
+            fprintf(fp, "INSERT INTO segments");
+            fprintf(fp, "(id, type, linum, next_segment, str) VALUES\n");
+        }
         if(s->nxt != NULL) next_segment = s->nxt->id;
         else next_segment = 0;
         fprintf(fp, "(%lu, %d, %lu, %lu, ",
@@ -237,6 +245,12 @@ void worgle_db_insert_block(FILE *fp, worgle_block *block)
                 next_segment);
         fprintf(fp, "\"");
         worgle_string_write(fp, &s->str);
+        if(worgle_segment_is_reference(s)) {
+            if(!worgle_hashmap_find(hm, &s->str, &blk)) break;
+            fprintf(fp, "\");\n");
+            worgle_db_insert_block(worg, blk, fp);
+            new_insert = 1;
+        }
         if(n == block->nsegs - 1) {
             fprintf(fp, "\");\n");
         } else {
