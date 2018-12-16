@@ -211,31 +211,47 @@ void worgle_db_insert_block(worgle_d *worg, worgle_block *block, FILE *fp);
 
 #+NAME:functions
 #+BEGIN_SRC c
+static void print_escaped_string(FILE *fp, worgle_string *str)
+{
+    size_t s;
+    for(s = 0; s < str->size; s++) {
+        switch(str->str[s]) {
+            case '\'':
+                fprintf(fp, "''");
+                break;
+            default:
+                fputc(str->str[s], fp);
+                break;
+        }
+    }
+}
 void worgle_db_insert_block(worgle_d *worg, worgle_block *block, FILE *fp)
 {
     worgle_segment *s;
     int n;
     worgle_long next_segment;
-    int new_insert;
     worgle_block *blk;
     worgle_hashmap *hm;
+    worgle_long next_id;
+
     s = block->head;
     hm = &worg->dict;
     fprintf(fp, "INSERT INTO block(id, head_segment, next_block, name)\n");
+    if(block->nxt == NULL) {
+        next_id = 0;
+    } else {
+        next_id = block->nxt->id;
+    }
     fprintf(fp, "VALUES(%lu, %lu, %lu, ",
             block->id,
             block->head->id,
-            block->nxt->id);
-    fprintf(fp, "\"");
+            next_id);
+    fprintf(fp, "'");
     worgle_string_write(fp, &block->name);
-    fprintf(fp, "\");\n");
-    new_insert = 1;
+    fprintf(fp, "');\n");
     for(n = 0; n < block->nsegs; n++) {
-        if(new_insert) {
-            new_insert = 0;
-            fprintf(fp, "INSERT INTO segments");
-            fprintf(fp, "(id, type, linum, next_segment, str) VALUES\n");
-        }
+        fprintf(fp, "INSERT INTO segments");
+        fprintf(fp, "(id, type, linum, next_segment, str) VALUES\n");
         if(s->nxt != NULL) next_segment = s->nxt->id;
         else next_segment = 0;
         fprintf(fp, "(%lu, %d, %lu, %lu, ",
@@ -243,18 +259,13 @@ void worgle_db_insert_block(worgle_d *worg, worgle_block *block, FILE *fp)
                 s->type,
                 s->linum,
                 next_segment);
-        fprintf(fp, "\"");
-        worgle_string_write(fp, &s->str);
+        fprintf(fp, "'");
+        print_escaped_string(fp, &s->str);
+        /* worgle_string_write(fp, &s->str); */
+        fprintf(fp, "');\n");
         if(worgle_segment_is_reference(s)) {
             if(!worgle_hashmap_find(hm, &s->str, &blk)) break;
-            fprintf(fp, "\");\n");
             worgle_db_insert_block(worg, blk, fp);
-            new_insert = 1;
-        }
-        if(n == block->nsegs - 1) {
-            fprintf(fp, "\");\n");
-        } else {
-            fprintf(fp, "\"),\n");
         }
         s = s->nxt;
     }

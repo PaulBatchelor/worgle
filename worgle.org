@@ -818,6 +818,7 @@ void worgle_append_reference(worgle_d *worg, worgle_string *ref)
                                         ref,
                                         worg->linum,
                                         &worg->curbuf->filename);
+    <<worgle_segment_reference_set_id>>
 }
 #+END_SRC
 
@@ -1166,7 +1167,6 @@ struct worgle_string {
     <<worgle_string_contents>>
 };
 #+END_SRC
-
 *** Reset or initialize a string
 
 Strings in worgle are reset with the function =worgle_string_reset=.
@@ -1805,7 +1805,6 @@ static int hash(const char *str, size_t size)
 }
 #+END_SRC
 *** Getting an entry
-
 To "get" an entry means to return a block if it exists or not. Return
 an entry that exists, or make a new one. This can be done with the function
 =worgle_hashmap_get=.
@@ -2247,7 +2246,8 @@ The worgle block ID is set inside of =worgle_begin_block= when
 a [[Beginning a new block][new block is started]].
 In this section a previously allocated block is retrieved, or a new
 block is created entirely. A newly allocated block will have an id
-of 0. If this is the case, the block will be assigned a UUID.
+of 0. If this is the case, the block will be assigned a UUID. The new block
+also has a string name, so this needs to be assigned as well.
 
 #+NAME: worgle_block_set_id
 #+BEGIN_SRC c
