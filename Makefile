@@ -1,6 +1,6 @@
 .PHONY: html
 
-CFLAGS = -Wall -pedantic -g -O3 -Iparg
+CFLAGS = -Wall -std=c89 -pedantic -g -O3 -Iparg
 
 default: all
 
@@ -13,7 +13,7 @@ WORGLE=./worgle
 SORG=./sorg
 EMACS=emacs
 
-OBJ=worgle.o parg/parg.o db.o
+OBJ=worgle.o db.o parg/parg.o
 
 WORGLE_FLAGS=-Werror -g
 
@@ -25,14 +25,17 @@ worgle.c: worgle.org
 %.c: %.org
 	$(WORGLITE) $(WORGLE_FLAGS) $<
 
+# Worgle.c depends on db.o (and maybe other files)
+worgle.o: db.o
+
 orgle: orgle.c
-	$(CC) -std=c89 $(CFLAGS) $< -o $@
+	$(CC) $(CFLAGS) $< -o $@
 
 worgle: $(OBJ)
-	$(CC) -std=c89 $(CFLAGS) $(OBJ) -o $@
+	$(CC) $(CFLAGS) $(OBJ) -o $@
 
 worglite: worgle.c parg/parg.o
-	$(CC) -std=c89 -DWORGLITE $(CFLAGS) $^ -o $@
+	$(CC) -DWORGLITE $(CFLAGS) $^ -o $@
 
 sorg: sorg.c parg/parg.o
 	$(CC) -std=c89 $(CFLAGS) sorg.c parg/parg.o -o $@

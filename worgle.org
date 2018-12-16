@@ -45,10 +45,13 @@ to be a self-contained standalone CLI application.
 #include <string.h>
 #include "parg.h"
 #include "worgle.h"
+#include "worgle_private.h"
+#ifndef WORGLITE
+#include "db.h"
+#endif
 
 <<global_variables>>
 <<enums>>
-<<structs>>
 <<static_function_declarations>>
 <<functions>>
 
@@ -60,6 +63,7 @@ int main(int argc, char *argv[])
     <<parsing>>
     <<generation>>
     <<mapping>>
+    <<database>>
     <<cleanup>>
 }
 
@@ -75,6 +79,17 @@ generated.
 #define WORGLE_H
 <<typedefs>>
 <<function_declarations>>
+#endif
+#+END_SRC
+
+Private data (for things like structs), is stored in a header file called
+=worgle_private.h=.
+
+#+NAME: worgle-private-header
+#+BEGIN_SRC c :tangle worgle_private.h
+#ifndef WORGLE_PRIVATE_H
+<<structs>>
+#define WORGLE_PRIVATE_H
 #endif
 #+END_SRC
 * An Outline of What Worgle does
@@ -1862,7 +1877,6 @@ int worgle_file_write(worgle_file *f, worgle_hashmap *h)
     return rc;
 }
 #+END_SRC
-
 ** The File List
 A file list is a linked list of worgle files.
 
@@ -1958,7 +1972,6 @@ worgle_file* worgle_filelist_append(worgle_filelist *flist,
 }
 #+END_SRC
 *** Writing a filelist to disk
-
 A file list can be appended using the function =worgle_filelist_write=.
 
 A hashmap containing all named code blocks all that is required.
@@ -2265,7 +2278,7 @@ int c;
 #+NAME: parse_cli_args
 #+BEGIN_SRC c
 parg_init(&ps);
-while((c = parg_getopt(&ps, argc, argv, "gW:m:")) != -1) {
+while((c = parg_getopt(&ps, argc, argv, "gW:m:d:")) != -1) {
     switch(c) {
         case 1:
             filename = (char *)ps.optarg;
@@ -2279,6 +2292,14 @@ while((c = parg_getopt(&ps, argc, argv, "gW:m:")) != -1) {
             break;
         case 'm':
             <<map_source_code>>
+            break;
+        case 'd':
+#ifndef WORGLITE
+            <<generate_database>>
+#else
+            fprintf(stderr, "Database flag (-d) is  not enabled\n");
+            return 1;
+#endif
             break;
         default:
             fprintf(stderr, "Unknown option -%c\n", c);
@@ -2416,6 +2437,51 @@ static void append_filename(worgle_d *worg, char *filename)
     str->str = filename;
     str->size = strlen(filename);
 }
+#+END_SRC
+* Generate Database (-d)
+This flag will turn on database generation, assuming that it is enabled.
+
+#+NAME:global_variables
+#+BEGIN_SRC c
+#ifndef WORGLITE
+static int generate_db = 0;
+static char *db_filename = NULL;
+#endif
+#+END_SRC
+
+#+NAME: generate_database
+#+BEGIN_SRC c
+generate_db = 1;
+db_filename = (char *)ps.optarg;
+#+END_SRC
+
+#+NAME: static_function_declarations
+#+BEGIN_SRC c
+#ifndef WORGLITE
+static void write_db(worgle_d *worg);
+#endif
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+#ifndef WORGLITE
+static void write_db(worgle_d *worg)
+{
+    FILE *fp;
+    if(db_filename == NULL) return;
+
+    fp = fopen(db_filename, "w");
+    worgle_db_generate(worg, fp);
+    fclose(fp);
+}
+#endif
+#+END_SRC
+
+#+NAME:database
+#+BEGIN_SRC c
+#ifndef WORGLITE
+if(generate_db) write_db(&worg);
+#endif
 #+END_SRC
 * Source mapping
 Worgle has the ability to produce Org data that outlines the structure

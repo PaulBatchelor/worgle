@@ -20,6 +20,7 @@ The worgle database interface generates a single C and header file.
 #+BEGIN_SRC c :tangle db.c
 #include <stdio.h>
 #include "worgle.h"
+#include "worgle_private.h"
 #include "db.h"
 <<macros>>
 <<functions>>
@@ -44,9 +45,10 @@ void worgle_db_generate(worgle_d *worg, FILE *fp);
 void worgle_db_generate(worgle_d *worg, FILE *fp)
 {
     <<schemas>>
+    <<inserts>>
 }
 #+END_SRC
-** SQLite Schemas
+** SQLite Table Schemas
 The following section describes the SQLite schemas for all the tables
 needed by Worgle.
 *** Segment Schema
@@ -73,10 +75,11 @@ enum {
 fprintf(fp, "CREATE TABLE segments(\n");
 fprintf(fp, "id INTEGER PRIMARY KEY,\n");
 fprintf(fp, "type INTEGER,\n");
+fprintf(fp, "str INTEGER,\n");
 fprintf(fp, "linum INTEGER,\n");
 fprintf(fp, "filename TEXT,\n");
 fprintf(fp, "next_segment INTEGER\n");
-fprintf(fp, ");");
+fprintf(fp, ");\n");
 #+END_SRC
 *** Block Schema
 The block schema contains the following items:
@@ -93,7 +96,7 @@ fprintf(fp, "id INTEGER PRIMARY KEY,\n");
 fprintf(fp, "head_segment INTEGER,\n");
 fprintf(fp, "name TEXT,\n");
 fprintf(fp, "next_block INTEGER\n");
-fprintf(fp, ");");
+fprintf(fp, ");\n");
 #+END_SRC
 *** File Schema
 A file name table contains the following:
@@ -110,7 +113,7 @@ fprintf(fp, "id INTEGER PRIMARY KEY,\n");
 fprintf(fp, "filename TEXT,\n");
 fprintf(fp, "type INTEGER,\n");
 fprintf(fp, "next_file INTEGER\n");
-fprintf(fp, ");");
+fprintf(fp, ");\n");
 #+END_SRC
 *** UUID Schema
 Every single UUID is logged into a single table. This table has every single
@@ -135,5 +138,111 @@ enum {
 fprintf(fp, "CREATE TABLE resources(\n");
 fprintf(fp, "id INTEGER PRIMARY KEY,\n");
 fprintf(fp, "type INTEGER\n");
-fprintf(fp, ");");
+fprintf(fp, ");\n");
+#+END_SRC
+** SQLite Insert Statements
+This section pertains to the actual SQLite insert statements that occur.
+Generally speaking, data in Worgle can be broken up into two perspectives:
+tangled data (the generated code for the compiler), and
+woven data (the markup and semantics).
+*** SQLite Tangled Data
+The way Worgle generates data is by recursively iterating through the file list.
+The SQLite table will be populated in the same way.
+**** Top-level tangle insert
+Table population tangle insert is done inside the function =worgle_db_generate=.
+
+#+NAME: inserts
+#+BEGIN_SRC c
+worgle_db_insert_filelist(fp, &worg->flist);
+#+END_SRC
+**** Filelist Insert
+The top-level part of the code walks through the file list inside of
+=worgle_db_insert_filelist=.
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_db_insert_filelist(FILE *fp, worgle_filelist *flist);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_db_insert_filelist(FILE *fp, worgle_filelist *flist)
+{
+    worgle_file *f;
+    int n;
+
+    f = flist->head;
+    for(n = 0; n < flist->nfiles; n++) {
+        worgle_db_insert_file(fp, f);
+        f = f->nxt;
+    }
+}
+#+END_SRC
+**** File Insert
+A file is inserted with the function =worgle_db_insert_file=.
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_db_insert_file(FILE *fp, worgle_file *file);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_db_insert_file(FILE *fp, worgle_file *file)
+{
+    worgle_long next_id;
+
+    if(file->nxt == NULL) next_id = 0;
+    else next_id = file->nxt->id;
+    fprintf(fp, "INSERT INTO file(id, next_file, filename)\n");
+    fprintf(fp, "VALUES(%lu, %lu, ",
+            file->id,
+            next_id);
+    fprintf(fp, "\"");
+    worgle_string_write(fp, &file->filename);
+    fprintf(fp, "\");\n");
+    worgle_db_insert_block(fp, file->top);
+}
+#+END_SRC
+**** Block Insert
+A block is inserted with the function =worgle_db_insert_block=.
+#+NAME:function_declarations
+#+BEGIN_SRC c
+void worgle_db_insert_block(FILE *fp, worgle_block *block);
+#+END_SRC
+
+#+NAME:functions
+#+BEGIN_SRC c
+void worgle_db_insert_block(FILE *fp, worgle_block *block)
+{
+    worgle_segment *s;
+    int n;
+    worgle_long next_segment;
+    s = block->head;
+    fprintf(fp, "INSERT INTO block(id, head_segment, next_block, name)\n");
+    fprintf(fp, "VALUES(%lu, %lu, %lu, ",
+            block->id,
+            block->head->id,
+            block->nxt->id);
+    fprintf(fp, "\"");
+    worgle_string_write(fp, &block->name);
+    fprintf(fp, "\");\n");
+    fprintf(fp,
+    "INSERT INTO segments(id, type, linum, next_segment, str) VALUES\n");
+    for(n = 0; n < block->nsegs; n++) {
+        if(s->nxt != NULL) next_segment = s->nxt->id;
+        else next_segment = 0;
+        fprintf(fp, "(%lu, %d, %lu, %lu, ",
+                s->id,
+                s->type,
+                s->linum,
+                next_segment);
+        fprintf(fp, "\"");
+        worgle_string_write(fp, &s->str);
+        if(n == block->nsegs - 1) {
+            fprintf(fp, "\");\n");
+        } else {
+            fprintf(fp, "\"),\n");
+        }
+        s = s->nxt;
+    }
+}
 #+END_SRC
