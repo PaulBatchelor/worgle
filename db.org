@@ -23,6 +23,7 @@ The worgle database interface generates a single C and header file.
 #include "worgle_private.h"
 #include "db.h"
 <<macros>>
+<<static_db_functions>>
 <<functions>>
 #+END_SRC
 #+NAME: db-header
@@ -137,8 +138,35 @@ enum {
 #+BEGIN_SRC c
 fprintf(fp, "CREATE TABLE resources(\n");
 fprintf(fp, "id INTEGER PRIMARY KEY,\n");
-fprintf(fp, "type INTEGER\n");
+fprintf(fp, "type INTEGER,\n");
+fprintf(fp, "typename TEXT\n");
 fprintf(fp, ");\n");
+#+END_SRC
+
+This operation happens so often that there is a function for it called
+=insert_resource=.
+
+#+NAME: static_db_functions
+#+BEGIN_SRC c
+static void insert_resource(FILE *fp, worgle_long id, int type)
+{
+    fprintf(fp, "INSERT INTO resources(id, type, typename)\nVALUES(");
+    fprintf(fp, "%lu, %d, ", id, type);
+    switch(type) {
+        case RES_SEGMENT:
+            fprintf(fp, "'Segment');\n");
+            break;
+        case RES_BLOCK:
+            fprintf(fp, "'Block');\n");
+            break;
+        case RES_FILE:
+            fprintf(fp, "'File');\n");
+            break;
+        default:
+            fprintf(fp, "'Unknown');\n");
+            break;
+    }
+}
 #+END_SRC
 ** SQLite Insert Statements
 This section pertains to the actual SQLite insert statements that occur.
@@ -199,6 +227,7 @@ void worgle_db_insert_file(worgle_d *worg, worgle_file *file, FILE *fp)
     fprintf(fp, "\"");
     worgle_string_write(fp, &file->filename);
     fprintf(fp, "\");\n");
+    insert_resource(fp, file->id, RES_FILE);
     worgle_db_insert_block(worg, file->top, fp);
 }
 #+END_SRC
@@ -249,6 +278,7 @@ void worgle_db_insert_block(worgle_d *worg, worgle_block *block, FILE *fp)
     fprintf(fp, "'");
     worgle_string_write(fp, &block->name);
     fprintf(fp, "');\n");
+    insert_resource(fp, block->id, RES_BLOCK);
     for(n = 0; n < block->nsegs; n++) {
         fprintf(fp, "INSERT INTO segments");
         fprintf(fp, "(id, type, linum, next_segment, str) VALUES\n");
@@ -263,6 +293,7 @@ void worgle_db_insert_block(worgle_d *worg, worgle_block *block, FILE *fp)
         print_escaped_string(fp, &s->str);
         /* worgle_string_write(fp, &s->str); */
         fprintf(fp, "');\n");
+        insert_resource(fp, s->id, RES_SEGMENT);
         if(worgle_segment_is_reference(s)) {
             if(!worgle_hashmap_find(hm, &s->str, &blk)) break;
             worgle_db_insert_block(worg, blk, fp);
