@@ -92,7 +92,7 @@ The block schema contains the following items:
 
 #+NAME: schemas
 #+BEGIN_SRC c
-fprintf(fp, "CREATE TABLE block(\n");
+fprintf(fp, "CREATE TABLE blocks(\n");
 fprintf(fp, "id INTEGER PRIMARY KEY,\n");
 fprintf(fp, "head_segment INTEGER,\n");
 fprintf(fp, "name TEXT,\n");
@@ -109,7 +109,7 @@ A file name table contains the following:
 
 #+NAME: schemas
 #+BEGIN_SRC c
-fprintf(fp, "CREATE TABLE file(\n");
+fprintf(fp, "CREATE TABLE files(\n");
 fprintf(fp, "id INTEGER PRIMARY KEY,\n");
 fprintf(fp, "filename TEXT,\n");
 fprintf(fp, "type INTEGER,\n");
