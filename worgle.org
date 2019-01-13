@@ -911,7 +911,7 @@ after generation and flag warnings about any unused blocks.
 
 #+NAME:generation
 #+BEGIN_SRC c
-if(use_warnings) rc = worgle_warn_unused(&worg);
+if(!rc && use_warnings) rc = worgle_warn_unused(&worg);
 #+END_SRC
 
 ** Cleanup
