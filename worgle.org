@@ -93,7 +93,6 @@ Private data (for things like structs), is stored in a header file called
 #endif
 #+END_SRC
 * An Outline of What Worgle does
-
 This aims to show a broad overview of how Orgle (and Worgle) will work
 essentially. Orgle is a bootstrap program written in C, used to generate
 C code for Worgle (this program here). At the highest level, the two
@@ -263,7 +262,6 @@ fclose(fp);
 #+END_SRC
 
 ** Parsing
-
 The second phase of the program is the parsing stage.
 
 The parsing stage will parse files line-by-line. The program will find a line
@@ -321,7 +319,6 @@ int parse_file(worgle_d *worg, int file)
     return rc;
 }
 #+END_SRC
-
 *** Parser Local Variables
 The parsing stage requires a local variable called =str= to be used from time
 to time. Not sure where else to put this.
@@ -411,12 +408,19 @@ status = 0;
 #+END_SRC
 
 *** Reading a line at a time
-
 Despite being loaded into memory, the program still reads in code one line
 at a time. The parsing relies on new line feeds to denote the beginnings
 and endings of sections and code references.
 
 Before reading the line, the line number inside worgle is incremented.
+
+In order to handle multiple files, this value must explicitely be reset
+to be zero every time inside of the =parse_file= function.
+
+#+NAME: parser_initialization
+#+BEGIN_SRC c
+worg->linum = 0;
+#+END_SRC
 
 A special readline function has been written based on =getline= that reads
 lines of text from an allocated block of text. This function is called
@@ -482,7 +486,6 @@ static int worgle_getline(char *fullbuf,
 #+END_SRC
 
 *** Parsing Modes
-
 The parser is implemented as a relatively simple state machine, whose behavior
 shifts between parsing org-mode markup (=MODE_ORG=), and code blocks
 (=MODE_BEGINCODE= and =MODE_CODE=).
@@ -625,7 +628,6 @@ if(read >= 11) {
 fprintf(stderr, "line %lu: Expected #+BEGIN_SRC\n", worg->linum);
 rc = 1;
 #+END_SRC
-
 ***** Extracting information from #+BEGIN_SRC
 
 The begin source flag in org-mode can have a number of options,
