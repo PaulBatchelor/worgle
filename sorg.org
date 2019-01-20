@@ -1218,6 +1218,13 @@ static int is_link(sorg_d *sorg, char *buf, size_t size)
 static size_t print_link(sorg_d *sorg, char *buf, size_t size, FILE *out);
 #+END_SRC
 
+Links come in two forms. The first form contains both the link location
+and named description. The second form only contains the link location which
+is also the visible named description. If the "][" combination was not
+found in the buffer, it is assumed to be the second morse terse type. When
+this happens, the =name= and =name_size= are set to be identical to
+=link= and =link_size=.
+
 #+NAME:functions
 #+BEGIN_SRC c
 static size_t print_link(sorg_d *sorg, char *buf, size_t size, FILE *out)
@@ -1251,6 +1258,10 @@ static size_t print_link(sorg_d *sorg, char *buf, size_t size, FILE *out)
             off++;
         } else if(buf[n] == ']' && buf[n + 1] == ']') {
             name_size = tmp - 1;
+            if(name == NULL) { /* name not set, assume type 2 link */
+                link_size = name_size;
+                name = link;
+            }
             off++;
             break;
         }
