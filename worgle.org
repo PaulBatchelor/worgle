@@ -791,12 +791,18 @@ if(worg->block_started) {
 void worgle_append_string(worgle_d *worg);
 #+END_SRC
 
+In this function, the current line number is checked if it is a valid (positive)
+value. A negative value indicates an properly initialized, but unset value.
+This will happen if the initial code block begins with a reference.
+A negative value will cause invalid line declarations in the generated code.
+
 #+NAME: functions
 #+BEGIN_SRC c
 void worgle_append_string(worgle_d *worg)
 {
     worgle_segment *seg;
     if(worg->curblock == NULL) return;
+    if(worg->curline < 0) return;
     seg = worgle_block_append_string(worg->curblock,
                                      &worg->block,
                                      worg->curline,
@@ -1018,7 +1024,7 @@ The starting line number of the current block is stored in a variable called
 
 #+NAME:worgle_struct_contents
 #+BEGIN_SRC c
-size_t curline;
+long curline;
 #+END_SRC
 
 The current line is initialized to be negative value to mark that it has not
@@ -2555,7 +2561,7 @@ void worgle_map(worgle_d *worg, worgle_block *b, int lvl, FILE *out)
         if(s->type == SEGTYPE_TEXT) {
             if(s->str.size > 0) {
                 worgle_string_write(out, s->filename);
-                fprintf(out, ":%zu\n", s->linum);
+                fprintf(out, ":%lu\n", s->linum);
                 fprintf(out, "#+NAME: ");
                 worgle_string_write(out, &b->name);
                 fprintf(out, "_%d\n", i);
