@@ -506,14 +506,25 @@ enum {
 MODE_ORG,
 #+END_SRC
 
-When the parser is in =MODE_ORG=, it is only searching for the start
-of the next named block. When it finds a match, it extracts the name,
-gets ready to begin the a new block, and changes the mode =MODE_BEGINCODE=.
+When the parser is in =MODE_ORG=, it is only searching for
+the start of the next named block. When it finds a match,
+it extracts the name, gets ready to begin the a new block,
+and changes the mode =MODE_BEGINCODE=.
 
+A common hard-to-find error happens when a colon is
+forgotten in the =NAME= tag. A special check will occur
+here to make sure that colon isn't forgotten.
 #+NAME: parse_mode_org
 #+BEGIN_SRC c
 if(read >= 7) {
-    if(!strncmp(line, "#+NAME:",7)) {
+    if(!strncmp(line, "#+NAME",6)) {
+        if(line[6] != ':') {
+            fprintf(stderr,
+                    "line %lu: expected ':'\n", 
+                    worg->linum);
+            rc = 1;
+            break;
+        }
         mode = MODE_BEGINCODE;
         parse_name(line, read, &str);
         worgle_begin_block(worg, &str);
