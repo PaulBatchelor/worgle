@@ -1,6 +1,5 @@
 #+TITLE: Worgle
 * What is Worgle?
-
 Hello, fellow human. I'm glad you could stop by.
 
 This is a document written
@@ -43,6 +42,9 @@ to be a self-contained standalone CLI application.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef wORGLITE
+#include <sqlite3.h>
+#endif
 #include "parg.h"
 #include "worgle.h"
 #include "worgle_private.h"
@@ -2478,8 +2480,11 @@ static void append_filename(worgle_d *worg, char *filename)
     str->size = strlen(filename);
 }
 #+END_SRC
-** Generate Database (-d)
+** COMMENT Generate Database (-d)
 This flag will turn on database generation, assuming that it is enabled.
+
+# <2019-06-15 Sat> This is being disabled so I can rework
+# the interface to use the SQLite API.
 
 #+NAME:global_variables
 #+BEGIN_SRC c
@@ -2502,17 +2507,23 @@ static void write_db(worgle_d *worg);
 #endif
 #+END_SRC
 
+# <2019-06-15 Sat> Commenting functionality out for now.
+
 #+NAME: functions
 #+BEGIN_SRC c
 #ifndef WORGLITE
 static void write_db(worgle_d *worg)
 {
+/*
     FILE *fp;
     if(db_filename == NULL) return;
 
     fp = fopen(db_filename, "w");
     worgle_db_generate(worg, fp);
     fclose(fp);
+,*/
+
+    fprintf(stderr, "Database functionality has been disabled\n");
 }
 #endif
 #+END_SRC
