@@ -15,6 +15,8 @@ EMACS=emacs
 
 OBJ=worgle.o db.o parg/parg.o
 
+LIBS=-lsqlite3
+
 WORGLE_FLAGS=-Werror -g
 
 all: $(ORGLE) $(WORGLITE) $(WORGLE) $(SORG)
@@ -32,7 +34,7 @@ orgle: orgle.c
 	$(CC) $(CFLAGS) $< -o $@
 
 worgle: $(OBJ)
-	$(CC) $(CFLAGS) $(OBJ) -o $@
+	$(CC) $(CFLAGS) $(OBJ) -o $@ $(LIBS)
 
 worglite: worgle.c parg/parg.o
 	$(CC) -DWORGLITE $(CFLAGS) $^ -o $@

@@ -42,8 +42,8 @@ void worgle_db_generate(worgle_d *worg, sqlite3 *db);
 #+BEGIN_SRC c
 void worgle_db_generate(worgle_d *worg, sqlite3 *db)
 {
-/*
     <<schemas>>
+/*
     <<inserts>>
 */
 }
@@ -72,14 +72,18 @@ enum {
 
 #+NAME: schemas
 #+BEGIN_SRC c
-fprintf(fp, "CREATE TABLE segments(\n");
-fprintf(fp, "id INTEGER PRIMARY KEY,\n");
-fprintf(fp, "type INTEGER,\n");
-fprintf(fp, "str INTEGER,\n");
-fprintf(fp, "linum INTEGER,\n");
-fprintf(fp, "filename TEXT,\n");
-fprintf(fp, "next_segment INTEGER\n");
-fprintf(fp, ");\n");
+sqlite3_exec(db,
+             "CREATE TABLE segments(\n"
+             "id INTEGER PRIMARY KEY,\n"
+             "type INTEGER,\n"
+             "str INTEGER,\n"
+             "linum INTEGER,\n"
+             "filename TEXT,\n"
+             "next_segment INTEGER\n"
+             ");\n",
+             NULL,
+             NULL,
+             NULL);
 #+END_SRC
 *** Block Schema
 The block schema contains the following items:
@@ -91,12 +95,16 @@ The block schema contains the following items:
 
 #+NAME: schemas
 #+BEGIN_SRC c
-fprintf(fp, "CREATE TABLE blocks(\n");
-fprintf(fp, "id INTEGER PRIMARY KEY,\n");
-fprintf(fp, "head_segment INTEGER,\n");
-fprintf(fp, "name TEXT,\n");
-fprintf(fp, "next_block INTEGER\n");
-fprintf(fp, ");\n");
+sqlite3_exec(db,
+             "CREATE TABLE blocks("
+             "id INTEGER PRIMARY KEY,\n"
+             "head_segment INTEGER,\n"
+             "name TEXT,\n"
+             "next_block INTEGER\n"
+             ");\n",
+             NULL,
+             NULL,
+             NULL);
 #+END_SRC
 *** File Schema
 A file name table contains the following:
@@ -108,12 +116,16 @@ A file name table contains the following:
 
 #+NAME: schemas
 #+BEGIN_SRC c
-fprintf(fp, "CREATE TABLE files(\n");
-fprintf(fp, "id INTEGER PRIMARY KEY,\n");
-fprintf(fp, "filename TEXT,\n");
-fprintf(fp, "type INTEGER,\n");
-fprintf(fp, "next_file INTEGER\n");
-fprintf(fp, ");\n");
+sqlite3_exec(db,
+             "CREATE TABLE files(\n"
+             "id INTEGER PRIMARY KEY,\n"
+             "filename TEXT,\n"
+             "type INTEGER,\n"
+             "next_file INTEGER\n"
+             ");\n",
+             NULL,
+             NULL,
+             NULL);
 #+END_SRC
 *** UUID Schema
 Every single UUID is logged into a single table. This table has every single
@@ -135,11 +147,15 @@ enum {
 
 #+NAME: schemas
 #+BEGIN_SRC c
-fprintf(fp, "CREATE TABLE resources(\n");
-fprintf(fp, "id INTEGER PRIMARY KEY,\n");
-fprintf(fp, "type INTEGER,\n");
-fprintf(fp, "typename TEXT\n");
-fprintf(fp, ");\n");
+sqlite3_exec(db,
+             "CREATE TABLE resources(\n"
+             "id INTEGER PRIMARY KEY,\n"
+             "type INTEGER,\n"
+             "typename TEXT\n"
+             ");\n",
+             NULL,
+             NULL,
+             NULL);
 #+END_SRC
 
 This operation happens so often that there is a function for it called

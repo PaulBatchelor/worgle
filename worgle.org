@@ -2480,7 +2480,7 @@ static void append_filename(worgle_d *worg, char *filename)
     str->size = strlen(filename);
 }
 #+END_SRC
-** COMMENT Generate Database (-d)
+** Generate Database (-d)
 This flag will turn on database generation, assuming that it is enabled.
 
 # <2019-06-15 Sat> This is being disabled so I can rework
@@ -2514,16 +2514,21 @@ static void write_db(worgle_d *worg);
 #ifndef WORGLITE
 static void write_db(worgle_d *worg)
 {
-/*
-    FILE *fp;
+    sqlite3 *db;
+    int rc;
+
     if(db_filename == NULL) return;
 
-    fp = fopen(db_filename, "w");
-    worgle_db_generate(worg, fp);
-    fclose(fp);
-,*/
-
-    fprintf(stderr, "Database functionality has been disabled\n");
+    rc = sqlite3_open(db_filename, &db);
+    if(rc) {
+        fprintf(stderr,
+                "Could not open database: %s",
+                sqlite3_errmsg(db));
+        sqlite3_close(db);
+        return;
+    }
+    worgle_db_generate(worg, db);
+    sqlite3_close(db);
 }
 #endif
 #+END_SRC
