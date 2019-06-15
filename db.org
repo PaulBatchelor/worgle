@@ -31,8 +31,6 @@ The worgle database interface generates a single C and header file.
 The SQLite database generation is done with the function
 =worgle_db_generate=. It will write SQLite commands to a
 SQLite database handle.
-# <2019-06-15 Sat> At the moment, this is being refactored
-# to use the SQLite API, pardon our appearance.
 #+NAME: function_declarations
 #+BEGIN_SRC c
 void worgle_db_generate(worgle_d *worg, sqlite3 *db);
@@ -311,49 +309,96 @@ void worgle_db_insert_block(worgle_d *worg,
                             worgle_block *block,
                             sqlite3 *db)
 {
-    /* worgle_segment *s; */
-    /* int n; */
-    /* worgle_long next_segment; */
-    /* worgle_block *blk; */
-    /* worgle_hashmap *hm; */
-    /* worgle_long next_id; */
+    worgle_segment *s;
+    int n;
+    worgle_long next_segment;
+    worgle_block *blk;
+    worgle_hashmap *hm;
+    worgle_long next_id;
+    sqlite3_stmt *stmt;
+    worgle_string *name;
+    int rc;
 
-    /* s = block->head; */
-    /* hm = &worg->dict; */
-    /* fprintf(fp, "INSERT INTO block(id, head_segment, next_block, name)\n"); */
-    /* if(block->nxt == NULL) { */
-    /*     next_id = 0; */
-    /* } else { */
-    /*     next_id = block->nxt->id; */
-    /* } */
-    /* fprintf(fp, "VALUES(%lu, %lu, %lu, ", */
-    /*         block->id, */
-    /*         block->head->id, */
-    /*         next_id); */
-    /* fprintf(fp, "'"); */
-    /* worgle_string_write(fp, &block->name); */
-    /* fprintf(fp, "');\n"); */
-    /* insert_resource(fp, block->id, RES_BLOCK); */
-    /* for(n = 0; n < block->nsegs; n++) { */
-    /*     fprintf(fp, "INSERT INTO segments"); */
-    /*     fprintf(fp, "(id, type, linum, next_segment, str) VALUES\n"); */
-    /*     if(s->nxt != NULL) next_segment = s->nxt->id; */
-    /*     else next_segment = 0; */
-    /*     fprintf(fp, "(%lu, %d, %lu, %lu, ", */
-    /*             s->id, */
-    /*             s->type, */
-    /*             s->linum, */
-    /*             next_segment); */
-    /*     fprintf(fp, "'"); */
-    /*     print_escaped_string(fp, &s->str); */
-    /*     /\* worgle_string_write(fp, &s->str); *\/ */
-    /*     fprintf(fp, "');\n"); */
-    /*     insert_resource(fp, s->id, RES_SEGMENT); */
-    /*     if(worgle_segment_is_reference(s)) { */
-    /*         if(!worgle_hashmap_find(hm, &s->str, &blk)) break; */
-    /*         worgle_db_insert_block(worg, blk, fp); */
-    /*     } */
-    /*     s = s->nxt; */
-    /* } */
+    s = block->head;
+    hm = &worg->dict;
+
+    sqlite3_prepare_v2(db,
+                       "INSERT INTO blocks"
+                       "(id,"
+                       "head_segment,"
+                       "next_block,"
+                       "name)\n"
+                       "VALUES(?1, ?2, ?3, ?4);",
+                       -1,
+                       &stmt,
+                       NULL);
+    if(block->nxt == NULL) {
+        next_id = 0;
+    } else {
+        next_id = block->nxt->id;
+    }
+    sqlite3_bind_int(stmt, 1, block->id);
+    sqlite3_bind_int(stmt, 2, block->head->id);
+    sqlite3_bind_int(stmt, 3, next_id);
+
+    name = &block->name;
+    sqlite3_bind_text(stmt, 4,
+                      name->str, name->size,
+                      NULL);
+    rc = sqlite3_step(stmt);
+
+    if(rc != SQLITE_DONE) {
+        fprintf(stderr,
+                "SQLite error: %s\n",
+                sqlite3_errmsg(db));
+        return;
+    }
+
+    sqlite3_finalize(stmt);
+
+    insert_resource(db, block->id, RES_BLOCK);
+    for(n = 0; n < block->nsegs; n++) {
+        sqlite3_prepare_v2(db,
+                        "INSERT INTO segments"
+                        "(id,"
+                        "type,"
+                        "linum,"
+                        "next_segment,"
+                        "str)\n"
+                        "VALUES(?1, ?2, ?3, ?4, ?5);",
+                        -1,
+                        &stmt,
+                        NULL);
+        if(s->nxt != NULL) next_segment = s->nxt->id;
+        else next_segment = 0;
+        sqlite3_bind_int(stmt, 1, s->id);
+        sqlite3_bind_int(stmt, 2, s->type);
+        sqlite3_bind_int(stmt, 3, s->linum);
+        sqlite3_bind_int(stmt, 4, next_segment);
+
+        sqlite3_bind_text(stmt, 5,
+                        s->str.str, s->str.size,
+                        NULL);
+        if(rc != SQLITE_DONE) {
+            fprintf(stderr,
+                    "SQLite error: %s\n",
+                    sqlite3_errmsg(db));
+        }
+
+        rc = sqlite3_step(stmt);
+
+        if(rc != SQLITE_DONE) {
+            fprintf(stderr,
+                    "SQLite error: %s\n",
+                    sqlite3_errmsg(db));
+        }
+        sqlite3_finalize(stmt);
+        insert_resource(db, s->id, RES_SEGMENT);
+        if(worgle_segment_is_reference(s)) {
+            if(!worgle_hashmap_find(hm, &s->str, &blk)) break;
+            worgle_db_insert_block(worg, blk, db);
+        }
+        s = s->nxt;
+    }
 }
 #+END_SRC

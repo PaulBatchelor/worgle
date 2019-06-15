@@ -2481,10 +2481,8 @@ static void append_filename(worgle_d *worg, char *filename)
 }
 #+END_SRC
 ** Generate Database (-d)
-This flag will turn on database generation, assuming that it is enabled.
-
-# <2019-06-15 Sat> This is being disabled so I can rework
-# the interface to use the SQLite API.
+This flag will turn on database generation, assuming that it
+is enabled.
 
 #+NAME:global_variables
 #+BEGIN_SRC c
@@ -2506,8 +2504,6 @@ db_filename = (char *)ps.optarg;
 static void write_db(worgle_d *worg);
 #endif
 #+END_SRC
-
-# <2019-06-15 Sat> Commenting functionality out for now.
 
 #+NAME: functions
 #+BEGIN_SRC c
