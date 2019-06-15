@@ -43,9 +43,7 @@ void worgle_db_generate(worgle_d *worg, sqlite3 *db);
 void worgle_db_generate(worgle_d *worg, sqlite3 *db)
 {
     <<schemas>>
-/*
     <<inserts>>
-*/
 }
 #+END_SRC
 ** SQLite Table Schemas
@@ -171,7 +169,7 @@ static void insert_resource(sqlite3 *db, worgle_long id, int type)
     sqlite3_prepare_v2(db,
                        "INSERT INTO resources"
                        "(id, type, typename)\n"
-                       "VALUES(?1,?2,?3);", 
+                       "VALUES(?1,?2,?3);",
                        -1,
                        &stmt,
                        NULL);
@@ -195,7 +193,7 @@ static void insert_resource(sqlite3 *db, worgle_long id, int type)
 
     rc = sqlite3_step(stmt);
 
-    if(rc) {
+    if(rc != SQLITE_DONE) {
         fprintf(stderr,
                 "SQLite error: %s\n",
                 sqlite3_errmsg(db));
@@ -217,26 +215,30 @@ Table population tangle insert is done inside the function =worgle_db_generate=.
 
 #+NAME: inserts
 #+BEGIN_SRC c
-worgle_db_insert_filelist(worg, &worg->flist, fp);
+worgle_db_insert_filelist(worg, &worg->flist, db);
 #+END_SRC
 **** Filelist Insert
 The top-level part of the code walks through the file list inside of
 =worgle_db_insert_filelist=.
 #+NAME: function_declarations
 #+BEGIN_SRC c
-void worgle_db_insert_filelist(worgle_d *worg, worgle_filelist *flist, FILE *fp);
+void worgle_db_insert_filelist(worgle_d *worg,
+                               worgle_filelist *flist,
+                               sqlite3 *db);
 #+END_SRC
 
 #+NAME: functions
 #+BEGIN_SRC c
-void worgle_db_insert_filelist(worgle_d *worg, worgle_filelist *flist, FILE *fp)
+void worgle_db_insert_filelist(worgle_d *worg,
+                               worgle_filelist *flist,
+                               sqlite3 *db)
 {
     worgle_file *f;
     int n;
 
     f = flist->head;
     for(n = 0; n < flist->nfiles; n++) {
-        worgle_db_insert_file(worg, f, fp);
+        worgle_db_insert_file(worg, f, db);
         f = f->nxt;
     }
 }
@@ -245,96 +247,113 @@ void worgle_db_insert_filelist(worgle_d *worg, worgle_filelist *flist, FILE *fp)
 A file is inserted with the function =worgle_db_insert_file=.
 #+NAME: function_declarations
 #+BEGIN_SRC c
-void worgle_db_insert_file(worgle_d *worg, worgle_file *file, FILE *fp);
+void worgle_db_insert_file(worgle_d *worg,
+                           worgle_file *file,
+                           sqlite3 *db);
 #+END_SRC
 
 #+NAME: functions
 #+BEGIN_SRC c
-void worgle_db_insert_file(worgle_d *worg, worgle_file *file, FILE *fp)
+void worgle_db_insert_file(worgle_d *worg,
+                           worgle_file *file,
+                           sqlite3 *db)
 {
     worgle_long next_id;
+    sqlite3_stmt *stmt;
+    worgle_string *filename;
+    int rc;
 
     if(file->nxt == NULL) next_id = 0;
     else next_id = file->nxt->id;
-    fprintf(fp, "INSERT INTO file(id, next_file, filename)\n");
-    fprintf(fp, "VALUES(%lu, %lu, ",
-            file->id,
-            next_id);
-    fprintf(fp, "\"");
-    worgle_string_write(fp, &file->filename);
-    fprintf(fp, "\");\n");
-    insert_resource(fp, file->id, RES_FILE);
-    worgle_db_insert_block(worg, file->top, fp);
+
+    sqlite3_prepare_v2(db,
+                       "INSERT INTO files"
+                       "(id, next_file, filename)"
+                       "VALUES(?1, ?2, ?3);",
+                       -1,
+                       &stmt,
+                       NULL);
+
+
+    sqlite3_bind_int(stmt, 1, file->id);
+    sqlite3_bind_int(stmt, 2, next_id);
+
+    filename = &file->filename;
+    sqlite3_bind_text(stmt, 3,
+                      filename->str, filename->size,
+                      NULL);
+
+    rc = sqlite3_step(stmt);
+
+    if(rc != SQLITE_DONE) {
+        fprintf(stderr,
+                "SQLite error: %s\n",
+                sqlite3_errmsg(db));
+    }
+
+    sqlite3_finalize(stmt);
+    insert_resource(db, file->id, RES_FILE);
+    worgle_db_insert_block(worg, file->top, db);
 }
 #+END_SRC
 **** Block Insert
 A block is inserted with the function =worgle_db_insert_block=.
 #+NAME:function_declarations
 #+BEGIN_SRC c
-void worgle_db_insert_block(worgle_d *worg, worgle_block *block, FILE *fp);
+void worgle_db_insert_block(worgle_d *worg,
+                            worgle_block *block,
+                            sqlite3 *db);
 #+END_SRC
 
 #+NAME:functions
 #+BEGIN_SRC c
-static void print_escaped_string(FILE *fp, worgle_string *str)
+void worgle_db_insert_block(worgle_d *worg,
+                            worgle_block *block,
+                            sqlite3 *db)
 {
-    size_t s;
-    for(s = 0; s < str->size; s++) {
-        switch(str->str[s]) {
-            case '\'':
-                fprintf(fp, "''");
-                break;
-            default:
-                fputc(str->str[s], fp);
-                break;
-        }
-    }
-}
-void worgle_db_insert_block(worgle_d *worg, worgle_block *block, FILE *fp)
-{
-    worgle_segment *s;
-    int n;
-    worgle_long next_segment;
-    worgle_block *blk;
-    worgle_hashmap *hm;
-    worgle_long next_id;
+    /* worgle_segment *s; */
+    /* int n; */
+    /* worgle_long next_segment; */
+    /* worgle_block *blk; */
+    /* worgle_hashmap *hm; */
+    /* worgle_long next_id; */
 
-    s = block->head;
-    hm = &worg->dict;
-    fprintf(fp, "INSERT INTO block(id, head_segment, next_block, name)\n");
-    if(block->nxt == NULL) {
-        next_id = 0;
-    } else {
-        next_id = block->nxt->id;
-    }
-    fprintf(fp, "VALUES(%lu, %lu, %lu, ",
-            block->id,
-            block->head->id,
-            next_id);
-    fprintf(fp, "'");
-    worgle_string_write(fp, &block->name);
-    fprintf(fp, "');\n");
-    insert_resource(fp, block->id, RES_BLOCK);
-    for(n = 0; n < block->nsegs; n++) {
-        fprintf(fp, "INSERT INTO segments");
-        fprintf(fp, "(id, type, linum, next_segment, str) VALUES\n");
-        if(s->nxt != NULL) next_segment = s->nxt->id;
-        else next_segment = 0;
-        fprintf(fp, "(%lu, %d, %lu, %lu, ",
-                s->id,
-                s->type,
-                s->linum,
-                next_segment);
-        fprintf(fp, "'");
-        print_escaped_string(fp, &s->str);
-        /* worgle_string_write(fp, &s->str); */
-        fprintf(fp, "');\n");
-        insert_resource(fp, s->id, RES_SEGMENT);
-        if(worgle_segment_is_reference(s)) {
-            if(!worgle_hashmap_find(hm, &s->str, &blk)) break;
-            worgle_db_insert_block(worg, blk, fp);
-        }
-        s = s->nxt;
-    }
+    /* s = block->head; */
+    /* hm = &worg->dict; */
+    /* fprintf(fp, "INSERT INTO block(id, head_segment, next_block, name)\n"); */
+    /* if(block->nxt == NULL) { */
+    /*     next_id = 0; */
+    /* } else { */
+    /*     next_id = block->nxt->id; */
+    /* } */
+    /* fprintf(fp, "VALUES(%lu, %lu, %lu, ", */
+    /*         block->id, */
+    /*         block->head->id, */
+    /*         next_id); */
+    /* fprintf(fp, "'"); */
+    /* worgle_string_write(fp, &block->name); */
+    /* fprintf(fp, "');\n"); */
+    /* insert_resource(fp, block->id, RES_BLOCK); */
+    /* for(n = 0; n < block->nsegs; n++) { */
+    /*     fprintf(fp, "INSERT INTO segments"); */
+    /*     fprintf(fp, "(id, type, linum, next_segment, str) VALUES\n"); */
+    /*     if(s->nxt != NULL) next_segment = s->nxt->id; */
+    /*     else next_segment = 0; */
+    /*     fprintf(fp, "(%lu, %d, %lu, %lu, ", */
+    /*             s->id, */
+    /*             s->type, */
+    /*             s->linum, */
+    /*             next_segment); */
+    /*     fprintf(fp, "'"); */
+    /*     print_escaped_string(fp, &s->str); */
+    /*     /\* worgle_string_write(fp, &s->str); *\/ */
+    /*     fprintf(fp, "');\n"); */
+    /*     insert_resource(fp, s->id, RES_SEGMENT); */
+    /*     if(worgle_segment_is_reference(s)) { */
+    /*         if(!worgle_hashmap_find(hm, &s->str, &blk)) break; */
+    /*         worgle_db_insert_block(worg, blk, fp); */
+    /*     } */
+    /*     s = s->nxt; */
+    /* } */
 }
 #+END_SRC
