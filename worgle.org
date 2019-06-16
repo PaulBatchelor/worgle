@@ -264,6 +264,7 @@ fclose(fp);
 #+END_SRC
 
 ** Parsing
+*** Top Level Parsing Function
 The second phase of the program is the parsing stage.
 
 The parsing stage will parse files line-by-line. The program will find a line
@@ -502,12 +503,11 @@ enum {
 };
 #+END_SRC
 **** MODE_ORG
-
 #+NAME:parse_modes
 #+BEGIN_SRC c
 MODE_ORG,
 #+END_SRC
-
+***** Finding the next named block
 When the parser is in =MODE_ORG=, it is only searching for
 the start of the next named block. When it finds a match,
 it extracts the name, gets ready to begin the a new block,
@@ -519,7 +519,7 @@ here to make sure that colon isn't forgotten.
 #+NAME: parse_mode_org
 #+BEGIN_SRC c
 if(read >= 7) {
-    if(!strncmp(line, "#+NAME",6)) {
+    if(!strncmp(line, "#+NAME", 6)) {
         if(line[6] != ':') {
             fprintf(stderr,
                     "line %lu: expected ':'\n", 
@@ -609,9 +609,51 @@ void worgle_begin_block(worgle_d *worg, worgle_string *name)
     <<worgle_block_set_id>>
 }
 #+END_SRC
+***** TODO Header Parsing
+One of the newer things that the Worgle parser looks for
+are header/section data. This information is saved as
+metadata inside of a generated SQLite database.
+Headers are only parsed if a SQLite database has been
+opened, and if the full version of Worgle is being
+compiled (aka no Worglite).
 
+The function =is_header= is used to both check for
+a valid header, as well as extract information from it
+if it is indeed a header.
+
+A valid header in org has one or more asterisks (*) followed
+by at least one space. Anything following the spaces is
+considered to be a the title.
+
+The =is_header= function, if it is indeed a header, will
+return the header level, as well as the title (stored as a
+worgle string).
+***** TODO Updating Section Position From Header
+When a header has been extracted, the level is used to
+update the current section position.
+****** TODO The Section Position Data
+The section data is stored as an array of unsigned integers.
+The size of this array is determined by =WORGLE_MAXDEPTH=,
+which limits how any subsections there can be. A decent
+max depth size is 10.
+
+The array in question begins at zero. When org-mode exports
+data, the top-level number starts at 1 instead of 0. This
+will be ignored for the sake of data consistency.
+
+The current section depth relates to the position in the
+array.
+****** TODO Determining update position
+The extracted header level is used to determine which
+section number to increment. If the header number is greater
+than the current section number, a new subsection is
+created, and the position in the array is set to be zero.
+If the value is less than or equal to the current section
+number, that particular position is incremented by one.
+***** TODO Saving Header Data
+Once the section position has been updated, it can be saved
+as metadata along with the header title to the database.
 **** MODE_BEGINCODE
-
 #+NAME:parse_modes
 #+BEGIN_SRC c
 MODE_BEGINCODE,
@@ -760,7 +802,6 @@ void worgle_append_file(worgle_d *worg, worgle_string *filename)
 }
 #+END_SRC
 **** MODE_CODE
-
 #+NAME:parse_modes
 #+BEGIN_SRC c
 MODE_CODE
@@ -2501,14 +2542,14 @@ db_filename = (char *)ps.optarg;
 #+NAME: static_function_declarations
 #+BEGIN_SRC c
 #ifndef WORGLITE
-static void write_db(worgle_d *worg);
+static void tangle_to_db(worgle_d *worg);
 #endif
 #+END_SRC
 
 #+NAME: functions
 #+BEGIN_SRC c
 #ifndef WORGLITE
-static void write_db(worgle_d *worg)
+static void tangle_to_db(worgle_d *worg)
 {
     sqlite3 *db;
     int rc;
@@ -2523,7 +2564,8 @@ static void write_db(worgle_d *worg)
         sqlite3_close(db);
         return;
     }
-    worgle_db_generate(worg, db);
+    worgle_db_schemas(worg, db);
+    worgle_db_tangle(worg, db);
     sqlite3_close(db);
 }
 #endif
@@ -2532,7 +2574,7 @@ static void write_db(worgle_d *worg)
 #+NAME:database
 #+BEGIN_SRC c
 #ifndef WORGLITE
-if(generate_db) write_db(&worg);
+if(generate_db) tangle_to_db(&worg);
 #endif
 #+END_SRC
 * Source mapping

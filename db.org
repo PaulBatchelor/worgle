@@ -27,20 +27,35 @@ The worgle database interface generates a single C and header file.
 <<function_declarations>>
 #endif
 #+END_SRC
-*** Top-level function
-The SQLite database generation is done with the function
-=worgle_db_generate=. It will write SQLite commands to a
-SQLite database handle.
+*** Top-level functions
+**** Insert Schemas
+The initial worgle schemas are created inside the database
+using the function =worgle_db_schemas=. This *must* be
+called before attempting to do anything else, and it
+should only be called once.
 #+NAME: function_declarations
 #+BEGIN_SRC c
-void worgle_db_generate(worgle_d *worg, sqlite3 *db);
+void worgle_db_schemas(worgle_d *worg, sqlite3 *db);
 #+END_SRC
-
 #+NAME: functions
 #+BEGIN_SRC c
-void worgle_db_generate(worgle_d *worg, sqlite3 *db)
+void worgle_db_schemas(worgle_d *worg, sqlite3 *db)
 {
     <<schemas>>
+}
+#+END_SRC
+**** Insert Tangled Data
+When worgle is done parsing data, the tangled data is
+written to the database using the funtion
+=worgle_db_tangle=.
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_db_tangle(worgle_d *worg, sqlite3 *db);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_db_tangle(worgle_d *worg, sqlite3 *db)
+{
     <<inserts>>
 }
 #+END_SRC
@@ -200,14 +215,53 @@ static void insert_resource(sqlite3 *db, worgle_long id, int type)
     sqlite3_finalize(stmt);
 }
 #+END_SRC
+*** TODO Header Schema
+The header schema contains the following:
+- UUID(?)
+- Section Number (as a string)
+- Section Name
+*** TODO Content Schema
+Hopefully, it will be:
+- UUID(?)
+- Section Location (as a string)
+- Starting Line Number
+- File name
+- Content
+*** TODO Block Position
+This provides information about a particular Block position,
+but not the content itself.
+This includes:
+- UUID
+- Section Number
+
+This is a separate section from the =blocks= section, for
+two reasons. One, because the section number is only derived
+while it is being parsed. Two, to more cleanly separate the
+woven content from the tangled content.
 ** SQLite Insert Statements
-This section pertains to the actual SQLite insert statements that occur.
-Generally speaking, data in Worgle can be broken up into two perspectives:
-tangled data (the generated code for the compiler), and
-woven data (the markup and semantics).
+This section pertains to the actual SQLite insert statements
+that occur.
+Generally speaking, data in Worgle can be broken up into
+two perspectives: tangled data (the generated code for the
+compiler), and woven data (the markup and semantics).
+*** SQLite Woven Data
+Unlike Tangled data, woven data is inserted while the file
+is being parsed. As a result of this, the functionality is
+split up amongst a few functions instead of having one
+top-level function.
+**** TODO Header Insert
+**** TODO Content Insert
+Anything in between a header and the start of a code block
+is considered to be "content". Any time a new header or
+codeblock is started, this function will be inserted
+**** TODO Block (Position) Insert
+Any time a block is started, a note of the position it is in
+is stored as metadata. This will include the section, as
+well as line number and filename.
 *** SQLite Tangled Data
-The way Worgle generates data is by recursively iterating through the file list.
-The SQLite table will be populated in the same way.
+The way Worgle generates data is by recursively iterating
+through the file list. The SQLite table will be populated
+in the same way.
 **** Top-level tangle insert
 Table population tangle insert is done inside the function =worgle_db_generate=.
 
