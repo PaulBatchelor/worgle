@@ -1,0 +1,34 @@
+* Get
+The "get" interface is a small test program used to test out
+some of the core SQLite querying routines supplied by
+worgmap.
+** TODO The main program
+The main program is contained in a function called
+=get_main=, taking in =argc= and =argv= parameters.
+** TODO res
+The =res= command will return the information of
+a particular resource, given a UUID.
+** TODO block
+The =block= command will return the information of
+block with a particular UUID.
+** TODO segment
+The =segement= command will return information of a
+particular segment, given it's UUID.
+** TODO file
+The =file= command will return information of a particular
+file.
+** TODO filelist
+The =filelist= command will list all tanlged files.
+** TODO tangle
+The =tangle= command is used to tangle together
+blocks or files
+*** TODO File
+Will look up a particular file name, and then
+iteratively tangle it.
+*** TODO Block
+Will look up a particular named block, and then print
+the output to the screen.
+** TODO blocktree
+The =tree= command will take in a named block, and
+print out the underlying blocks that make it as a
+tree structure.
