@@ -1,0 +1,22 @@
+* Worgmap Top
+This document describes the top-level files and constructs
+used in worgmap.
+** Main header file
+The core header file is called =worgmap.h=.
+#+NAME: worgmap.h
+#+BEGIN_SRC c :tangle worgmap.h
+#ifndef WORGMAP_H
+#define WORGMAP_H
+#endif
+#+END_SRC
+** Main C file
+The main C file is called =worgmap.c=.
+#+NAME: worgmap.c
+#+BEGIN_SRC c :tangle worgmap.c
+#include <stdio.h>
+int main(int argc, char *argv[])
+{
+    printf("Coming soon.\n");
+    return 0;
+}
+#+END_SRC
