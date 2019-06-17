@@ -1,0 +1,12 @@
+* Worgmap (WIP)
+Worgmap is a collection of applications designed to
+map and display metadata generated from Worgle.
+
+Some ideas here include:
+
+- a local web interface for displaying interactive content
+- a static HTML builder (more sophisticated than sorg)
+- a plain tex backend
+- data visualization using graphiz
+
+But we shall see, really.
