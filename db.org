@@ -138,7 +138,7 @@ sqlite3_exec(db,
              NULL,
              NULL);
 #+END_SRC
-*** UUID Schema
+*** Resource Schema
 Every single UUID is logged into a single table. This table has every single
 UUID and their type.
 

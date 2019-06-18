@@ -1,0 +1,50 @@
+* Core
+The section described here outlines core functionality for
+worgmap. This involves anything related to querying tables
+for SQLite data.
+** TODO Resource
+A =wmp_resource= is a record from the resource table.
+Any thing that is a thing has a record here. The only things
+that a resource stores is the UUID and the type flag.
+
+The function =wmp_find_resource= will find a resource with
+a particular UUID and place store the values in the
+=wmp_resource= struct. If the return value is false (0),
+then there was a problem finding the resource.
+
+No free function is needed here, since this struct does
+not need store any strings.
+** TODO Segment
+A =wmp_segment= stores a segment of text from the segment
+table.
+
+A =wmp_segment= can be queried by UUID using the function
+=wmp_find_segment=. If the return value is false (0), then
+there was a problem finding the entry.
+
+The function =wmp_find_segment= allocates memory to store
+the segment text as a C-string. Because of this, a segment
+must be freed using the function =wmp_segment_free=.
+** TODO Block
+=wmp_block= stores a reference to a codeblock.
+
+It is initialized using =wmp_block_init=.
+
+It is queried using =wmp_find_block=.
+
+A block can also be found by querying the name via the
+function =wmp_lookup_block=.
+
+It is freed using =wmp_block_free=.
+** TODO File
+A =wmp_file= is a record containing the name of a file to
+tangle to.
+
+It is initialized using =wmp_file_init=.
+
+It is queried using =wmp_find_file=.
+
+A file can be queried by name directly via the function
+=wmp_lookup_file=.
+
+It is freed using =wmp_file_free=.
