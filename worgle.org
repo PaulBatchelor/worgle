@@ -2433,7 +2433,6 @@ if(!strncmp(ps.optarg, "soft", 4)) {
 #+END_SRC
 
 *** Checking for unused blocks
-
 One thing that warnings can do is check for unused blocks.
 This is done after the files are generated with the function
 =worgle_warn_unused=.
@@ -2465,6 +2464,11 @@ int worgle_warn_unused(worgle_d *worg)
                 fprintf(stderr, "Warning: block '");
                 worgle_string_write(stderr, &blk->name);
                 fprintf(stderr, "' unused.\n");
+                fprintf(stderr, "First declared in ");
+                worgle_string_write(stderr,
+                                    blk->head->filename);
+                fprintf(stderr, ", line %lu\n",
+                        blk->head->linum);
                 if(use_warnings == 2) rc = 1;
             }
             blk = blk->nxt;
