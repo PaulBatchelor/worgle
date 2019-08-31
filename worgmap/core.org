@@ -6,11 +6,42 @@ for SQLite data.
 ** TODO Tangled Files
 Core tanlges itself into a C and a header file, called
 =core.c= and =core.h=, respectively.
-
+#+NAME: core.h
+#+BEGIN_SRC c :tangle core.h
+#ifndef CORE_H
+#define CORE_H
+<<typedefs>>
+#endif
+#+END_SRC
+#+NAME: core_private.h
+#+BEGIN_SRC c :tangle core_private.h
+#ifndef CORE_PRIVATE_H
+#define CORE_PRIVATE_H
+<<structs>>
+#endif
+#+END_SRC
+#+NAME: core.c
+#+BEGIN_SRC c :tangle core.c
+#include <sqlite3.h>
+#include "core.h"
+#include "core_private.h"
+#+END_SRC
 ** TODO wmp_core
 SQLite data is indirectly handled inside of a struct called
 =wmp_core=. That's all it does for now, but I fully expect
 things to change in the future.
+
+#+NAME: typedefs
+#+BEGIN_SRC c
+typedef struct wmp_core wmp_core;
+#+END_SRC
+
+#+NAME: structs
+#+BEGIN_SRC c
+struct wmp_core {
+    sqlite3 *db;
+};
+#+END_SRC
 *** TODO Opening the database
 The database handled is opened with the function
 =wmp_core_open=.

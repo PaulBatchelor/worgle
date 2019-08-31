@@ -1,6 +1,6 @@
 WORGLE=../worgle
 
-OBJ=worgmap.o get.o
+OBJ=worgmap.o get.o core.o
 
 default: $(WORGLE) worgmap
 
