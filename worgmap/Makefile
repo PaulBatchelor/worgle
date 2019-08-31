@@ -1,6 +1,6 @@
 WORGLE=../worgle
 
-OBJ=worgmap.o
+OBJ=worgmap.o get.o
 
 default: $(WORGLE) worgmap
 
@@ -8,7 +8,7 @@ $(WORGLE):
 	cd ..; make worgle
 
 worgmap: $(OBJ)
-	$(CC) $(CFLAGS) $< -o $@
+	$(CC) $(CFLAGS) $(OBJ) -o $@
 
 %.c: %.org
 	$(WORGLE) -Werror -g $<

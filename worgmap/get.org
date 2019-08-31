@@ -2,12 +2,82 @@
 The "get" interface is a small test program used to test out
 some of the core SQLite querying routines supplied by
 worgmap.
+
+** TODO Tangled Files
+#+NAME: get.c
+#+BEGIN_SRC c :tangle get.c
+#include <stdio.h>
+#include <string.h>
+<<function_declarations>>
+<<functions>>
+#+END_SRC
 ** TODO The main program
 The main program is contained in a function called
 =get_main=, taking in =argc= and =argv= parameters.
+#+NAME: function_declarations
+#+BEGIN_SRC c
+int p_get(int argc, char *argv[]);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+int p_get(int argc, char *argv[])
+{
+    if(argc < 2) {
+        print_help();
+        return 1;
+    }
+    <<command_parsing>>
+    return 0;
+}
+#+END_SRC
+*** Print Help
+Prints all available commands if there are not enough
+arguments provided.
+#+NAME: function_declarations
+#+BEGIN_SRC c
+static void print_help(void);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+static void print_help(void)
+{
+    fprintf(stderr, "Available Commands\n\n");
+    <<available_commands>>
+}
+#+END_SRC
+*** Sub Commands
 ** TODO res
 The =res= command will return the information of
 a particular resource, given a UUID.
+#+NAME: available_commands
+#+BEGIN_SRC c
+fprintf(stderr, "res: prints resource info given UUID\n");
+#+END_SRC
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+static int get_res(int argc, char *argv[]);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+static int get_res(int argc, char *argv[])
+{
+    if(argc < 2) {
+        fprintf(stderr, "Usage: %s UUID\n", argv[0]);
+        return 1;
+    }
+    return 1;
+}
+#+END_SRC
+
+#+NAME: command_parsing
+#+BEGIN_SRC c
+else if(!strncmp(argv[1], "res", 3)) {
+    argv++;
+    argc--;
+    get_res(argc, argv);
+}
+#+END_SRC
 ** TODO block
 The =block= command will return the information of
 block with a particular UUID.
