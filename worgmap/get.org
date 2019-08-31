@@ -3,7 +3,8 @@ The "get" interface is a small test program used to test out
 some of the core SQLite querying routines supplied by
 worgmap.
 
-** TODO Tangled Files
+** DONE Tangled Files
+CLOSED: [2019-08-31 Sat 10:39]
 #+NAME: get.c
 #+BEGIN_SRC c :tangle get.c
 #include <stdio.h>
@@ -15,7 +16,8 @@ worgmap.
 <<function_declarations>>
 <<functions>>
 #+END_SRC
-** TODO The main program
+** DONE The main program
+CLOSED: [2019-08-31 Sat 10:39]
 The main program is contained in a function called
 =get_main=, taking in =argc= and =argv= parameters.
 #+NAME: function_declarations
@@ -115,17 +117,17 @@ The =block= command will return the information of
 block with a particular UUID.
 #+NAME: available_commands
 #+BEGIN_SRC c
-fprintf(stderr, "block: prints block info given UUID\n");
+fprintf(stderr, "blk: prints block info given UUID\n");
 #+END_SRC
 
 #+NAME: function_declarations
 #+BEGIN_SRC c
-static int get_block(int argc, char *argv[]);
+static int get_blk(int argc, char *argv[]);
 #+END_SRC
 
 #+NAME: functions
 #+BEGIN_SRC c
-static int get_block(int argc, char *argv[])
+static int get_blk(int argc, char *argv[])
 {
     wmp_core core;
     int rc;
@@ -164,29 +166,30 @@ static int get_block(int argc, char *argv[])
 
 #+NAME: command_parsing
 #+BEGIN_SRC c
-else if (!strncmp(argv[1], "block", 5)) {
+else if (!strncmp(argv[1], "blk", 3)) {
     argv++;
     argc--;
-    get_block(argc, argv);
+    get_blk(argc, argv);
 }
 #+END_SRC
-** TODO segment
+** DONE segment
+CLOSED: [2019-08-31 Sat 10:38]
 The =segement= command will return information of a
 particular segment, given it's UUID.
 #+NAME: available_commands
 #+BEGIN_SRC c
 fprintf(stderr,
-        "segment: prints segment info given UUID\n");
+        "seg: prints segment info given UUID\n");
 #+END_SRC
 
 #+NAME: function_declarations
 #+BEGIN_SRC c
-static int get_segment(int argc, char *argv[]);
+static int get_seg(int argc, char *argv[]);
 #+END_SRC
 
 #+NAME: functions
 #+BEGIN_SRC c
-static int get_segment(int argc, char *argv[])
+static int get_seg(int argc, char *argv[])
 {
     wmp_core core;
     int rc;
@@ -226,10 +229,10 @@ static int get_segment(int argc, char *argv[])
 
 #+NAME: command_parsing
 #+BEGIN_SRC c
-else if (!strncmp(argv[1], "segment", 5)) {
+else if (!strncmp(argv[1], "seg", 3)) {
     argv++;
     argc--;
-    get_segment(argc, argv);
+    get_seg(argc, argv);
 }
 #+END_SRC
 ** TODO file
