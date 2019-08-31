@@ -27,6 +27,7 @@ Core tanlges itself into a C and a header file, called
 #include <sqlite3.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "core.h"
 #include "core_private.h"
 <<constants>>
@@ -301,17 +302,58 @@ It is queried using =wmp_find_block=.
 #+NAME: function_declarations
 #+BEGIN_SRC c
 int wmp_find_block(wmp_core *c,
-                   unsigned int id,
+                   unsigned int uuid,
                    wmp_block *b);
 #+END_SRC
 TODO: implement me.
 #+NAME: functions
 #+BEGIN_SRC c
 int wmp_find_block(wmp_core *c,
-                   unsigned int id,
+                   unsigned int uuid,
                    wmp_block *b)
 {
-    return 0;
+    sqlite3 *db;
+    sqlite3_stmt *stmt;
+    int rc;
+    int nbytes;
+    const char *str;
+
+    db = wmp_core_db(c);
+
+    sqlite3_prepare_v2(db,
+                       "SELECT "
+                         "head_segment,"
+                         "name,"
+                         "next_block "
+                       "FROM blocks "
+                       "WHERE(id==?1);",
+                       -1,
+                       &stmt,
+                       NULL);
+    sqlite3_bind_int(stmt, 1, uuid);
+
+    rc = sqlite3_step(stmt);
+
+    if(rc == SQLITE_DONE) {
+        sqlite3_finalize(stmt);
+        return 0;
+    }
+
+    if(rc == SQLITE_ROW) {
+        b->id = uuid;
+        b->head_segment = sqlite3_column_int(stmt, 0);
+        nbytes = sqlite3_column_bytes(stmt, 1);
+        b->name = calloc(1, nbytes + 1);
+        b->next_block = sqlite3_column_int(stmt, 2);
+        str = (const char *)sqlite3_column_text(stmt, 1);
+        strncpy(b->name, str, nbytes);
+    } else {
+        fprintf(stderr, "Error: %s\n", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+        return 0;
+    }
+    sqlite3_finalize(stmt);
+    return 1;
 }
 #+END_SRC
 *** TODO lookup
