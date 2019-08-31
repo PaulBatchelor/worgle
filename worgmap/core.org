@@ -241,7 +241,8 @@ const char *wmp_resource_typestring(wmp_resource *r)
     return "Unknown";
 }
 #+END_SRC
-** TODO Segment
+** DONE Segment
+CLOSED: [2019-08-31 Sat 10:19]
 *** Struct
 A =wmp_segment= stores a segment of text from the segment
 table.
@@ -308,56 +309,67 @@ int wmp_find_segment(wmp_core *c,
                      unsigned int uuid,
                      wmp_segment *s);
 #+END_SRC
-TODO: implement me.
 #+NAME: functions
 #+BEGIN_SRC c
 int wmp_find_segment(wmp_core *c,
                      unsigned int uuid,
                      wmp_segment *s)
 {
-    /* sqlite3 *db; */
-    /* sqlite3_stmt *stmt; */
-    /* int rc; */
-    /* int nbytes; */
-    /* const char *str; */
+    sqlite3 *db;
+    sqlite3_stmt *stmt;
+    int rc;
+    int nbytes;
+    const char *str;
+    const char *fname;
 
-    /* db = wmp_core_db(c); */
+    db = wmp_core_db(c);
 
-    /* sqlite3_prepare_v2(db, */
-    /*                    "SELECT " */
-    /*                      "head_segment," */
-    /*                      "name," */
-    /*                      "next_block " */
-    /*                    "FROM blocks " */
-    /*                    "WHERE(id==?1);", */
-    /*                    -1, */
-    /*                    &stmt, */
-    /*                    NULL); */
-    /* sqlite3_bind_int(stmt, 1, uuid); */
+    sqlite3_prepare_v2(db,
+                       "SELECT "
+                         "type,"
+                         "str,"
+                         "linum,"
+                         "filename,"
+                         "next_segment "
+                       "FROM segments "
+                       "WHERE(id==?1);",
+                       -1,
+                       &stmt,
+                       NULL);
+    sqlite3_bind_int(stmt, 1, uuid);
 
-    /* rc = sqlite3_step(stmt); */
+    rc = sqlite3_step(stmt);
 
-    /* if(rc == SQLITE_DONE) { */
-    /*     sqlite3_finalize(stmt); */
-    /*     return 0; */
-    /* } */
+    if(rc == SQLITE_DONE) {
+        sqlite3_finalize(stmt);
+        return 0;
+    }
 
-    /* if(rc == SQLITE_ROW) { */
-    /*     b->id = uuid; */
-    /*     b->head_segment = sqlite3_column_int(stmt, 0); */
-    /*     nbytes = sqlite3_column_bytes(stmt, 1); */
-    /*     b->name = calloc(1, nbytes + 1); */
-    /*     b->next_block = sqlite3_column_int(stmt, 2); */
-    /*     str = (const char *)sqlite3_column_text(stmt, 1); */
-    /*     strncpy(b->name, str, nbytes); */
-    /* } else { */
-    /*     fprintf(stderr, "Error: %s\n", sqlite3_errmsg(db)); */
-    /*     sqlite3_finalize(stmt); */
-    /*     return 0; */
-    /* } */
-    /* sqlite3_finalize(stmt); */
-    /* return 1; */
-    return 0;
+    if(rc == SQLITE_ROW) {
+        s->id = uuid;
+        s->type = sqlite3_column_int(stmt, 0);
+
+        nbytes = sqlite3_column_bytes(stmt, 1);
+        s->str = calloc(1, nbytes + 1);
+        str = (const char *)sqlite3_column_text(stmt, 1);
+        strncpy(s->str, str, nbytes);
+
+        s->linum = sqlite3_column_int(stmt, 2);
+
+        nbytes = sqlite3_column_bytes(stmt, 3);
+        s->filename = calloc(1, nbytes + 1);
+        fname = (const char *)sqlite3_column_text(stmt, 3);
+        strncpy(s->filename, fname, nbytes);
+
+        s->nxtseg = sqlite3_column_int(stmt, 4);
+
+    } else {
+        fprintf(stderr, "Error: %s\n", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+        return 0;
+    }
+    sqlite3_finalize(stmt);
+    return 1;
 }
 #+END_SRC
 ** TODO Block
