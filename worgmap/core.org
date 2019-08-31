@@ -26,6 +26,7 @@ Core tanlges itself into a C and a header file, called
 #+BEGIN_SRC c :tangle core.c
 #include <sqlite3.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "core.h"
 #include "core_private.h"
 <<constants>>
@@ -143,7 +144,8 @@ void wmp_filename_set(const char *filename)
     db_filename = filename;
 }
 #+END_SRC
-** TODO Resource
+** DONE Resource
+CLOSED: [2019-08-31 Sat 07:14]
 *** Struct
 A =wmp_resource= is a record from the resource table.
 Any thing that is a thing has a record here. The only things
@@ -250,16 +252,87 @@ The function =wmp_find_segment= allocates memory to store
 the segment text as a C-string. Because of this, a segment
 must be freed using the function =wmp_segment_free=.
 ** TODO Block
+*** struct
 =wmp_block= stores a reference to a codeblock.
-
+#+NAME: typedefs
+#+BEGIN_SRC c
+typedef struct wmp_block wmp_block;
+#+END_SRC
+#+NAME: structs
+#+BEGIN_SRC c
+struct wmp_block {
+    int id;
+    int head_segment;
+    char *name;
+    int next_block;
+};
+#+END_SRC
+*** init
 It is initialized using =wmp_block_init=.
-
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void wmp_block_init(wmp_block *b);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+void wmp_block_init(wmp_block *b)
+{
+    b->id = -1;
+    b->head_segment = -1;
+    b->name = NULL;
+    b->next_block = -1;
+}
+#+END_SRC
+*** free
+It is freed using =wmp_block_free=.
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void wmp_block_free(wmp_block *b);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+void wmp_block_free(wmp_block *b)
+{
+    free(b->name);
+}
+#+END_SRC
+*** TODO find
 It is queried using =wmp_find_block=.
-
+#+NAME: function_declarations
+#+BEGIN_SRC c
+int wmp_find_block(wmp_core *c,
+                   unsigned int id,
+                   wmp_block *b);
+#+END_SRC
+TODO: implement me.
+#+NAME: functions
+#+BEGIN_SRC c
+int wmp_find_block(wmp_core *c,
+                   unsigned int id,
+                   wmp_block *b)
+{
+    return 0;
+}
+#+END_SRC
+*** TODO lookup
 A block can also be found by querying the name via the
 function =wmp_lookup_block=.
-
-It is freed using =wmp_block_free=.
+#+NAME: function_declarations
+#+BEGIN_SRC c
+int wmp_lookup_block(wmp_core *c,
+                     const char *name,
+                     wmp_block *b);
+#+END_SRC
+To be implemented later...
+#+NAME: functions
+#+BEGIN_SRC c
+int wmp_lookup_block(wmp_core *c,
+                     const char *name,
+                     wmp_block *b)
+{
+    return 0;
+}
+#+END_SRC
 ** TODO File
 A =wmp_file= is a record containing the name of a file to
 tangle to.

@@ -128,7 +128,7 @@ static int get_block(int argc, char *argv[])
 {
     wmp_core core;
     int rc;
-    wmp_resource res;
+    wmp_block blk;
     unsigned int id;
     int err;
 
@@ -139,7 +139,23 @@ static int get_block(int argc, char *argv[])
     }
     rc = wmp_core_open(&core, wmp_filename_get());
     if (!rc) return 0;
-    fprintf(stderr, "Not yet implemented. Sorry\n");
+    wmp_block_init(&blk);
+    id = atoi(argv[1]);
+    rc = wmp_find_block(&core, id, &blk);
+
+    if(!rc) {
+        fprintf(stderr,
+                "Could not find block with id %d\n",
+                id);
+        err = 1;
+    } else {
+        printf("%d %d %s %d\n",
+               blk.id,
+               blk.head_segment,
+               blk.name,
+               blk.next_block);
+    }
+    wmp_block_free(&blk);
     wmp_core_close(&core);
     return err;
 }
