@@ -9,6 +9,7 @@ worgmap.
 #include <stdio.h>
 #include <string.h>
 #include <sqlite3.h>
+#include <stdlib.h>
 #include "core.h"
 #include "core_private.h"
 <<function_declarations>>
@@ -68,16 +69,33 @@ static int get_res(int argc, char *argv[])
 {
     wmp_core core;
     int rc;
-    sqlite3 *db;
+    wmp_resource res;
+    unsigned int id;
+    int err;
+
+    err = 0;
     if (argc < 2) {
         fprintf(stderr, "Usage: %s UUID\n", argv[0]);
         return 1;
     }
     rc = wmp_core_open(&core, wmp_filename_get());
-    if(!rc) return 0;
-    db = wmp_core_db();
+    if (!rc) return 0;
+    id = atoi(argv[1]);
+    rc = wmp_find_resource(&core, id, &res);
+
+    if(!rc) {
+        fprintf(stderr,
+                "Could not find resource with id %d\n",
+                id);
+    } else {
+        printf("%d %d %s\n",
+               res.id,
+               res.type,
+               wmp_resource_typestring(&res));
+    }
+
     wmp_core_close(&core);
-    return 1;
+    return err;
 }
 #+END_SRC
 

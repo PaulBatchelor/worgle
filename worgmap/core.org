@@ -148,14 +148,96 @@ void wmp_filename_set(const char *filename)
 A =wmp_resource= is a record from the resource table.
 Any thing that is a thing has a record here. The only things
 that a resource stores is the UUID and the type flag.
+#+NAME: typedefs
+#+BEGIN_SRC c
+typedef struct wmp_resource wmp_resource;
+#+END_SRC
+#+NAME: structs
+#+BEGIN_SRC c
+struct wmp_resource {
+    unsigned int id;
+    int type;
+};
+#+END_SRC
 *** Finding a Resource
 The function =wmp_find_resource= will find a resource with
 a particular UUID and place store the values in the
 =wmp_resource= struct. If the return value is false (0),
 then there was a problem finding the resource.
 
+#+NAME: function_declarations
+#+BEGIN_SRC c
+int wmp_find_resource(wmp_core *c,
+                      unsigned int uuid,
+                      wmp_resource *r);
+#+END_SRC
+
 No free function is needed here, since this struct does
 not need to store any strings.
+
+#+NAME: functions
+#+BEGIN_SRC c
+int wmp_find_resource(wmp_core *c,
+                      unsigned int uuid,
+                      wmp_resource *r)
+{
+    sqlite3 *db;
+    sqlite3_stmt *stmt;
+    int type;
+    int rc;
+
+    db = wmp_core_db(c);
+
+    sqlite3_prepare_v2(db,
+                       "SELECT type FROM resources "
+                       "WHERE(id==?1);",
+                       -1,
+                       &stmt,
+                       NULL);
+    sqlite3_bind_int(stmt, 1, uuid);
+
+    rc = sqlite3_step(stmt);
+
+    if(rc == SQLITE_DONE) {
+        sqlite3_finalize(stmt);
+        return 0;
+    }
+
+    if(rc == SQLITE_ROW) {
+        type = sqlite3_column_int(stmt, 0);
+
+        r->id = uuid;
+        r->type = type;
+    } else {
+        fprintf(stderr, "Error: %s\n", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+        return 0;
+    }
+    sqlite3_finalize(stmt);
+    return 1;
+}
+#+END_SRC
+*** Resource Type to String
+Returns a human readable string from the type.
+#+NAME: function_declarations
+#+BEGIN_SRC c
+const char *wmp_resource_typestring(wmp_resource *r);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+const char *wmp_resource_typestring(wmp_resource *r)
+{
+    switch(r->type) {
+        case 0:
+            return "File";
+        case 1:
+            return "Block";
+        case 2:
+            return "Segment";
+    }
+    return "Unknown";
+}
+#+END_SRC
 ** TODO Segment
 A =wmp_segment= stores a segment of text from the segment
 table.

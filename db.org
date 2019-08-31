@@ -17,7 +17,6 @@ The worgle database interface generates a single C and header file.
 #include "worgle.h"
 #include "worgle_private.h"
 #include "db.h"
-<<macros>>
 <<static_db_functions>>
 <<functions>>
 #+END_SRC
@@ -25,6 +24,7 @@ The worgle database interface generates a single C and header file.
 #+BEGIN_SRC c :tangle db.h
 #ifndef WORGLE_DB_H
 #define WORGLE_DB_H
+<<macros>>
 <<function_declarations>>
 #endif
 #+END_SRC
