@@ -28,9 +28,14 @@ int p_get(int argc, char *argv[]);
 #+BEGIN_SRC c
 int p_get(int argc, char *argv[])
 {
+    int len;
     if(argc < 2) {
         print_help();
         return 1;
+    }
+    len = strlen(argv[1]);
+    if(0) {
+        /* starts the chain */
     }
     <<command_parsing>>
     return 0;
@@ -52,6 +57,31 @@ static void print_help(void)
 }
 #+END_SRC
 *** Sub Commands
+*** Matching
+It's not enough to use =strncmp= with this program, because
+then =file= and =filelist= will be treated as the same.
+String length of the input string must be taken into
+account.
+
+The static function =match= is an abstraction around this.
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+static int match(const char *s1,
+                 int sz1,
+                 const char *s2,
+                 int sz2);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+static int match(const char *s1,
+                 int sz1,
+                 const char *s2,
+                 int sz2)
+{
+    return sz1 == sz2 && !strncmp(s1, s2, sz2);
+}
+#+END_SRC
 ** DONE res
 CLOSED: [2019-08-31 Sat 07:07]
 The =res= command will return the information of
@@ -105,7 +135,7 @@ static int get_res(int argc, char *argv[])
 
 #+NAME: command_parsing
 #+BEGIN_SRC c
-else if (!strncmp(argv[1], "res", 3)) {
+else if (match(argv[1], len, "res", 3)) {
     argv++;
     argc--;
     get_res(argc, argv);
@@ -166,7 +196,7 @@ static int get_blk(int argc, char *argv[])
 
 #+NAME: command_parsing
 #+BEGIN_SRC c
-else if (!strncmp(argv[1], "blk", 3)) {
+else if (match(argv[1], len, "blk", 3)) {
     argv++;
     argc--;
     get_blk(argc, argv);
@@ -229,7 +259,7 @@ static int get_seg(int argc, char *argv[])
 
 #+NAME: command_parsing
 #+BEGIN_SRC c
-else if (!strncmp(argv[1], "seg", 3)) {
+else if (match(argv[1], len, "seg", 3)) {
     argv++;
     argc--;
     get_seg(argc, argv);
@@ -286,7 +316,7 @@ static int get_fblk(int argc, char *argv[])
 
 #+NAME: command_parsing
 #+BEGIN_SRC c
-else if (!strncmp(argv[1], "fblk", 4)) {
+else if (match(argv[1], len, "fblk", 4)) {
     argv++;
     argc--;
     get_fblk(argc, argv);
@@ -346,7 +376,7 @@ static int get_file(int argc, char *argv[])
 
 #+NAME: command_parsing
 #+BEGIN_SRC c
-else if (!strncmp(argv[1], "file", 4)) {
+else if (match(argv[1], len, "file", 4)) {
     argv++;
     argc--;
     get_file(argc, argv);
@@ -402,7 +432,7 @@ static int get_ffile(int argc, char *argv[])
 
 #+NAME: command_parsing
 #+BEGIN_SRC c
-else if (!strncmp(argv[1], "ffile", 5)) {
+else if (match(argv[1], len, "ffile", 5)) {
     argv++;
     argc--;
     get_ffile(argc, argv);
@@ -410,3 +440,63 @@ else if (!strncmp(argv[1], "ffile", 5)) {
 #+END_SRC
 ** TODO Filelist
 The =filelist= command will list all tangled files.
+
+#+NAME: available_commands
+#+BEGIN_SRC c
+fprintf(stderr, "filelist: prints list of files\n");
+#+END_SRC
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+static int get_filelist(int argc, char *argv[]);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+static int get_filelist(int argc, char *argv[])
+{
+    wmp_core core;
+    int rc;
+    wmp_file f;
+    int next;
+    int id;
+
+    rc = wmp_core_open(&core, wmp_filename_get());
+    if (!rc) return 0;
+    wmp_file_init(&f);
+    rc = wmp_file_top(&core, &f);
+    if (!rc) {
+        fprintf(stderr, "No files to be found!\n");
+        return 1;
+    }
+
+    while(1) {
+        printf("%s\n", f.filename);
+        next = f.next_file;
+        id = f.id;
+        wmp_file_free(&f);
+        wmp_file_init(&f);
+
+        if (id == next || id == 0) {
+            break;
+        } else {
+            rc = wmp_find_file(&core, next, &f);
+            if (!rc) {
+                wmp_file_free(&f);
+                break;
+            }
+        }
+    }
+    wmp_core_close(&core);
+    return 0;
+}
+#+END_SRC
+
+#+NAME: command_parsing
+#+BEGIN_SRC c
+else if (match(argv[1], len, "filelist", 8)) {
+    argv++;
+    argc--;
+    get_filelist(argc, argv);
+}
+#+END_SRC

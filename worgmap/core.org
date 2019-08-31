@@ -696,3 +696,56 @@ int wmp_lookup_file(wmp_core *c,
     return 1;
 }
 #+END_SRC
+*** TODO Top File
+Gets top file from the files column. Useful if you want to
+iterate throught the file list.
+#+NAME: function_declarations
+#+BEGIN_SRC c
+int wmp_file_top(wmp_core *c, wmp_file *f);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+int wmp_file_top(wmp_core *c, wmp_file *f)
+{
+    sqlite3 *db;
+    sqlite3_stmt *stmt;
+    int rc;
+    int nbytes;
+    const char *filename;
+
+    db = wmp_core_db(c);
+
+    sqlite3_prepare_v2(db,
+                       "SELECT "
+                         "id,"
+                         "filename,"
+                         "next_file "
+                       "FROM files "
+                       "LIMIT 1;",
+                       -1,
+                       &stmt,
+                       NULL);
+
+    rc = sqlite3_step(stmt);
+
+    if(rc == SQLITE_DONE) {
+        sqlite3_finalize(stmt);
+        return 0;
+    }
+
+    if(rc == SQLITE_ROW) {
+        f->id = sqlite3_column_int(stmt, 0);
+        f->next_file = sqlite3_column_int(stmt, 2);
+        nbytes = sqlite3_column_bytes(stmt, 1);
+        f->filename = calloc(1, nbytes + 1);
+        filename = (const char *)sqlite3_column_text(stmt, 1);
+        strncpy(f->filename, filename, nbytes);
+    } else {
+        fprintf(stderr, "Error: %s\n", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+        return 0;
+    }
+    sqlite3_finalize(stmt);
+    return 1;
+}
+#+END_SRC
