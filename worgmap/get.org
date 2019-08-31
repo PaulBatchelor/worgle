@@ -235,6 +235,62 @@ else if (!strncmp(argv[1], "seg", 3)) {
     get_seg(argc, argv);
 }
 #+END_SRC
+** TODO Block Find (blkfind)
+#+NAME: available_commands
+#+BEGIN_SRC c
+fprintf(stderr, "fblk: looks up block given name\n");
+#+END_SRC
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+static int get_fblk(int argc, char *argv[]);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+static int get_fblk(int argc, char *argv[])
+{
+    wmp_core core;
+    int rc;
+    wmp_block blk;
+    int err;
+
+    err = 0;
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s NAME\n", argv[0]);
+        return 1;
+    }
+    rc = wmp_core_open(&core, wmp_filename_get());
+    if (!rc) return 0;
+    wmp_block_init(&blk);
+    rc = wmp_lookup_block(&core, argv[1], &blk);
+
+    if(!rc) {
+        fprintf(stderr,
+                "Could not find block name '%s'\n",
+                argv[1]);
+        err = 1;
+    } else {
+        printf("%d %d %s %d\n",
+               blk.id,
+               blk.head_segment,
+               blk.name,
+               blk.next_block);
+    }
+    wmp_block_free(&blk);
+    wmp_core_close(&core);
+    return err;
+}
+#+END_SRC
+
+#+NAME: command_parsing
+#+BEGIN_SRC c
+else if (!strncmp(argv[1], "fblk", 4)) {
+    argv++;
+    argc--;
+    get_fblk(argc, argv);
+}
+#+END_SRC
 ** TODO file
 The =file= command will return information of a particular
 file.

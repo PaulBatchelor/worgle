@@ -493,7 +493,46 @@ int wmp_lookup_block(wmp_core *c,
                      const char *name,
                      wmp_block *b)
 {
-    return 0;
+    sqlite3 *db;
+    sqlite3_stmt *stmt;
+    int rc;
+    int nbytes;
+
+    db = wmp_core_db(c);
+
+    sqlite3_prepare_v2(db,
+                       "SELECT "
+                         "id,"
+                         "head_segment,"
+                         "next_block "
+                       "FROM blocks "
+                       "WHERE(name==?1);",
+                       -1,
+                       &stmt,
+                       NULL);
+    sqlite3_bind_text(stmt, 1, name, strlen(name), NULL);
+
+    rc = sqlite3_step(stmt);
+
+    if(rc == SQLITE_DONE) {
+        sqlite3_finalize(stmt);
+        return 0;
+    }
+
+    if(rc == SQLITE_ROW) {
+        b->id = sqlite3_column_int(stmt, 0);
+        b->head_segment = sqlite3_column_int(stmt, 1);
+        nbytes = strlen(name);
+        b->name = calloc(1, nbytes + 1);
+        strncpy(b->name, name, nbytes);
+        b->next_block = sqlite3_column_int(stmt, 2);
+    } else {
+        fprintf(stderr, "Error: %s\n", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+        return 0;
+    }
+    sqlite3_finalize(stmt);
+    return 1;
 }
 #+END_SRC
 ** TODO File
