@@ -322,7 +322,7 @@ else if (match(argv[1], len, "fblk", 4)) {
     get_fblk(argc, argv);
 }
 #+END_SRC
-** DONE file
+** DONE File
 CLOSED: [2019-08-31 Sat 12:35]
 The =file= command will return information of a particular
 file.
@@ -366,6 +366,7 @@ static int get_file(int argc, char *argv[])
     } else {
         printf("id = %d\n", file.id);
         printf("filename = %s\n", file.filename);
+        printf("top = %d\n", file.top);
         printf("next_file = %d\n", file.next_file);
     }
     wmp_file_free(&file);
@@ -422,6 +423,7 @@ static int get_ffile(int argc, char *argv[])
     } else {
         printf("id = %d\n", file.id);
         printf("filename = %s\n", file.filename);
+        printf("top = %d\n", file.top);
         printf("next_file = %d\n", file.next_file);
     }
     wmp_file_free(&file);
@@ -438,7 +440,8 @@ else if (match(argv[1], len, "ffile", 5)) {
     get_ffile(argc, argv);
 }
 #+END_SRC
-** TODO Filelist
+** DONE Filelist
+CLOSED: [2019-08-31 Sat 17:25]
 The =filelist= command will list all tangled files.
 
 #+NAME: available_commands

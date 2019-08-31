@@ -550,6 +550,7 @@ typedef struct wmp_file wmp_file;
 struct wmp_file {
     unsigned int id;
     char *filename;
+    int top;
     int next_file;
 };
 #+END_SRC
@@ -606,7 +607,8 @@ int wmp_find_file(wmp_core *c,
     sqlite3_prepare_v2(db,
                        "SELECT "
                          "filename,"
-                         "next_file "
+                         "next_file, "
+                         "top "
                        "FROM files "
                        "WHERE(id==?1);",
                        -1,
@@ -628,6 +630,7 @@ int wmp_find_file(wmp_core *c,
         f->next_file = sqlite3_column_int(stmt, 1);
         str = (const char *)sqlite3_column_text(stmt, 0);
         strncpy(f->filename, str, nbytes);
+        f->top = sqlite3_column_int(stmt, 2);
     } else {
         fprintf(stderr, "Error: %s\n", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
@@ -664,7 +667,8 @@ int wmp_lookup_file(wmp_core *c,
     sqlite3_prepare_v2(db,
                        "SELECT "
                          "id,"
-                         "next_file "
+                         "next_file, "
+                         "top "
                        "FROM files "
                        "WHERE(filename==?1);",
                        -1,
@@ -687,6 +691,7 @@ int wmp_lookup_file(wmp_core *c,
         nbytes = strlen(filename);
         f->filename = calloc(1, nbytes + 1);
         strncpy(f->filename, filename, nbytes);
+        f->top = sqlite3_column_int(stmt, 2);
     } else {
         fprintf(stderr, "Error: %s\n", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
@@ -696,7 +701,8 @@ int wmp_lookup_file(wmp_core *c,
     return 1;
 }
 #+END_SRC
-*** TODO Top File
+*** DONE Top File
+CLOSED: [2019-08-31 Sat 17:26]
 Gets top file from the files column. Useful if you want to
 iterate throught the file list.
 #+NAME: function_declarations
@@ -719,7 +725,8 @@ int wmp_file_top(wmp_core *c, wmp_file *f)
                        "SELECT "
                          "id,"
                          "filename,"
-                         "next_file "
+                         "next_file, "
+                         "top "
                        "FROM files "
                        "LIMIT 1;",
                        -1,
@@ -740,6 +747,7 @@ int wmp_file_top(wmp_core *c, wmp_file *f)
         f->filename = calloc(1, nbytes + 1);
         filename = (const char *)sqlite3_column_text(stmt, 1);
         strncpy(f->filename, filename, nbytes);
+        f->top = sqlite3_column_int(stmt, 2);
     } else {
         fprintf(stderr, "Error: %s\n", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
