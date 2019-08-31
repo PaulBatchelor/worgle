@@ -242,8 +242,26 @@ const char *wmp_resource_typestring(wmp_resource *r)
 }
 #+END_SRC
 ** TODO Segment
+*** Struct
 A =wmp_segment= stores a segment of text from the segment
 table.
+
+#+NAME: typedefs
+#+BEGIN_SRC c
+typedef struct wmp_segment wmp_segment;
+#+END_SRC
+
+#+NAME: structs
+#+BEGIN_SRC c
+struct wmp_segment {
+    unsigned int id;
+    int type;
+    char *str;
+    int linum;
+    char *filename;
+    int nxtseg;
+};
+#+END_SRC
 
 A =wmp_segment= can be queried by UUID using the function
 =wmp_find_segment=. If the return value is false (0), then
@@ -252,6 +270,96 @@ there was a problem finding the entry.
 The function =wmp_find_segment= allocates memory to store
 the segment text as a C-string. Because of this, a segment
 must be freed using the function =wmp_segment_free=.
+*** init
+A segment is initialized with =wmp_segment_init=.
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void wmp_segment_init(wmp_segment *s);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+void wmp_segment_init(wmp_segment *s)
+{
+    s->id = 0;
+    s->type = -1;
+    s->str = NULL;
+    s->linum = 0;
+    s->filename = NULL;
+    s->nxtseg = -1;
+}
+#+END_SRC
+*** Free
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void wmp_segment_free(wmp_segment *s);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+void wmp_segment_free(wmp_segment *s)
+{
+    free(s->str);
+    free(s->filename);
+}
+#+END_SRC
+*** Find
+#+NAME: function_declarations
+#+BEGIN_SRC c
+int wmp_find_segment(wmp_core *c,
+                     unsigned int uuid,
+                     wmp_segment *s);
+#+END_SRC
+TODO: implement me.
+#+NAME: functions
+#+BEGIN_SRC c
+int wmp_find_segment(wmp_core *c,
+                     unsigned int uuid,
+                     wmp_segment *s)
+{
+    /* sqlite3 *db; */
+    /* sqlite3_stmt *stmt; */
+    /* int rc; */
+    /* int nbytes; */
+    /* const char *str; */
+
+    /* db = wmp_core_db(c); */
+
+    /* sqlite3_prepare_v2(db, */
+    /*                    "SELECT " */
+    /*                      "head_segment," */
+    /*                      "name," */
+    /*                      "next_block " */
+    /*                    "FROM blocks " */
+    /*                    "WHERE(id==?1);", */
+    /*                    -1, */
+    /*                    &stmt, */
+    /*                    NULL); */
+    /* sqlite3_bind_int(stmt, 1, uuid); */
+
+    /* rc = sqlite3_step(stmt); */
+
+    /* if(rc == SQLITE_DONE) { */
+    /*     sqlite3_finalize(stmt); */
+    /*     return 0; */
+    /* } */
+
+    /* if(rc == SQLITE_ROW) { */
+    /*     b->id = uuid; */
+    /*     b->head_segment = sqlite3_column_int(stmt, 0); */
+    /*     nbytes = sqlite3_column_bytes(stmt, 1); */
+    /*     b->name = calloc(1, nbytes + 1); */
+    /*     b->next_block = sqlite3_column_int(stmt, 2); */
+    /*     str = (const char *)sqlite3_column_text(stmt, 1); */
+    /*     strncpy(b->name, str, nbytes); */
+    /* } else { */
+    /*     fprintf(stderr, "Error: %s\n", sqlite3_errmsg(db)); */
+    /*     sqlite3_finalize(stmt); */
+    /*     return 0; */
+    /* } */
+    /* sqlite3_finalize(stmt); */
+    /* return 1; */
+    return 0;
+}
+#+END_SRC
 ** TODO Block
 *** struct
 =wmp_block= stores a reference to a codeblock.
@@ -297,7 +405,8 @@ void wmp_block_free(wmp_block *b)
     free(b->name);
 }
 #+END_SRC
-*** TODO find
+*** DONE find
+CLOSED: [2019-08-31 Sat 09:55]
 It is queried using =wmp_find_block=.
 #+NAME: function_declarations
 #+BEGIN_SRC c
