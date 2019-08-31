@@ -38,6 +38,12 @@ int p_get(int argc, char *argv[])
         /* starts the chain */
     }
     <<command_parsing>>
+    else {
+        fprintf(stderr, 
+                "Could not find subcommand '%s'\n",
+                argv[1]);
+        return 1;
+    }
     return 0;
 }
 #+END_SRC
