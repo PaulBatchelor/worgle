@@ -17,6 +17,9 @@ worgmap: $(OBJ)
 %.c: %.org
 	$(WORGLE) -Werror -g $<
 
+install: worgmap
+	cp worgmap /usr/local/bin
+
 clean:
 	$(RM) $(OBJ)
 	$(RM) worgmap

@@ -235,7 +235,8 @@ else if (!strncmp(argv[1], "seg", 3)) {
     get_seg(argc, argv);
 }
 #+END_SRC
-** TODO Block Find (fblk)
+** DONE Block Find (fblk)
+CLOSED: [2019-08-31 Sat 16:25]
 #+NAME: available_commands
 #+BEGIN_SRC c
 fprintf(stderr, "fblk: looks up block given name\n");
@@ -351,7 +352,8 @@ else if (!strncmp(argv[1], "file", 4)) {
     get_file(argc, argv);
 }
 #+END_SRC
-** TODO File Find (ffile)
+** DONE File Find (ffile)
+CLOSED: [2019-08-31 Sat 16:25]
 #+NAME: available_commands
 #+BEGIN_SRC c
 fprintf(stderr, "ffind: looks up file given name\n");
@@ -406,18 +408,5 @@ else if (!strncmp(argv[1], "ffile", 5)) {
     get_ffile(argc, argv);
 }
 #+END_SRC
-** TODO filelist
-The =filelist= command will list all tanlged files.
-** TODO tangle
-The =tangle= command is used to tangle together
-blocks or files
-*** TODO File
-Will look up a particular file name, and then
-iteratively tangle it.
-*** TODO Block
-Will look up a particular named block, and then print
-the output to the screen.
-** TODO blocktree
-The =tree= command will take in a named block, and
-print out the underlying blocks that make it as a
-tree structure.
+** TODO Filelist
+The =filelist= command will list all tangled files.
