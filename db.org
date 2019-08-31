@@ -1,11 +1,12 @@
 #+TITLE: Worgle Database
-* Worgle Database (WIP)
-This section outlines the portion of Worgle which handles database
-export.
-The main idea behind this is to be able to take a program Org, and
-export all the metadata into a SQLite database. In the future, other
-programs will be written to query the generated database and dynamically
-display portions of the program in interesting ways.
+* Worgle Database
+This section outlines the portion of Worgle which handles
+database export.
+The main idea behind this is to be able to take a program
+Org, and export all the metadata into a SQLite database. In
+the future, other programs will be written to query the
+generated database and dynamically display portions of the
+program in interesting ways.
 ** Worgle Database Top
 *** Top-level files
 The worgle database interface generates a single C and header file.
@@ -68,6 +69,7 @@ The segment schema contains the following items:
 - the UUID
 - the type (stored as integer)
 - the line number
+- the text itself (stored as text)
 - the file (filename, not UUID) that it belongs to
 - the UUID of the next segment
 
@@ -87,7 +89,7 @@ sqlite3_exec(db,
              "CREATE TABLE segments(\n"
              "id INTEGER PRIMARY KEY,\n"
              "type INTEGER,\n"
-             "str INTEGER,\n"
+             "str TEXT,\n"
              "linum INTEGER,\n"
              "filename TEXT,\n"
              "next_segment INTEGER\n"
