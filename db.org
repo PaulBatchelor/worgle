@@ -420,8 +420,9 @@ void worgle_db_insert_block(worgle_d *worg,
                         "type,"
                         "linum,"
                         "next_segment,"
-                        "str)\n"
-                        "VALUES(?1, ?2, ?3, ?4, ?5);",
+                        "str,"
+                        "filename)\n"
+                        "VALUES(?1, ?2, ?3, ?4, ?5, ?6);",
                         -1,
                         &stmt,
                         NULL);
@@ -434,6 +435,9 @@ void worgle_db_insert_block(worgle_d *worg,
 
         sqlite3_bind_text(stmt, 5,
                         s->str.str, s->str.size,
+                        NULL);
+        sqlite3_bind_text(stmt, 6,
+                        s->filename->str, s->filename->size,
                         NULL);
         if(rc != SQLITE_DONE) {
             fprintf(stderr,
