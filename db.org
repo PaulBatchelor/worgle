@@ -104,7 +104,6 @@ The block schema contains the following items:
 - the UUID
 - the UUID of the segment head
 - the name of the block
-- the UUID of the next block
 
 #+NAME: schemas
 #+BEGIN_SRC c
@@ -112,8 +111,7 @@ sqlite3_exec(db,
              "CREATE TABLE blocks("
              "id INTEGER PRIMARY KEY,\n"
              "head_segment INTEGER,\n"
-             "name TEXT,\n"
-             "next_block INTEGER\n"
+             "name TEXT\n"
              ");\n",
              NULL,
              NULL,
@@ -373,7 +371,6 @@ void worgle_db_insert_block(worgle_d *worg,
     worgle_long next_segment;
     worgle_block *blk;
     worgle_hashmap *hm;
-    worgle_long next_id;
     sqlite3_stmt *stmt;
     worgle_string *name;
     int rc;
@@ -385,23 +382,16 @@ void worgle_db_insert_block(worgle_d *worg,
                        "INSERT INTO blocks"
                        "(id,"
                        "head_segment,"
-                       "next_block,"
                        "name)\n"
-                       "VALUES(?1, ?2, ?3, ?4);",
+                       "VALUES(?1, ?2, ?3);",
                        -1,
                        &stmt,
                        NULL);
-    if(block->nxt == NULL) {
-        next_id = 0;
-    } else {
-        next_id = block->nxt->id;
-    }
     sqlite3_bind_int(stmt, 1, block->id);
     sqlite3_bind_int(stmt, 2, block->head->id);
-    sqlite3_bind_int(stmt, 3, next_id);
 
     name = &block->name;
-    sqlite3_bind_text(stmt, 4,
+    sqlite3_bind_text(stmt, 3,
                       name->str, name->size,
                       NULL);
     rc = sqlite3_step(stmt);

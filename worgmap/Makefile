@@ -17,9 +17,15 @@ worgmap: $(OBJ)
 %.c: %.org
 	$(WORGLE) -Werror -g $<
 
+get.c: core.h
+
+core.h: core.c
+
 install: worgmap
 	cp worgmap /usr/local/bin
 
 clean:
 	$(RM) $(OBJ)
 	$(RM) worgmap
+	$(RM) *.c
+	$(RM) *.h

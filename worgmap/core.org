@@ -386,7 +386,6 @@ struct wmp_block {
     int id;
     int head_segment;
     char *name;
-    int next_block;
 };
 #+END_SRC
 *** init
@@ -402,7 +401,6 @@ void wmp_block_init(wmp_block *b)
     b->id = -1;
     b->head_segment = -1;
     b->name = NULL;
-    b->next_block = -1;
 }
 #+END_SRC
 *** free
@@ -445,8 +443,7 @@ int wmp_find_block(wmp_core *c,
     sqlite3_prepare_v2(db,
                        "SELECT "
                          "head_segment,"
-                         "name,"
-                         "next_block "
+                         "name "
                        "FROM blocks "
                        "WHERE(id==?1);",
                        -1,
@@ -466,7 +463,6 @@ int wmp_find_block(wmp_core *c,
         b->head_segment = sqlite3_column_int(stmt, 0);
         nbytes = sqlite3_column_bytes(stmt, 1);
         b->name = calloc(1, nbytes + 1);
-        b->next_block = sqlite3_column_int(stmt, 2);
         str = (const char *)sqlite3_column_text(stmt, 1);
         strncpy(b->name, str, nbytes);
     } else {
@@ -504,8 +500,7 @@ int wmp_lookup_block(wmp_core *c,
     sqlite3_prepare_v2(db,
                        "SELECT "
                          "id,"
-                         "head_segment,"
-                         "next_block "
+                         "head_segment "
                        "FROM blocks "
                        "WHERE(name==?1);",
                        -1,
@@ -526,7 +521,6 @@ int wmp_lookup_block(wmp_core *c,
         nbytes = strlen(name);
         b->name = calloc(1, nbytes + 1);
         strncpy(b->name, name, nbytes);
-        b->next_block = sqlite3_column_int(stmt, 2);
     } else {
         fprintf(stderr, "Error: %s\n", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
