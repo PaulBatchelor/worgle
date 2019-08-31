@@ -8,6 +8,9 @@ worgmap.
 #+BEGIN_SRC c :tangle get.c
 #include <stdio.h>
 #include <string.h>
+#include <sqlite3.h>
+#include "core.h"
+#include "core_private.h"
 <<function_declarations>>
 <<functions>>
 #+END_SRC
@@ -58,21 +61,29 @@ fprintf(stderr, "res: prints resource info given UUID\n");
 #+BEGIN_SRC c
 static int get_res(int argc, char *argv[]);
 #+END_SRC
+
 #+NAME: functions
 #+BEGIN_SRC c
 static int get_res(int argc, char *argv[])
 {
-    if(argc < 2) {
+    wmp_core core;
+    int rc;
+    sqlite3 *db;
+    if (argc < 2) {
         fprintf(stderr, "Usage: %s UUID\n", argv[0]);
         return 1;
     }
+    rc = wmp_core_open(&core, wmp_filename_get());
+    if(!rc) return 0;
+    db = wmp_core_db();
+    wmp_core_close(&core);
     return 1;
 }
 #+END_SRC
 
 #+NAME: command_parsing
 #+BEGIN_SRC c
-else if(!strncmp(argv[1], "res", 3)) {
+else if (!strncmp(argv[1], "res", 3)) {
     argv++;
     argc--;
     get_res(argc, argv);

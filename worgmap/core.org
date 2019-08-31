@@ -3,7 +3,8 @@ The section described here outlines core functionality for
 worgmap. This involves anything related to querying tables
 for SQLite data.
 
-** TODO Tangled Files
+** DONE Tangled Files
+CLOSED: [2019-08-31 Sat 06:13]
 Core tanlges itself into a C and a header file, called
 =core.c= and =core.h=, respectively.
 #+NAME: core.h
@@ -11,6 +12,7 @@ Core tanlges itself into a C and a header file, called
 #ifndef CORE_H
 #define CORE_H
 <<typedefs>>
+<<function_declarations>>
 #endif
 #+END_SRC
 #+NAME: core_private.h
@@ -23,10 +25,15 @@ Core tanlges itself into a C and a header file, called
 #+NAME: core.c
 #+BEGIN_SRC c :tangle core.c
 #include <sqlite3.h>
+#include <stdio.h>
 #include "core.h"
 #include "core_private.h"
+<<constants>>
+<<functions>>
 #+END_SRC
-** TODO wmp_core
+** DONE wmp_core
+CLOSED: [2019-08-31 Sat 06:13]
+*** Struct
 SQLite data is indirectly handled inside of a struct called
 =wmp_core=. That's all it does for now, but I fully expect
 things to change in the future.
@@ -42,19 +49,106 @@ struct wmp_core {
     sqlite3 *db;
 };
 #+END_SRC
-*** TODO Opening the database
+*** DONE Opening the database
+CLOSED: [2019-08-31 Sat 06:09]
 The database handled is opened with the function
 =wmp_core_open=.
-*** TODO Closing the database
+#+NAME: function_declarations
+#+BEGIN_SRC c
+int wmp_core_open(wmp_core *core, const char *filename);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+int wmp_core_open(wmp_core *core, const char *filename)
+{
+    sqlite3 *db;
+    int rc;
+
+    core->db = NULL;
+    rc = sqlite3_open(filename, &db);
+    if (rc) {
+        fprintf(stderr,
+                "Could not open database: %s",
+                sqlite3_errmsg(db));
+        sqlite3_close(db);
+        return 0;
+    }
+
+    core->db = db;
+    return 1;
+}
+#+END_SRC
+*** DONE Closing the database
+CLOSED: [2019-08-31 Sat 06:10]
 The database handle is closed with the function
 =wmp_core_close=.
-*** TODO Getting SQLite data type
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void wmp_core_close(wmp_core *core);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+void wmp_core_close(wmp_core *core)
+{
+    sqlite3_close(core->db);
+}
+#+END_SRC
+*** DONE Getting SQLite data type
+CLOSED: [2019-08-31 Sat 06:13]
 Retrieved using the function =wmp_core_db=.
+
+This will only be defined if the sqlite3 header
+file is included before this header. Otherwise,
+including sqlite3 would be a prereq for anything
+wanting to include =core.h=.
+#+NAME: function_declarations
+#+BEGIN_SRC c
+#ifdef SQLITE3_H
+sqlite3 * wmp_core_db(wmp_core *core);
+#endif
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+sqlite3 * wmp_core_db(wmp_core *core)
+{
+    return core->db;
+}
+#+END_SRC
+*** DONE Default Filename
+CLOSED: [2019-08-31 Sat 06:21]
+To make the CLI more terse, a default filename is used,
+which can be configured through command line flags.
+*** Global Definition
+The default filename is =a.db=.
+
+#+NAME: constants
+#+BEGIN_SRC c
+const char *db_filename = "a.db";
+#+END_SRC
+*** Setters/Getters
+#+NAME: function_declarations
+#+BEGIN_SRC c
+const char * wmp_filename_get(void);
+void wmp_filename_set(const char *filename);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+const char * wmp_filename_get(void)
+{
+    return db_filename;
+}
+
+void wmp_filename_set(const char *filename)
+{
+    db_filename = filename;
+}
+#+END_SRC
 ** TODO Resource
+*** Struct
 A =wmp_resource= is a record from the resource table.
 Any thing that is a thing has a record here. The only things
 that a resource stores is the UUID and the type flag.
-
+*** Finding a Resource
 The function =wmp_find_resource= will find a resource with
 a particular UUID and place store the values in the
 =wmp_resource= struct. If the return value is false (0),
