@@ -2,6 +2,23 @@
 The section described here outlines core functionality for
 worgmap. This involves anything related to querying tables
 for SQLite data.
+
+** TODO Tangled Files
+Core tanlges itself into a C and a header file, called
+=core.c= and =core.h=, respectively.
+
+** TODO wmp_core
+SQLite data is indirectly handled inside of a struct called
+=wmp_core=. That's all it does for now, but I fully expect
+things to change in the future.
+*** TODO Opening the database
+The database handled is opened with the function
+=wmp_core_open=.
+*** TODO Closing the database
+The database handle is closed with the function
+=wmp_core_close=.
+*** TODO Getting SQLite data type
+Retrieved using the function =wmp_core_db=.
 ** TODO Resource
 A =wmp_resource= is a record from the resource table.
 Any thing that is a thing has a record here. The only things
@@ -13,7 +30,7 @@ a particular UUID and place store the values in the
 then there was a problem finding the resource.
 
 No free function is needed here, since this struct does
-not need store any strings.
+not need to store any strings.
 ** TODO Segment
 A =wmp_segment= stores a segment of text from the segment
 table.
