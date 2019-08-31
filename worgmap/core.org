@@ -372,7 +372,8 @@ int wmp_find_segment(wmp_core *c,
     return 1;
 }
 #+END_SRC
-** TODO Block
+** DONE Block
+CLOSED: [2019-08-31 Sat 12:40]
 *** struct
 =wmp_block= stores a reference to a codeblock.
 #+NAME: typedefs
@@ -477,7 +478,8 @@ int wmp_find_block(wmp_core *c,
     return 1;
 }
 #+END_SRC
-*** TODO lookup
+*** DONE lookup
+CLOSED: [2019-08-31 Sat 12:33]
 A block can also be found by querying the name via the
 function =wmp_lookup_block=.
 #+NAME: function_declarations
@@ -486,7 +488,6 @@ int wmp_lookup_block(wmp_core *c,
                      const char *name,
                      wmp_block *b);
 #+END_SRC
-To be implemented later...
 #+NAME: functions
 #+BEGIN_SRC c
 int wmp_lookup_block(wmp_core *c,
@@ -535,15 +536,163 @@ int wmp_lookup_block(wmp_core *c,
     return 1;
 }
 #+END_SRC
-** TODO File
+** DONE File
+CLOSED: [2019-08-31 Sat 12:40]
+*** Struct
 A =wmp_file= is a record containing the name of a file to
 tangle to.
-
+#+NAME: typedefs
+#+BEGIN_SRC c
+typedef struct wmp_file wmp_file;
+#+END_SRC
+#+NAME: structs
+#+BEGIN_SRC c
+struct wmp_file {
+    unsigned int id;
+    char *filename;
+    int next_file;
+};
+#+END_SRC
+*** init
 It is initialized using =wmp_file_init=.
-
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void wmp_file_init(wmp_file *f);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+void wmp_file_init(wmp_file *f)
+{
+    f->id = 0;
+    f->filename = NULL;
+    f->next_file = -1;
+}
+#+END_SRC
+*** Free
+It is freed using =wmp_file_free=.
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void wmp_file_free(wmp_file *f);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+void wmp_file_free(wmp_file *f)
+{
+    free(f->filename);
+}
+#+END_SRC
+*** Find
 It is queried using =wmp_find_file=.
+#+NAME: function_declarations
+#+BEGIN_SRC c
+int wmp_find_file(wmp_core *c,
+                  unsigned int uuid,
+                  wmp_file *f);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+int wmp_find_file(wmp_core *c,
+                  unsigned int uuid,
+                  wmp_file *f)
+{
+    sqlite3 *db;
+    sqlite3_stmt *stmt;
+    int rc;
+    int nbytes;
+    const char *str;
 
+    db = wmp_core_db(c);
+
+    sqlite3_prepare_v2(db,
+                       "SELECT "
+                         "filename,"
+                         "next_file "
+                       "FROM files "
+                       "WHERE(id==?1);",
+                       -1,
+                       &stmt,
+                       NULL);
+    sqlite3_bind_int(stmt, 1, uuid);
+
+    rc = sqlite3_step(stmt);
+
+    if(rc == SQLITE_DONE) {
+        sqlite3_finalize(stmt);
+        return 0;
+    }
+
+    if(rc == SQLITE_ROW) {
+        f->id = uuid;
+        nbytes = sqlite3_column_bytes(stmt, 0);
+        f->filename = calloc(1, nbytes + 1);
+        f->next_file = sqlite3_column_int(stmt, 1);
+        str = (const char *)sqlite3_column_text(stmt, 0);
+        strncpy(f->filename, str, nbytes);
+    } else {
+        fprintf(stderr, "Error: %s\n", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+        return 0;
+    }
+    sqlite3_finalize(stmt);
+    return 1;
+}
+#+END_SRC
+*** DONE Lookup
+CLOSED: [2019-08-31 Sat 12:35]
 A file can be queried by name directly via the function
 =wmp_lookup_file=.
 
-It is freed using =wmp_file_free=.
+#+NAME: function_declarations
+#+BEGIN_SRC c
+int wmp_lookup_file(wmp_core *c,
+                     const char *filename,
+                     wmp_file *f);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+int wmp_lookup_file(wmp_core *c,
+                     const char *filename,
+                     wmp_file *f)
+{
+    sqlite3 *db;
+    sqlite3_stmt *stmt;
+    int rc;
+    int nbytes;
+
+    db = wmp_core_db(c);
+
+    sqlite3_prepare_v2(db,
+                       "SELECT "
+                         "id,"
+                         "next_file "
+                       "FROM files "
+                       "WHERE(filename==?1);",
+                       -1,
+                       &stmt,
+                       NULL);
+    sqlite3_bind_text(stmt, 1,
+                      filename, strlen(filename),
+                      NULL);
+
+    rc = sqlite3_step(stmt);
+
+    if(rc == SQLITE_DONE) {
+        sqlite3_finalize(stmt);
+        return 0;
+    }
+
+    if(rc == SQLITE_ROW) {
+        f->id = sqlite3_column_int(stmt, 0);
+        f->next_file = sqlite3_column_int(stmt, 1);
+        nbytes = strlen(filename);
+        f->filename = calloc(1, nbytes + 1);
+        strncpy(f->filename, filename, nbytes);
+    } else {
+        fprintf(stderr, "Error: %s\n", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+        return 0;
+    }
+    sqlite3_finalize(stmt);
+    return 1;
+}
+#+END_SRC

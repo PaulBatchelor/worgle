@@ -235,7 +235,7 @@ else if (!strncmp(argv[1], "seg", 3)) {
     get_seg(argc, argv);
 }
 #+END_SRC
-** TODO Block Find (blkfind)
+** TODO Block Find (fblk)
 #+NAME: available_commands
 #+BEGIN_SRC c
 fprintf(stderr, "fblk: looks up block given name\n");
@@ -291,9 +291,121 @@ else if (!strncmp(argv[1], "fblk", 4)) {
     get_fblk(argc, argv);
 }
 #+END_SRC
-** TODO file
+** DONE file
+CLOSED: [2019-08-31 Sat 12:35]
 The =file= command will return information of a particular
 file.
+#+NAME: available_commands
+#+BEGIN_SRC c
+fprintf(stderr,
+        "file: prints file info given UUID\n");
+#+END_SRC
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+static int get_file(int argc, char *argv[]);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+static int get_file(int argc, char *argv[])
+{
+    wmp_core core;
+    int rc;
+    wmp_file file;
+    unsigned int id;
+    int err;
+
+    err = 0;
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s UUID\n", argv[0]);
+        return 1;
+    }
+    rc = wmp_core_open(&core, wmp_filename_get());
+    if (!rc) return 0;
+    wmp_file_init(&file);
+    id = atoi(argv[1]);
+    rc = wmp_find_file(&core, id, &file);
+
+    if(!rc) {
+        fprintf(stderr,
+                "Could not find file with id %d\n",
+                id);
+        err = 1;
+    } else {
+        printf("id = %d\n", file.id);
+        printf("filename = %s\n", file.filename);
+        printf("next_file = %d\n", file.next_file);
+    }
+    wmp_file_free(&file);
+    wmp_core_close(&core);
+    return err;
+}
+#+END_SRC
+
+#+NAME: command_parsing
+#+BEGIN_SRC c
+else if (!strncmp(argv[1], "file", 4)) {
+    argv++;
+    argc--;
+    get_file(argc, argv);
+}
+#+END_SRC
+** TODO File Find (ffile)
+#+NAME: available_commands
+#+BEGIN_SRC c
+fprintf(stderr, "ffind: looks up file given name\n");
+#+END_SRC
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+static int get_ffile(int argc, char *argv[]);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+static int get_ffile(int argc, char *argv[])
+{
+    wmp_core core;
+    int rc;
+    wmp_file file;
+    int err;
+
+    err = 0;
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s NAME\n", argv[0]);
+        return 1;
+    }
+    rc = wmp_core_open(&core, wmp_filename_get());
+    if (!rc) return 0;
+    wmp_file_init(&file);
+
+    rc = wmp_lookup_file(&core, argv[1], &file);
+
+    if(!rc) {
+        fprintf(stderr,
+                "Could not find file '%s'\n",
+                argv[1]);
+        err = 1;
+    } else {
+        printf("id = %d\n", file.id);
+        printf("filename = %s\n", file.filename);
+        printf("next_file = %d\n", file.next_file);
+    }
+    wmp_file_free(&file);
+    wmp_core_close(&core);
+    return err;
+}
+#+END_SRC
+
+#+NAME: command_parsing
+#+BEGIN_SRC c
+else if (!strncmp(argv[1], "ffile", 5)) {
+    argv++;
+    argc--;
+    get_ffile(argc, argv);
+}
+#+END_SRC
 ** TODO filelist
 The =filelist= command will list all tanlged files.
 ** TODO tangle
