@@ -1376,6 +1376,7 @@ s->type = type;
 s->str = *str;
 s->filename = filename;
 s->linum = linum;
+s->nxt = NULL;
 #+END_SRC
 *** Writing a Segment
 
