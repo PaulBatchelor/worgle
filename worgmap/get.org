@@ -550,14 +550,14 @@ static int get_blklst(int argc, char *argv[])
     wmp_segment_init(&s);
     wmp_find_segment(&core, b.head_segment, &s);
 
-    while(1) {
+    while (1) {
         next = s.nxtseg;
-        if(s.id == next || s.id <= 0) {
+        if (s.id == next || s.id <= 0) {
             wmp_segment_free(&s);
             break;
         }
 
-        if(s.type == 1) {
+        if (s.type == 1) {
             printf("%s\n", s.str);
         }
 
@@ -577,5 +577,86 @@ else if (match(argv[1], len, "blklst", 6)) {
     argv++;
     argc--;
     get_blklst(argc, argv);
+}
+#+END_SRC
+** DONE Tree
+CLOSED: [2019-09-01 Sun 16:45]
+Like =blklist=, only recursively prints blocks
+
+#+NAME: available_commands
+#+BEGIN_SRC c
+fprintf(stderr, "tree: recursively print sub blocks\n");
+#+END_SRC
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+static int get_tree(int argc, char *argv[]);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+static void print_tree(wmp_core *c, const char *name, int level)
+{
+    wmp_segment s;
+    wmp_block b;
+    int next;
+    int n;
+    int rc;
+
+    wmp_block_init(&b);
+    rc = wmp_lookup_block(c, name, &b);
+    if (!rc) {
+        fprintf(stderr,
+                "Could not find block '%s'",
+                name);
+        return;
+    }
+    wmp_segment_init(&s);
+    wmp_find_segment(c, b.head_segment, &s);
+
+    while (1) {
+        next = s.nxtseg;
+        if (s.id == next || s.id <= 0) {
+            wmp_segment_free(&s);
+            break;
+        }
+
+        if (s.type == 1) {
+            for(n = 0; n < level; n++) printf(" ");
+            printf("%s\n", s.str);
+            print_tree(c, s.str, level + 1);
+        }
+
+        wmp_segment_free(&s);
+        wmp_segment_init(&s);
+        wmp_find_segment(c, next, &s);
+    }
+    wmp_block_free(&b);
+}
+
+static int get_tree(int argc, char *argv[])
+{
+    wmp_core core;
+    int rc;
+
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s NAME\n", argv[0]);
+        return 1;
+    }
+
+    rc = wmp_core_open(&core, wmp_filename_get());
+    if (!rc) return 0;
+    print_tree(&core, argv[1], 0);
+    wmp_core_close(&core);
+    return 0;
+}
+#+END_SRC
+
+#+NAME: command_parsing
+#+BEGIN_SRC c
+else if (match(argv[1], len, "tree", 4)) {
+    argv++;
+    argc--;
+    get_tree(argc, argv);
 }
 #+END_SRC
