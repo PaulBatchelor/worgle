@@ -1207,7 +1207,7 @@ the first line. Do not be tempted to set this to be -1, because it won't work.
 #+BEGIN_SRC c
 worg->linum = 0;
 #+END_SRC
-
+**** TODO Orgfile Array
 ** String
 A string is a wrapper around a raw =char= pointer and a size. This is used
 as the base string literal.
@@ -2346,6 +2346,9 @@ void worgle_file_id_set(worgle_file *f, worgle_long id)
 #+BEGIN_SRC c
 worgle_file_id_set(f, worgle_uuid_new(worg));
 #+END_SRC
+** TODO Worgle File
+** TODO Orglet
+*** TODO Orglet Header
 * Command Line Arguments
 This section outlines command line arguments in Worgle.
 ** Parsing command line flags
