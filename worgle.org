@@ -522,7 +522,7 @@ if(read >= 7) {
     if(!strncmp(line, "#+NAME", 6)) {
         if(line[6] != ':') {
             fprintf(stderr,
-                    "line %lu: expected ':'\n", 
+                    "line %lu: expected ':'\n",
                     worg->linum);
             rc = 1;
             break;
@@ -999,6 +999,8 @@ how the tangling works.
 <<worgle_file>>
 <<worgle_filelist>>
 <<worgle_textbuf>>
+<<worgle_orglet>>
+<<worgle_orgfile>>
 <<worgle_struct>>
 #+END_SRC
 ** Top Level Struct
@@ -1208,6 +1210,23 @@ the first line. Do not be tempted to set this to be -1, because it won't work.
 worg->linum = 0;
 #+END_SRC
 **** TODO Orgfile Array
+The orgfile array keeps track of data representations
+of orgfiles to be tangled.
+#+NAME: worgle_struct_contents
+#+BEGIN_SRC c
+worgle_orgfile *orgs;
+#+END_SRC
+#+NAME:worgle_init
+#+BEGIN_SRC c
+worg->orgs = NULL;
+#+END_SRC
+
+Org files allocated must be freed.
+
+#+NAME: worgle_free
+#+BEGIN_SRC c
+/* TODO: free orgfile buffers */
+#+END_SRC
 ** String
 A string is a wrapper around a raw =char= pointer and a size. This is used
 as the base string literal.
@@ -2155,8 +2174,9 @@ void worgle_textbuf_free(worgle_textbuf *txt)
 }
 #+END_SRC
 ** UUID
-Every data structure has a Universally Unique Identifier (UUID). This concept
-was added later on in order to better accomodate the Worgle Database interface.
+Every data structure has a Universally Unique Identifier
+(UUID). This concept was added later on in order to better
+accomodate the Worgle Database interface.
 *** Worgle Long Typedef
 All UUIDs have a type of =worgle_long=, which is set to be an unsigned long.
 UUIDs begin at 1, with 0 indicating an uninitialized or unset ID number.
@@ -2346,9 +2366,50 @@ void worgle_file_id_set(worgle_file *f, worgle_long id)
 #+BEGIN_SRC c
 worgle_file_id_set(f, worgle_uuid_new(worg));
 #+END_SRC
-** TODO Worgle File
-** TODO Orglet
-*** TODO Orglet Header
+** DONE Org File
+CLOSED: [2019-09-11 Wed 04:56]
+A =worgle_orgfile= is a data type for an org file,
+represented as a list of =worgle_orglets=.
+#+NAME: typedefs
+#+BEGIN_SRC c
+typedef struct worgle_orgfile worgle_orgfile;
+#+END_SRC
+#+NAME: worgle_orgfile
+#+BEGIN_SRC c
+struct worgle_orgfile {
+    worgle_orglet *head;
+    worgle_orglet *tail;
+    int size;
+};
+#+END_SRC
+** DONE Orglet
+CLOSED: [2019-09-11 Wed 04:55]
+A =worgle_orglet= is a single entry inside of a
+=worgle_orgfile=.
+#+NAME: typedefs
+#+BEGIN_SRC c
+typedef struct worgle_orglet worgle_orglet;
+#+END_SRC
+#+NAME: worgle_orglet
+#+BEGIN_SRC c
+<<worgle_orglet_subtypes>>
+struct worgle_orglet {
+    int type;
+    void *ud;
+    worgle_orglet *next;
+};
+#+END_SRC
+*** DONE Orglet Header
+CLOSED: [2019-09-11 Wed 04:55]
+#+NAME: typedefs
+#+BEGIN_SRC c
+typedef struct worgle_orglet_header worgle_orglet_header;
+#+END_SRC
+#+NAME: worgle_orglet_subtypes
+#+BEGIN_SRC c
+worgle_string str;
+int lvl;
+#+END_SRC
 * Command Line Arguments
 This section outlines command line arguments in Worgle.
 ** Parsing command line flags
