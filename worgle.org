@@ -659,28 +659,38 @@ as metadata along with the header title to the database.
 MODE_BEGINCODE,
 #+END_SRC
 
-A parser set to mode =MODE_BEGINCODE= is only interested in finding the
-beginning block. If it doesn't, it returns a syntax error. If it does,
-it goes on to extract a potential new filename to tangle, which then
-gets appended to the Worgle file list.
+A parser set to mode =MODE_BEGINCODE= is only interested in
+finding the beginning block. If it doesn't, it returns a
+syntax error. If it does, it goes on to extract a potential
+new filename to tangle, which then gets appended to the
+Worgle file list.
 
 #+NAME: parse_mode_begincode
 #+BEGIN_SRC c
-if(read >= 11) {
-    if(!strncmp(line, "#+BEGIN_SRC",11)) {
+#ifndef WORGLITE
+if (generate_db) {
+    <<parse_headers>>
+}
+#endif
+if (read >= 11) {
+    if(!strncmp (line, "#+BEGIN_SRC",11)) {
         <<begin_the_code>>
-        if(parse_begin(line, read, &str) == 2) {
+        if (parse_begin(line, read, &str) == 2) {
             worgle_append_file(worg, &str);
         }
         continue;
     } else {
         fwrite(line, read, 1, stderr);
-        fprintf(stderr, "line %lu: Expected #+BEGIN_SRC\n", worg->linum);
+        fprintf(stderr,
+                "line %lu: Expected #+BEGIN_SRC\n",
+                worg->linum);
         rc = 1;
         break;
     }
 }
-fprintf(stderr, "line %lu: Expected #+BEGIN_SRC\n", worg->linum);
+fprintf(stderr,
+        "line %lu: Expected #+BEGIN_SRC\n",
+        worg->linum);
 rc = 1;
 #+END_SRC
 ***** Extracting information from #+BEGIN_SRC
@@ -800,6 +810,19 @@ void worgle_append_file(worgle_d *worg, worgle_string *filename)
     f = worgle_filelist_append(&worg->flist, filename, worg->curblock);
     <<worgle_file_set_id>>
 }
+#+END_SRC
+***** TODO Parsing Header Information
+A valid header in org mode starts with one or more
+as one or more asterisks, followed by a space.
+Anything after this space is considered to be the name
+of the header. The number of asterisks indicates the
+header level.
+
+If indeed the line is a header, both the header name
+and level are appended to the currently opened org file.
+#+NAME: parse_headers
+#+BEGIN_SRC c
+/* TODO: implement */
 #+END_SRC
 **** MODE_CODE
 #+NAME:parse_modes
@@ -2366,10 +2389,10 @@ void worgle_file_id_set(worgle_file *f, worgle_long id)
 #+BEGIN_SRC c
 worgle_file_id_set(f, worgle_uuid_new(worg));
 #+END_SRC
-** DONE Org File
-CLOSED: [2019-09-11 Wed 04:56]
+** TODO Org File
 A =worgle_orgfile= is a data type for an org file,
 represented as a list of =worgle_orglets=.
+*** Struct
 #+NAME: typedefs
 #+BEGIN_SRC c
 typedef struct worgle_orgfile worgle_orgfile;
@@ -2382,6 +2405,8 @@ struct worgle_orgfile {
     int size;
 };
 #+END_SRC
+*** TODO Initialization
+*** TODO Freeing
 ** DONE Orglet
 CLOSED: [2019-09-11 Wed 04:55]
 A =worgle_orglet= is a single entry inside of a
