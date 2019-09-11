@@ -836,7 +836,6 @@ is found, or the =END_SRC= command is found.
 
 #+NAME: parse_mode_code
 #+BEGIN_SRC c
-
 if(read >= 9) {
     if(!strncmp(line, "#+END_SRC", 9)) {
         mode = MODE_ORG;
