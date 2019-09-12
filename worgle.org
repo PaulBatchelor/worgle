@@ -304,6 +304,9 @@ int parse_file(worgle_d *worg, int file)
     buf = curbuf->buf;
     size = curbuf->size;
     worg->curbuf = curbuf;
+#ifndef WORGLITE
+    worg->curorg = &worg->orgs[file];
+#endif
     <<parser_initialization>>
     while(1) {
         <<getline>>
@@ -692,6 +695,9 @@ static int parse_header(worgle_d *worg,
                 printf("header is '");
                 worgle_string_write(stdout, &str);
                 printf("', level is %d\n", lvl);
+                worgle_orgfile_append_header(worg->curorg,
+                                             &str,
+                                             lvl);
                 break;
         }
     }
@@ -1266,10 +1272,12 @@ of orgfiles to be tangled.
 #+NAME: worgle_struct_contents
 #+BEGIN_SRC c
 worgle_orgfile *orgs;
+worgle_orgfile *curorg;
 #+END_SRC
 #+NAME:worgle_init
 #+BEGIN_SRC c
 worg->orgs = NULL;
+worg->curorg = NULL;
 #+END_SRC
 ***** Freeing
 Org files allocated must be freed.
@@ -2465,7 +2473,8 @@ void worgle_orgfile_init(worgle_orgfile *org)
     org->size = 0;
 }
 #+END_SRC
-*** TODO Freeing
+*** DONE Freeing
+CLOSED: [2019-09-12 Thu 08:27]
 Freed with =worgle_orgfile_free=.
 #+NAME: function_declarations
 #+BEGIN_SRC c
@@ -2475,15 +2484,79 @@ void worgle_orgfile_free(worgle_orgfile *org);
 #+BEGIN_SRC c
 void worgle_orgfile_free(worgle_orgfile *org)
 {
-    if(org->size > 0) {
-        /* TODO: free orglets */
+    worgle_orglet *ent;
+    worgle_orglet *nxt;
+    int n;
+    if (org->size > 0) {
+        ent = org->head;
+        for (n = 0; n < org->size; n++) {
+            nxt = ent->next;
+            worgle_orglet_free(ent);
+            ent = nxt;
+        }
     }
+}
+#+END_SRC
+*** Appending To File
+**** Appending an orglet
+This operation applies a general orglet to a
+=worgle_orgfile=. This orglet should be initialized and
+allocated by this point.
+
+Most of the time, this is called indirectly through
+other functions.
+#+NAME:function_declarations
+#+BEGIN_SRC c
+void worgle_orgfile_append(worgle_orgfile *file,
+                           worgle_orglet *orglet);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_orgfile_append(worgle_orgfile *file,
+                           worgle_orglet *orglet)
+{
+    if (file->size <= 0) {
+        file->head = orglet;
+        file->tail = orglet;
+    }
+
+    file->tail->next = orglet;
+    file->tail = orglet;
+    file->size++;
+}
+#+END_SRC
+**** TODO Appending a header
+Appends a header to file.
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_orgfile_append_header(worgle_orgfile *f,
+                                  worgle_string *header,
+                                  int lvl);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_orgfile_append_header(worgle_orgfile *f,
+                                  worgle_string *header,
+                                  int lvl)
+{
+    worgle_orglet *orglet;
+    worgle_orglet_header *h;
+    orglet = calloc(1, sizeof(worgle_orglet));
+    h = calloc(1, sizeof(worgle_orglet_header));
+
+    h->str = *header;
+    h->lvl = lvl;
+
+    orglet->type = 0;
+    orglet->ud = h;
+    worgle_orgfile_append(f, orglet);
 }
 #+END_SRC
 ** DONE Orglet
 CLOSED: [2019-09-11 Wed 04:55]
 A =worgle_orglet= is a single entry inside of a
 =worgle_orgfile=.
+*** Struct
 #+NAME: typedefs
 #+BEGIN_SRC c
 typedef struct worgle_orglet worgle_orglet;
@@ -2497,6 +2570,19 @@ struct worgle_orglet {
     worgle_orglet *next;
 };
 #+END_SRC
+*** Freeing
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_orglet_free(worgle_orglet *orglet);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_orglet_free(worgle_orglet *orglet)
+{
+    free(orglet->ud);
+    free(orglet);
+}
+#+END_SRC
 *** DONE Orglet Header
 CLOSED: [2019-09-11 Wed 04:55]
 #+NAME: typedefs
@@ -2505,8 +2591,10 @@ typedef struct worgle_orglet_header worgle_orglet_header;
 #+END_SRC
 #+NAME: worgle_orglet_subtypes
 #+BEGIN_SRC c
-worgle_string str;
-int lvl;
+struct worgle_orglet_header {
+    worgle_string str;
+    int lvl;
+};
 #+END_SRC
 * Command Line Arguments
 This section outlines command line arguments in Worgle.
