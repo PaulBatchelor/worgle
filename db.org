@@ -45,24 +45,51 @@ void worgle_db_schemas(worgle_d *worg, sqlite3 *db)
     <<schemas>>
 }
 #+END_SRC
-**** Insert Tangled Data
-When worgle is done parsing data, the tangled data is
+**** Insert Data
+When worgle is done parsing data, the data is
 written to the database using the funtion
-=worgle_db_tangle=.
+=worgle_db_generate=.
 #+NAME: function_declarations
 #+BEGIN_SRC c
-void worgle_db_tangle(worgle_d *worg, sqlite3 *db);
+void worgle_db_generate(worgle_d *worg, sqlite3 *db);
 #+END_SRC
 #+NAME: functions
 #+BEGIN_SRC c
-void worgle_db_tangle(worgle_d *worg, sqlite3 *db)
+void worgle_db_generate(worgle_d *worg, sqlite3 *db)
 {
     <<inserts>>
 }
 #+END_SRC
+**** Clear Tables
+Will clear any existing tables where information is stored.
+This will only eliminate tables that Worgle writes to,
+leaving other tables untouched. This is particularly useful
+when utilizing the SQLite database for other things.
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_db_clear(sqlite3 *db);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_db_clear(sqlite3 *db)
+{
+    sqlite3_exec(db,
+                "BEGIN;\n"
+                "DELETE FROM resources WHERE 1;\n"
+                "DELETE FROM blocks WHERE 1;\n"
+                "DELETE FROM headers WHERE 1;\n"
+                "DELETE FROM resources WHERE 1;\n"
+                "DELETE FROM segments WHERE 1;\n"
+                "DELETE FROM files WHERE 1;\n"
+                "COMMIT;\n",
+                NULL,
+                NULL,
+                NULL);
+}
+#+END_SRC
 ** SQLite Table Schemas
-The following section describes the SQLite schemas for all the tables
-needed by Worgle.
+The following section describes the SQLite schemas for all
+the tables needed by Worgle.
 *** Segment Schema
 The segment schema contains the following items:
 

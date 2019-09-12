@@ -1262,7 +1262,8 @@ the first line. Do not be tempted to set this to be -1, because it won't work.
 #+BEGIN_SRC c
 worg->linum = 0;
 #+END_SRC
-**** TODO Orgfile Array
+**** DONE Orgfile Array
+CLOSED: [2019-09-12 Thu 13:24]
 The orgfile array keeps track of data representations
 of orgfiles to be tangled.
 ***** Declaration + Initialization
@@ -2880,8 +2881,9 @@ static void tangle_to_db(worgle_d *worg)
         sqlite3_close(db);
         return;
     }
+    worgle_db_clear(db);
     worgle_db_schemas(worg, db);
-    worgle_db_tangle(worg, db);
+    worgle_db_generate(worg, db);
     sqlite3_close(db);
 }
 #endif
