@@ -269,7 +269,133 @@ Unlike Tangled data, woven data is inserted while the file
 is being parsed. As a result of this, the functionality is
 split up amongst a few functions instead of having one
 top-level function.
+**** DONE Top-level Weave Insert
+CLOSED: [2019-09-12 Thu 08:55]
+Entry point for inserting woven data are the org file lists.
+#+NAME: inserts
+#+BEGIN_SRC c
+worgle_db_insert_orglist(worg, db);
+#+END_SRC
+**** TODO Org Filelist Insert
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_db_insert_orglist(worgle_d *worg, sqlite3 *db);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_db_insert_orglist(worgle_d *worg, sqlite3 *db)
+{
+    worgle_orgfile *orgs;
+    worgle_textbuf *txt;
+    int n;
+
+    orgs = worg->orgs;
+    txt = worg->buffers;
+
+    for(n = 0; n < worg->nbuffers; n++) {
+        worgle_db_insert_orgfile(worg,
+                                 &orgs[n],
+                                 &txt[n].filename,
+                                 db);
+    }
+}
+#+END_SRC
+**** TODO Org File Insert
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_db_insert_orgfile(worgle_d *worg,
+                              worgle_orgfile *f,
+                              worgle_string *filename,
+                              sqlite3 *db);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_db_insert_orgfile(worgle_d *worg,
+                              worgle_orgfile *f,
+                              worgle_string *filename,
+                              sqlite3 *db)
+{
+    size_t n;
+    worgle_orglet *o;
+    worgle_orglet *nxt;
+    int curlvl;
+    int counter[10];
+    char strbuf[256];
+
+    if (f->size <= 0) return;
+
+    curlvl = 0;
+    o = f->head;
+    for (n = 0; n < f->size; n++) {
+        nxt = o->next;
+        switch (o->type) {
+            case 0: /* Header */
+                worgle_db_insert_header(worg,
+                                        o,
+                                        filename,
+                                        &curlvl,
+                                        counter,
+                                        strbuf,
+                                        db);
+                break;
+        }
+        o = nxt;
+    }
+}
+#+END_SRC
 **** TODO Header Insert
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_db_insert_header(worgle_d *worg,
+                             worgle_orglet *o,
+                             worgle_string *fname,
+                             int *curlvl,
+                             int *counter,
+                             char *strbuf,
+                             sqlite3 *db);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_db_insert_header(worgle_d *worg,
+                             worgle_orglet *o,
+                             worgle_string *fname,
+                             int *curlvl,
+                             int *counter,
+                             char *strbuf,
+                             sqlite3 *db)
+{
+    worgle_orglet_header *h;
+    int diff;
+    int n;
+    int bufpos;
+
+    h = o->ud;
+    printf("filename: ");
+    worgle_string_write(stdout, fname);
+    printf("\n");
+    printf("header: ");
+    worgle_string_write(stdout, &h->str);
+    printf("\n");
+
+    if(*curlvl <= 0) *curlvl = 1;
+
+    if (h->lvl > *curlvl) {
+        diff = h->lvl - *curlvl;
+        for (n = 1; n <= diff; n++) {
+            counter[(*curlvl + n) - 1] = 0;
+        }
+    }
+
+    counter[h->lvl - 1]++;
+
+    bufpos = 0;
+    for(n = 0; n < h->lvl; n++) {
+        bufpos += sprintf(&strbuf[bufpos], "%d.", counter[n]);
+    }
+    printf("section: %s\n", strbuf);
+    *curlvl = h->lvl;
+}
+#+END_SRC
 **** TODO Content Insert
 Anything in between a header and the start of a code block
 is considered to be "content". Any time a new header or
