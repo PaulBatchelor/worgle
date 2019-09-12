@@ -200,6 +200,9 @@ static void insert_resource(sqlite3 *db, worgle_long id, int type)
         case RES_FILE:
             sqlite3_bind_text(stmt, 3, "File", -1, NULL);
             break;
+        case RES_HEADER:
+            sqlite3_bind_text(stmt, 3, "Header", -1, NULL);
+            break;
         default:
             sqlite3_bind_text(stmt, 3, "Unknown", -1, NULL);
             break;
