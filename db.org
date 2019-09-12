@@ -234,7 +234,8 @@ sqlite3_exec(db,
              "level INTEGER,\n"
              "name TEXT,\n"
              "filename TEXT,\n"
-             "linum INTEGER\n"
+             "linum INTEGER,\n"
+             "next integer\n"
              ");\n",
              NULL,
              NULL,
@@ -276,7 +277,8 @@ Entry point for inserting woven data are the org file lists.
 #+BEGIN_SRC c
 worgle_db_insert_orglist(worg, db);
 #+END_SRC
-**** TODO Org Filelist Insert
+**** DONE Org Filelist Insert
+CLOSED: [2019-09-12 Thu 10:39]
 #+NAME: function_declarations
 #+BEGIN_SRC c
 void worgle_db_insert_orglist(worgle_d *worg, sqlite3 *db);
@@ -300,7 +302,8 @@ void worgle_db_insert_orglist(worgle_d *worg, sqlite3 *db)
     }
 }
 #+END_SRC
-**** TODO Org File Insert
+**** DONE Org File Insert
+CLOSED: [2019-09-12 Thu 10:40]
 #+NAME: function_declarations
 #+BEGIN_SRC c
 void worgle_db_insert_orgfile(worgle_d *worg,
@@ -326,6 +329,7 @@ void worgle_db_insert_orgfile(worgle_d *worg,
 
     curlvl = 0;
     o = f->head;
+    for (n = 0; n < 10; n++) counter[n] = 0;
     for (n = 0; n < f->size; n++) {
         nxt = o->next;
         switch (o->type) {
@@ -344,6 +348,9 @@ void worgle_db_insert_orgfile(worgle_d *worg,
 }
 #+END_SRC
 **** TODO Header Insert
+:LOGBOOK:
+CLOCK: [2019-09-12 Thu 09:48]--[2019-09-12 Thu 09:48] =>  0:00
+:END:
 #+NAME: function_declarations
 #+BEGIN_SRC c
 void worgle_db_insert_header(worgle_d *worg,
@@ -368,15 +375,10 @@ void worgle_db_insert_header(worgle_d *worg,
     int diff;
     int n;
     int bufpos;
+    sqlite3_stmt *stmt;
+    int rc;
 
     h = o->ud;
-    printf("filename: ");
-    worgle_string_write(stdout, fname);
-    printf("\n");
-    printf("header: ");
-    worgle_string_write(stdout, &h->str);
-    printf("\n");
-
     if(*curlvl <= 0) *curlvl = 1;
 
     if (h->lvl > *curlvl) {
@@ -392,8 +394,43 @@ void worgle_db_insert_header(worgle_d *worg,
     for(n = 0; n < h->lvl; n++) {
         bufpos += sprintf(&strbuf[bufpos], "%d.", counter[n]);
     }
-    printf("section: %s\n", strbuf);
     *curlvl = h->lvl;
+
+    insert_resource(db, o->id, RES_HEADER);
+
+    sqlite3_prepare_v2(db,
+                       "INSERT INTO headers"
+                       "(id, section, level, name, "
+                       "filename, linum, next)"
+                       "VALUES(?1,?2,?3,?4,"
+                       "?5,?6,?7);",
+                       -1,
+                       &stmt,
+                       NULL);
+
+    sqlite3_bind_int(stmt, 1, o->id);
+    sqlite3_bind_text(stmt, 2, strbuf, bufpos, NULL);
+    sqlite3_bind_int(stmt, 3, h->lvl);
+    sqlite3_bind_text(stmt, 4,
+                      h->str.str, h->str.size,
+                      NULL);
+    sqlite3_bind_text(stmt, 5,
+                      fname->str, fname->size,
+                      NULL);
+    sqlite3_bind_int(stmt, 6, o->linum);
+    if (o->next == NULL) {
+        sqlite3_bind_int(stmt, 7, 0);
+    } else {
+        sqlite3_bind_int(stmt, 7, o->next->id);
+    }
+    rc = sqlite3_step(stmt);
+
+    if(rc != SQLITE_DONE) {
+        fprintf(stderr,
+                "SQLite error: %s\n",
+                sqlite3_errmsg(db));
+    }
+    sqlite3_finalize(stmt);
 }
 #+END_SRC
 **** TODO Content Insert

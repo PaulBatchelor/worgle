@@ -692,11 +692,7 @@ static int parse_header(worgle_d *worg,
                 str.str = header;
                 str.size = len - s;
                 str.size -= line[len - 1] == '\n';
-                printf("header is '");
-                worgle_string_write(stdout, &str);
-                printf("', level is %d\n", lvl);
-                worgle_orgfile_append_header(worg->curorg,
-                                             worg->linum,
+                worgle_orgfile_append_header(worg,
                                              &str,
                                              lvl);
                 break;
@@ -2442,7 +2438,38 @@ void worgle_file_id_set(worgle_file *f, worgle_long id)
 #+BEGIN_SRC c
 worgle_file_id_set(f, worgle_uuid_new(worg));
 #+END_SRC
-** TODO Org File
+*** Orglet ID
+#+NAME: worgle_orglet_id
+#+BEGIN_SRC c
+worgle_long id;
+#+END_SRC
+
+#+NAME: worgle_orglet_id_init
+#+BEGIN_SRC c
+orglet->id = 0;
+#+END_SRC
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_orglet_id_set(worgle_orglet *orglet,
+                           worgle_long id);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_orglet_id_set(worgle_orglet *orglet,
+                           worgle_long id)
+{
+    orglet->id = id;
+}
+#+END_SRC
+
+#+NAME: worgle_orglet_set_id
+#+BEGIN_SRC c
+worgle_orglet_id_set(orglet, worgle_uuid_new(worg));
+#+END_SRC
+** DONE Org File
+CLOSED: [2019-09-12 Thu 09:59]
 A =worgle_orgfile= is a data type for an org file,
 represented as a list of =worgle_orglets=.
 *** Struct
@@ -2508,12 +2535,14 @@ Most of the time, this is called indirectly through
 other functions.
 #+NAME:function_declarations
 #+BEGIN_SRC c
-void worgle_orgfile_append(worgle_orgfile *file,
+void worgle_orgfile_append(worgle_d *worg,
+                           worgle_orgfile *file,
                            worgle_orglet *orglet);
 #+END_SRC
 #+NAME: functions
 #+BEGIN_SRC c
-void worgle_orgfile_append(worgle_orgfile *file,
+void worgle_orgfile_append(worgle_d *worg,
+                           worgle_orgfile *file,
                            worgle_orglet *orglet)
 {
     if (file->size <= 0) {
@@ -2524,6 +2553,7 @@ void worgle_orgfile_append(worgle_orgfile *file,
     file->tail->next = orglet;
     file->tail = orglet;
     file->size++;
+    <<worgle_orglet_set_id>>
 }
 #+END_SRC
 **** DONE Appending a header
@@ -2531,20 +2561,24 @@ CLOSED: [2019-09-12 Thu 08:27]
 Appends a header to file.
 #+NAME: function_declarations
 #+BEGIN_SRC c
-void worgle_orgfile_append_header(worgle_orgfile *f,
-                                  size_t linum,
+void worgle_orgfile_append_header(worgle_d *worg,
                                   worgle_string *header,
                                   int lvl);
 #+END_SRC
 #+NAME: functions
 #+BEGIN_SRC c
-void worgle_orgfile_append_header(worgle_orgfile *f,
-                                  size_t linum,
+void worgle_orgfile_append_header(worgle_d *worg,
                                   worgle_string *header,
                                   int lvl)
 {
     worgle_orglet *orglet;
     worgle_orglet_header *h;
+    worgle_orgfile *f;
+    size_t linum;
+
+    f = worg->curorg;
+    linum = worg->linum;
+
     orglet = calloc(1, sizeof(worgle_orglet));
     h = calloc(1, sizeof(worgle_orglet_header));
 
@@ -2555,7 +2589,7 @@ void worgle_orgfile_append_header(worgle_orgfile *f,
     orglet->type = 0;
     orglet->ud = h;
     orglet->linum = linum;
-    worgle_orgfile_append(f, orglet);
+    worgle_orgfile_append(worg, f, orglet);
 }
 #+END_SRC
 ** DONE Orglet
@@ -2575,6 +2609,7 @@ struct worgle_orglet {
     void *ud;
     worgle_orglet *next;
     size_t linum;
+    <<worgle_orglet_id>>
 };
 #+END_SRC
 *** Initializing
@@ -2590,6 +2625,7 @@ void worgle_orglet_init(worgle_orglet *orglet)
     orglet->ud = NULL;
     orglet->next = NULL;
     orglet->linum = 0;
+    <<worgle_orglet_id_init>>
 }
 #+END_SRC
 *** Freeing
