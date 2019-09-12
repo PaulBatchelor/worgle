@@ -152,7 +152,8 @@ The integer-based types are defined as enums below:
 enum {
     RES_FILE,
     RES_BLOCK,
-    RES_SEGMENT
+    RES_SEGMENT,
+    RES_HEADER
 };
 #+END_SRC
 
@@ -215,11 +216,30 @@ static void insert_resource(sqlite3 *db, worgle_long id, int type)
     sqlite3_finalize(stmt);
 }
 #+END_SRC
-*** TODO Header Schema
+*** DONE Header Schema
+CLOSED: [2019-09-12 Thu 08:44]
 The header schema contains the following:
 - UUID(?)
 - Section Number (as a string)
 - Section Name
+- Level
+- Org File Name
+- Line Number
+#+NAME: schemas
+#+BEGIN_SRC c
+sqlite3_exec(db,
+             "CREATE TABLE headers(\n"
+             "id INTEGER PRIMARY KEY,\n"
+             "section TEXT,\n"
+             "level INTEGER,\n"
+             "name TEXT,\n"
+             "filename TEXT,\n"
+             "linum INTEGER\n"
+             ");\n",
+             NULL,
+             NULL,
+             NULL);
+#+END_SRC
 *** TODO Content Schema
 Hopefully, it will be:
 - UUID(?)

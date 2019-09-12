@@ -696,6 +696,7 @@ static int parse_header(worgle_d *worg,
                 worgle_string_write(stdout, &str);
                 printf("', level is %d\n", lvl);
                 worgle_orgfile_append_header(worg->curorg,
+                                             worg->linum,
                                              &str,
                                              lvl);
                 break;
@@ -2525,17 +2526,20 @@ void worgle_orgfile_append(worgle_orgfile *file,
     file->size++;
 }
 #+END_SRC
-**** TODO Appending a header
+**** DONE Appending a header
+CLOSED: [2019-09-12 Thu 08:27]
 Appends a header to file.
 #+NAME: function_declarations
 #+BEGIN_SRC c
 void worgle_orgfile_append_header(worgle_orgfile *f,
+                                  size_t linum,
                                   worgle_string *header,
                                   int lvl);
 #+END_SRC
 #+NAME: functions
 #+BEGIN_SRC c
 void worgle_orgfile_append_header(worgle_orgfile *f,
+                                  size_t linum,
                                   worgle_string *header,
                                   int lvl)
 {
@@ -2546,9 +2550,11 @@ void worgle_orgfile_append_header(worgle_orgfile *f,
 
     h->str = *header;
     h->lvl = lvl;
+    worgle_orglet_init(orglet);
 
     orglet->type = 0;
     orglet->ud = h;
+    orglet->linum = linum;
     worgle_orgfile_append(f, orglet);
 }
 #+END_SRC
@@ -2568,7 +2574,23 @@ struct worgle_orglet {
     int type;
     void *ud;
     worgle_orglet *next;
+    size_t linum;
 };
+#+END_SRC
+*** Initializing
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_orglet_init(worgle_orglet *orglet);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_orglet_init(worgle_orglet *orglet)
+{
+    orglet->type = -1;
+    orglet->ud = NULL;
+    orglet->next = NULL;
+    orglet->linum = 0;
+}
 #+END_SRC
 *** Freeing
 #+NAME: function_declarations
