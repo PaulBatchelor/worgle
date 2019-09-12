@@ -1299,6 +1299,9 @@ if(worg->nbuffers == 1) {
                          sizeof(worgle_orgfile) *
                          worg->nbuffers);
 }
+if(worg->nbuffers > 0) {
+    worgle_orgfile_init(&worg->orgs[worg->nbuffers - 1]);
+}
 #+END_SRC
 ** String
 A string is a wrapper around a raw =char= pointer and a size. This is used
@@ -2134,6 +2137,7 @@ worgle_file* worgle_filelist_append(worgle_filelist *flist,
     f = malloc(sizeof(worgle_file));
     f->filename = *name;
     f->top = top;
+    f->nxt = NULL;
     <<worgle_file_init_id>>
 
     if(flist->nfiles == 0) {
