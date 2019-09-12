@@ -315,6 +315,13 @@ CLOSED: [2019-09-12 Thu 10:39]
 #+BEGIN_SRC c
 void worgle_db_insert_orglist(worgle_d *worg, sqlite3 *db);
 #+END_SRC
+
+A thing to think about when inserting multiple orgs at once
+is the top-level section number. If left unattended, the
+internal number will always go back to 1 at the start
+of the file. To prevent this, the program must be able to
+save the top-most section number.
+
 #+NAME: functions
 #+BEGIN_SRC c
 void worgle_db_insert_orglist(worgle_d *worg, sqlite3 *db)
@@ -322,15 +329,17 @@ void worgle_db_insert_orglist(worgle_d *worg, sqlite3 *db)
     worgle_orgfile *orgs;
     worgle_textbuf *txt;
     int n;
+    int sec;
 
     orgs = worg->orgs;
     txt = worg->buffers;
-
+    sec = 0;
     for(n = 0; n < worg->nbuffers; n++) {
         worgle_db_insert_orgfile(worg,
                                  &orgs[n],
                                  &txt[n].filename,
-                                 db);
+                                 db,
+                                 &sec);
     }
 }
 #+END_SRC
@@ -341,14 +350,16 @@ CLOSED: [2019-09-12 Thu 10:40]
 void worgle_db_insert_orgfile(worgle_d *worg,
                               worgle_orgfile *f,
                               worgle_string *filename,
-                              sqlite3 *db);
+                              sqlite3 *db,
+                              int *sec);
 #+END_SRC
 #+NAME: functions
 #+BEGIN_SRC c
 void worgle_db_insert_orgfile(worgle_d *worg,
                               worgle_orgfile *f,
                               worgle_string *filename,
-                              sqlite3 *db)
+                              sqlite3 *db,
+                              int *sec)
 {
     size_t n;
     worgle_orglet *o;
@@ -361,7 +372,8 @@ void worgle_db_insert_orgfile(worgle_d *worg,
 
     curlvl = 0;
     o = f->head;
-    for (n = 0; n < 10; n++) counter[n] = 0;
+    for (n = 1; n < 10; n++) counter[n] = 0;
+    counter[0] = *sec;
     for (n = 0; n < f->size; n++) {
         nxt = o->next;
         switch (o->type) {
@@ -377,9 +389,11 @@ void worgle_db_insert_orgfile(worgle_d *worg,
         }
         o = nxt;
     }
+    *sec = counter[0];
 }
 #+END_SRC
-**** TODO Header Insert
+**** DONE Header Insert
+CLOSED: [2019-09-12 Thu 14:29]
 :LOGBOOK:
 CLOCK: [2019-09-12 Thu 09:48]--[2019-09-12 Thu 09:48] =>  0:00
 :END:
