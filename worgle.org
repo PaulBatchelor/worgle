@@ -507,8 +507,20 @@ enum {
 #+BEGIN_SRC c
 MODE_ORG,
 #+END_SRC
+***** Org Parse Top
+When the parser state is set to be in =MODE_ORG=, this is
+what happens.
+#+NAME: parse_mode_org
+#+BEGIN_SRC c
+#ifndef WORGLITE
+if (generate_db) {
+    <<parse_headers>>
+}
+#endif
+<<find_next_named_block>>
+#+END_SRC
 ***** Finding the next named block
-When the parser is in =MODE_ORG=, it is only searching for
+When the parser is in =MODE_ORG=, it mostly searching for
 the start of the next named block. When it finds a match,
 it extracts the name, gets ready to begin the a new block,
 and changes the mode =MODE_BEGINCODE=.
@@ -516,7 +528,7 @@ and changes the mode =MODE_BEGINCODE=.
 A common hard-to-find error happens when a colon is
 forgotten in the =NAME= tag. A special check will occur
 here to make sure that colon isn't forgotten.
-#+NAME: parse_mode_org
+#+NAME: find_next_named_block
 #+BEGIN_SRC c
 if(read >= 7) {
     if(!strncmp(line, "#+NAME", 6)) {
@@ -609,50 +621,87 @@ void worgle_begin_block(worgle_d *worg, worgle_string *name)
     <<worgle_block_set_id>>
 }
 #+END_SRC
-***** TODO Header Parsing
-One of the newer things that the Worgle parser looks for
-are header/section data. This information is saved as
-metadata inside of a generated SQLite database.
-Headers are only parsed if a SQLite database has been
-opened, and if the full version of Worgle is being
-compiled (aka no Worglite).
+***** TODO Parsing Header Information
+A valid header in org mode starts with one or more
+as one or more asterisks, followed by a space.
+Anything after this space is considered to be the name
+of the header. The number of asterisks indicates the
+header level.
 
-The function =is_header= is used to both check for
-a valid header, as well as extract information from it
-if it is indeed a header.
+If indeed the line is a header, both the header name
+and level are appended to the currently opened org file.
 
-A valid header in org has one or more asterisks (*) followed
-by at least one space. Anything following the spaces is
-considered to be a the title.
+A quick sanity check is done before the header is parsed
+via =parse_header=.
 
-The =is_header= function, if it is indeed a header, will
-return the header level, as well as the title (stored as a
-worgle string).
-***** TODO Updating Section Position From Header
-When a header has been extracted, the level is used to
-update the current section position.
-****** TODO The Section Position Data
-The section data is stored as an array of unsigned integers.
-The size of this array is determined by =WORGLE_MAXDEPTH=,
-which limits how any subsections there can be. A decent
-max depth size is 10.
+#+NAME: parse_headers
+#+BEGIN_SRC c
+if (read >= 2) {
+    parse_header(worg, line, read);
+}
+#+END_SRC
 
-The array in question begins at zero. When org-mode exports
-data, the top-level number starts at 1 instead of 0. This
-will be ignored for the sake of data consistency.
+The actual parsing logic happens in the function
+=parse_header=.
 
-The current section depth relates to the position in the
-array.
-****** TODO Determining update position
-The extracted header level is used to determine which
-section number to increment. If the header number is greater
-than the current section number, a new subsection is
-created, and the position in the array is set to be zero.
-If the value is less than or equal to the current section
-number, that particular position is incremented by one.
-***** TODO Saving Header Data
-Once the section position has been updated, it can be saved
-as metadata along with the header title to the database.
+#+NAME: static_function_declarations
+#+BEGIN_SRC c
+#ifndef WORGLITE
+static int parse_header(worgle_d *worg,
+                        char *line,
+                        size_t len);
+#endif
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+#ifndef WORGLITE
+static int parse_header(worgle_d *worg,
+                        char *line,
+                        size_t len)
+{
+    int mode;
+    int rc;
+    size_t s;
+    char *header;
+    worgle_string str;
+    int lvl;
+    mode = 0;
+
+    if(line[0] != '*') return 0;
+
+    rc = 0;
+    worgle_string_init(&str);
+    lvl = 1;
+    for (s = 1; s < len; s++) {
+        if (mode == 2) break;
+        switch (mode) {
+            case 0:
+                if (line[s] == '*') {
+                    lvl++;
+                } else if (line[s] == ' '){
+                    mode = 1;
+                } else {
+                    mode = 2;
+                    rc = 0;
+                }
+                break;
+            case 1:
+                rc = 1;
+                mode = 2;
+                header = &line[s];
+                str.str = header;
+                str.size = len - s;
+                str.size -= line[len - 1] == '\n';
+                printf("header is '");
+                worgle_string_write(stdout, &str);
+                printf("', level is %d\n", lvl);
+                break;
+        }
+    }
+    return rc;
+}
+#endif
+#+END_SRC
 **** MODE_BEGINCODE
 #+NAME:parse_modes
 #+BEGIN_SRC c
@@ -667,11 +716,6 @@ Worgle file list.
 
 #+NAME: parse_mode_begincode
 #+BEGIN_SRC c
-#ifndef WORGLITE
-if (generate_db) {
-    <<parse_headers>>
-}
-#endif
 if (read >= 11) {
     if(!strncmp (line, "#+BEGIN_SRC",11)) {
         <<begin_the_code>>
@@ -810,19 +854,6 @@ void worgle_append_file(worgle_d *worg, worgle_string *filename)
     f = worgle_filelist_append(&worg->flist, filename, worg->curblock);
     <<worgle_file_set_id>>
 }
-#+END_SRC
-***** TODO Parsing Header Information
-A valid header in org mode starts with one or more
-as one or more asterisks, followed by a space.
-Anything after this space is considered to be the name
-of the header. The number of asterisks indicates the
-header level.
-
-If indeed the line is a header, both the header name
-and level are appended to the currently opened org file.
-#+NAME: parse_headers
-#+BEGIN_SRC c
-/* TODO: implement */
 #+END_SRC
 **** MODE_CODE
 #+NAME:parse_modes
