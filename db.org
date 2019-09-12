@@ -57,7 +57,9 @@ void worgle_db_generate(worgle_d *worg, sqlite3 *db);
 #+BEGIN_SRC c
 void worgle_db_generate(worgle_d *worg, sqlite3 *db)
 {
+    sqlite3_exec(db, "BEGIN;\n", NULL, NULL, NULL);
     <<inserts>>
+    sqlite3_exec(db, "COMMIT;\n", NULL, NULL, NULL);
 }
 #+END_SRC
 **** Clear Tables
