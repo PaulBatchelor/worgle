@@ -163,7 +163,6 @@ rc = 0;
 #+END_SRC
 
 ** Load file into memory
-
 The first thing the program will do is load the file.
 
 While most parsers tend to parse things on a line by line basis via
@@ -172,8 +171,6 @@ is done due to the textual nature of the program. It is much easier to
 simply allocate everything in one big block and reference chunks, then to
 allocate smaller chunks as you go.
 *** Loadfile function
-
-# TODO: merge with parse.
 #+NAME: loading
 #+BEGIN_SRC c
 for(i = 0; i < worg.nbuffers; i++) {
@@ -262,7 +259,6 @@ fseek(fp, 0, SEEK_SET);
 fread(buf, size, 1, fp);
 fclose(fp);
 #+END_SRC
-
 ** Parsing
 *** Top Level Parsing Function
 The second phase of the program is the parsing stage.
@@ -621,7 +617,8 @@ void worgle_begin_block(worgle_d *worg, worgle_string *name)
     <<worgle_block_set_id>>
 }
 #+END_SRC
-***** TODO Parsing Header Information
+***** DONE Parsing Header Information
+CLOSED: [2019-09-12 Thu 07:10]
 A valid header in org mode starts with one or more
 as one or more asterisks, followed by a space.
 Anything after this space is considered to be the name
@@ -1071,7 +1068,6 @@ struct worgle_d {
     <<worgle_struct_contents>>
 };
 #+END_SRC
-
 *** Worgle Initialization
 
 Worgle data is initialized using the function =worgle_init=.
@@ -1206,6 +1202,7 @@ Text files are loaded into buffers, encapsulated as a type
 =worgle_textbuf=. The currently used text buffer is stored in
 the variable =curbuf=. Buffers are stored in an array of text
 buffers known as =buflist=.
+
 #+NAME:worgle_struct_contents
 #+BEGIN_SRC c
 worgle_textbuf *curbuf;
@@ -1265,6 +1262,7 @@ worg->linum = 0;
 **** TODO Orgfile Array
 The orgfile array keeps track of data representations
 of orgfiles to be tangled.
+***** Declaration + Initialization
 #+NAME: worgle_struct_contents
 #+BEGIN_SRC c
 worgle_orgfile *orgs;
@@ -1273,12 +1271,28 @@ worgle_orgfile *orgs;
 #+BEGIN_SRC c
 worg->orgs = NULL;
 #+END_SRC
-
+***** Freeing
 Org files allocated must be freed.
-
 #+NAME: worgle_free
 #+BEGIN_SRC c
-/* TODO: free orgfile buffers */
+if(worg->orgs != NULL && worg->nbuffers > 0) {
+    for(i = 0; i < worg->nbuffers; i++) {
+        worgle_orgfile_free(&worg->orgs[i]);
+    }
+    free(worg->orgs);
+}
+#+END_SRC
+***** Appending an Org file
+This happens when the main file list is being populated.
+#+NAME: append_org_file
+#+BEGIN_SRC c
+if(worg->nbuffers == 1) {
+    worg->orgs = calloc(1, sizeof(worgle_orgfile));
+} else {
+    worg->orgs = realloc(worg->orgs,
+                         sizeof(worgle_orgfile) *
+                         worg->nbuffers);
+}
 #+END_SRC
 ** String
 A string is a wrapper around a raw =char= pointer and a size. This is used
@@ -2435,8 +2449,37 @@ struct worgle_orgfile {
     int size;
 };
 #+END_SRC
-*** TODO Initialization
+*** DONE Initialization
+CLOSED: [2019-09-12 Thu 07:12]
+An org file type is initialized with =worgle_orgfile_init=.
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_orgfile_init(worgle_orgfile *org);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_orgfile_init(worgle_orgfile *org)
+{
+    org->head = NULL;
+    org->tail = NULL;
+    org->size = 0;
+}
+#+END_SRC
 *** TODO Freeing
+Freed with =worgle_orgfile_free=.
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_orgfile_free(worgle_orgfile *org);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_orgfile_free(worgle_orgfile *org)
+{
+    if(org->size > 0) {
+        /* TODO: free orglets */
+    }
+}
+#+END_SRC
 ** DONE Orglet
 CLOSED: [2019-09-11 Wed 04:55]
 A =worgle_orglet= is a single entry inside of a
@@ -2613,7 +2656,6 @@ map_source_code = 1;
 map_filename = (char *)ps.optarg;
 #+END_SRC
 ** Appending filenames
-
 #+NAME: append_filename
 #+BEGIN_SRC c
 append_filename(&worg, (char *)ps.optarg);
@@ -2638,11 +2680,15 @@ static void append_filename(worgle_d *worg, char *filename)
         worg->buffers = calloc(1, sizeof(worgle_textbuf));
     } else {
         worg->buffers = realloc(worg->buffers,
-                                sizeof(worgle_textbuf) * worg->nbuffers);
+                                sizeof(worgle_textbuf) *
+                                worg->nbuffers);
     }
     str = &worg->buffers[pos].filename;
     str->str = filename;
     str->size = strlen(filename);
+#ifndef WORGLITE
+    <<append_org_file>>
+#endif
 }
 #+END_SRC
 ** Generate Database (-d)
