@@ -65,6 +65,16 @@ int wmp_core_open(wmp_core *core, const char *filename)
 {
     sqlite3 *db;
     int rc;
+    FILE *fp;
+
+    fp = fopen(filename, "r");
+    if (fp == NULL) {
+        fprintf(stderr,
+                "Database %s not found.\n",
+                filename);
+        return 0;
+    }
+    fclose(fp);
 
     core->db = NULL;
     rc = sqlite3_open(filename, &db);
@@ -122,7 +132,6 @@ To make the CLI more terse, a default filename is used,
 which can be configured through command line flags.
 *** Global Definition
 The default filename is =a.db=.
-
 #+NAME: constants
 #+BEGIN_SRC c
 const char *db_filename = "a.db";
