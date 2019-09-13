@@ -116,7 +116,8 @@ enum {
 #+BEGIN_SRC c
 sqlite3_exec(db,
              "CREATE TABLE segments(\n"
-             "id INTEGER PRIMARY KEY,\n"
+             "program INTEGER,\n"
+             "id INTEGER,\n"
              "type INTEGER,\n"
              "str TEXT,\n"
              "linum INTEGER,\n"
@@ -138,7 +139,8 @@ The block schema contains the following items:
 #+BEGIN_SRC c
 sqlite3_exec(db,
              "CREATE TABLE blocks("
-             "id INTEGER PRIMARY KEY,\n"
+             "program INTEGER,\n"
+             "id INTEGER,\n"
              "head_segment INTEGER,\n"
              "name TEXT\n"
              ");\n",
@@ -158,7 +160,8 @@ A file name table contains the following:
 #+BEGIN_SRC c
 sqlite3_exec(db,
              "CREATE TABLE files(\n"
-             "id INTEGER PRIMARY KEY,\n"
+             "program INTEGER,\n"
+             "id INTEGER,\n"
              "filename TEXT,\n"
              "top INTEGER,\n"
              "next_file INTEGER\n"
@@ -190,7 +193,8 @@ enum {
 #+BEGIN_SRC c
 sqlite3_exec(db,
              "CREATE TABLE resources(\n"
-             "id INTEGER PRIMARY KEY,\n"
+             "program INTEGER,\n"
+             "id INTEGER,\n"
              "type INTEGER,\n"
              "typename TEXT\n"
              ");\n",
@@ -204,15 +208,18 @@ This operation happens so often that there is a function for it called
 
 #+NAME: static_db_functions
 #+BEGIN_SRC c
-static void insert_resource(sqlite3 *db, worgle_long id, int type)
+static void insert_resource(sqlite3 *db,
+                            int prog,
+                            worgle_long id,
+                            int type)
 {
     sqlite3_stmt *stmt;
     int rc;
 
     sqlite3_prepare_v2(db,
                        "INSERT INTO resources"
-                       "(id, type, typename)\n"
-                       "VALUES(?1,?2,?3);",
+                       "(id, type, typename, program)\n"
+                       "VALUES(?1,?2,?3,?4);",
                        -1,
                        &stmt,
                        NULL);
@@ -236,6 +243,8 @@ static void insert_resource(sqlite3 *db, worgle_long id, int type)
             sqlite3_bind_text(stmt, 3, "Unknown", -1, NULL);
             break;
     }
+
+    sqlite3_bind_int(stmt, 4, prog);
 
     rc = sqlite3_step(stmt);
 
@@ -261,7 +270,8 @@ The header schema contains the following:
 #+BEGIN_SRC c
 sqlite3_exec(db,
              "CREATE TABLE headers(\n"
-             "id INTEGER PRIMARY KEY,\n"
+             "program INTEGER,\n"
+             "id INTEGER,\n"
              "section TEXT,\n"
              "level INTEGER,\n"
              "name TEXT,\n"
@@ -423,9 +433,13 @@ void worgle_db_insert_header(worgle_d *worg,
     int bufpos;
     sqlite3_stmt *stmt;
     int rc;
+    int prog;
 
     h = o->ud;
-    if(*curlvl <= 0) *curlvl = 1;
+
+    prog = 0; /* hard-coded for now */
+
+    if (*curlvl <= 0) *curlvl = 1;
 
     if (h->lvl > *curlvl) {
         diff = h->lvl - *curlvl;
@@ -437,19 +451,19 @@ void worgle_db_insert_header(worgle_d *worg,
     counter[h->lvl - 1]++;
 
     bufpos = 0;
-    for(n = 0; n < h->lvl; n++) {
+    for (n = 0; n < h->lvl; n++) {
         bufpos += sprintf(&strbuf[bufpos], "%d.", counter[n]);
     }
     *curlvl = h->lvl;
 
-    insert_resource(db, o->id, RES_HEADER);
+    insert_resource(db, prog, o->id, RES_HEADER);
 
     sqlite3_prepare_v2(db,
                        "INSERT INTO headers"
                        "(id, section, level, name, "
-                       "filename, linum, next)"
+                       "filename, linum, next, program)"
                        "VALUES(?1,?2,?3,?4,"
-                       "?5,?6,?7);",
+                       "?5,?6,?7,?8);",
                        -1,
                        &stmt,
                        NULL);
@@ -464,14 +478,18 @@ void worgle_db_insert_header(worgle_d *worg,
                       fname->str, fname->size,
                       NULL);
     sqlite3_bind_int(stmt, 6, o->linum);
+
     if (o->next == NULL) {
         sqlite3_bind_int(stmt, 7, 0);
     } else {
         sqlite3_bind_int(stmt, 7, o->next->id);
     }
+
+    sqlite3_bind_int(stmt, 8, prog);
+
     rc = sqlite3_step(stmt);
 
-    if(rc != SQLITE_DONE) {
+    if (rc != SQLITE_DONE) {
         fprintf(stderr,
                 "SQLite error: %s\n",
                 sqlite3_errmsg(db));
@@ -544,14 +562,18 @@ void worgle_db_insert_file(worgle_d *worg,
     sqlite3_stmt *stmt;
     worgle_string *filename;
     int rc;
+    int prog;
 
     if(file->nxt == NULL) next_id = 0;
     else next_id = file->nxt->id;
 
+    prog = 0; /* hard-coded for now */
+
     sqlite3_prepare_v2(db,
                        "INSERT INTO files"
-                       "(id, next_file, filename, top)"
-                       "VALUES(?1, ?2, ?3, ?4);",
+                       "(id, next_file, filename, "
+                       "top, program)"
+                       "VALUES(?1, ?2, ?3, ?4, ?5);",
                        -1,
                        &stmt,
                        NULL);
@@ -566,6 +588,7 @@ void worgle_db_insert_file(worgle_d *worg,
                       NULL);
 
     sqlite3_bind_int(stmt, 4, file->top->id);
+    sqlite3_bind_int(stmt, 5, prog);
 
     rc = sqlite3_step(stmt);
 
@@ -576,7 +599,7 @@ void worgle_db_insert_file(worgle_d *worg,
     }
 
     sqlite3_finalize(stmt);
-    insert_resource(db, file->id, RES_FILE);
+    insert_resource(db, prog, file->id, RES_FILE);
     worgle_db_insert_block(worg, file->top, db);
 }
 #+END_SRC
@@ -603,16 +626,20 @@ void worgle_db_insert_block(worgle_d *worg,
     sqlite3_stmt *stmt;
     worgle_string *name;
     int rc;
+    int prog;
 
     s = block->head;
     hm = &worg->dict;
+
+    prog = 0; /* hard-coded for now */
 
     sqlite3_prepare_v2(db,
                        "INSERT INTO blocks"
                        "(id,"
                        "head_segment,"
-                       "name)\n"
-                       "VALUES(?1, ?2, ?3);",
+                       "name,"
+                       "program)\n"
+                       "VALUES(?1, ?2, ?3, ?4);",
                        -1,
                        &stmt,
                        NULL);
@@ -623,6 +650,8 @@ void worgle_db_insert_block(worgle_d *worg,
     sqlite3_bind_text(stmt, 3,
                       name->str, name->size,
                       NULL);
+    sqlite3_bind_int(stmt, 4, prog);
+
     rc = sqlite3_step(stmt);
 
     if(rc != SQLITE_DONE) {
@@ -634,7 +663,7 @@ void worgle_db_insert_block(worgle_d *worg,
 
     sqlite3_finalize(stmt);
 
-    insert_resource(db, block->id, RES_BLOCK);
+    insert_resource(db, prog, block->id, RES_BLOCK);
     for(n = 0; n < block->nsegs; n++) {
         sqlite3_prepare_v2(db,
                         "INSERT INTO segments"
@@ -643,8 +672,9 @@ void worgle_db_insert_block(worgle_d *worg,
                         "linum,"
                         "next_segment,"
                         "str,"
-                        "filename)\n"
-                        "VALUES(?1, ?2, ?3, ?4, ?5, ?6);",
+                        "filename,"
+                        "program)\n"
+                        "VALUES(?1,?2,?3,?4,?5,?6,?7);",
                         -1,
                         &stmt,
                         NULL);
@@ -661,6 +691,7 @@ void worgle_db_insert_block(worgle_d *worg,
         sqlite3_bind_text(stmt, 6,
                         s->filename->str, s->filename->size,
                         NULL);
+        sqlite3_bind_int(stmt, 7, prog);
         if(rc != SQLITE_DONE) {
             fprintf(stderr,
                     "SQLite error: %s\n",
@@ -675,7 +706,7 @@ void worgle_db_insert_block(worgle_d *worg,
                     sqlite3_errmsg(db));
         }
         sqlite3_finalize(stmt);
-        insert_resource(db, s->id, RES_SEGMENT);
+        insert_resource(db, prog, s->id, RES_SEGMENT);
         if(worgle_segment_is_reference(s)) {
             if(!worgle_hashmap_find(hm, &s->str, &blk)) break;
             worgle_db_insert_block(worg, blk, db);
