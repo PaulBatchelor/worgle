@@ -69,24 +69,36 @@ leaving other tables untouched. This is particularly useful
 when utilizing the SQLite database for other things.
 #+NAME: function_declarations
 #+BEGIN_SRC c
-void worgle_db_clear(sqlite3 *db);
+void worgle_db_clear(sqlite3 *db, int program);
 #+END_SRC
 #+NAME: functions
 #+BEGIN_SRC c
-void worgle_db_clear(sqlite3 *db)
+static void delete_table(sqlite3 *db,
+                         char *sbuf,
+                         const char *tbl,
+                         int program)
 {
-    sqlite3_exec(db,
-                "BEGIN;\n"
-                "DELETE FROM resources WHERE 1;\n"
-                "DELETE FROM blocks WHERE 1;\n"
-                "DELETE FROM headers WHERE 1;\n"
-                "DELETE FROM resources WHERE 1;\n"
-                "DELETE FROM segments WHERE 1;\n"
-                "DELETE FROM files WHERE 1;\n"
-                "COMMIT;\n",
-                NULL,
-                NULL,
-                NULL);
+    if(program < 0) {
+        sprintf(sbuf,
+                "DELETE FROM %s WHERE 1;\n",
+                tbl);
+    } else {
+        sprintf(sbuf,
+                "DELETE FROM %s WHERE program == %d;\n",
+                tbl,
+                program);
+    }
+    sqlite3_exec(db, sbuf, NULL, NULL, NULL);
+}
+
+void worgle_db_clear(sqlite3 *db, int program)
+{
+    char sbuf[256];
+    delete_table(db, sbuf, "resources", program);
+    delete_table(db, sbuf, "blocks", program);
+    delete_table(db, sbuf, "headers", program);
+    delete_table(db, sbuf, "segments", program);
+    delete_table(db, sbuf, "files", program);
 }
 #+END_SRC
 ** SQLite Table Schemas

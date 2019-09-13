@@ -2901,7 +2901,7 @@ static void tangle_to_db(worgle_d *worg)
         sqlite3_close(db);
         return;
     }
-    worgle_db_clear(db);
+    worgle_db_clear(db, worg->prog);
     worgle_db_schemas(worg, db);
     worgle_db_generate(worg, db);
     sqlite3_close(db);
