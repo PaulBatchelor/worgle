@@ -1303,6 +1303,19 @@ if(worg->nbuffers > 0) {
     worgle_orgfile_init(&worg->orgs[worg->nbuffers - 1]);
 }
 #+END_SRC
+**** Program ID
+The program id is a integer value primarily used to
+distinguish itself from other programs in a generated
+database. This functionality allows portions of a program
+to be incrementally updated/written to a database.
+#+NAME: worgle_struct_contents
+#+BEGIN_SRC c
+int prog;
+#+END_SRC
+#+NAME:worgle_init
+#+BEGIN_SRC c
+worg->prog = 0;
+#+END_SRC
 ** String
 A string is a wrapper around a raw =char= pointer and a size. This is used
 as the base string literal.
@@ -2675,7 +2688,7 @@ int c;
 #+NAME: parse_cli_args
 #+BEGIN_SRC c
 parg_init(&ps);
-while((c = parg_getopt(&ps, argc, argv, "gW:m:d:")) != -1) {
+while ((c = parg_getopt(&ps, argc, argv, "gW:m:d:p:")) != -1) {
     switch(c) {
         case 1:
             filename = (char *)ps.optarg;
@@ -2697,6 +2710,9 @@ while((c = parg_getopt(&ps, argc, argv, "gW:m:d:")) != -1) {
             fprintf(stderr, "Database flag (-d) is  not enabled\n");
             return 1;
 #endif
+            break;
+        case 'p':
+            <<set_program_id>>
             break;
         default:
             fprintf(stderr, "Unknown option -%c\n", c);
@@ -2898,6 +2914,13 @@ static void tangle_to_db(worgle_d *worg)
 #ifndef WORGLITE
 if(generate_db) tangle_to_db(&worg);
 #endif
+#+END_SRC
+** Set program id (-p)
+The p flag is used to set the program ID, which is
+then written to the database.
+#+NAME: set_program_id
+#+BEGIN_SRC c
+worg.prog = atoi(ps.optarg);
 #+END_SRC
 * Source mapping
 Worgle has the ability to produce Org data that outlines the structure

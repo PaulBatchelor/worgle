@@ -437,7 +437,7 @@ void worgle_db_insert_header(worgle_d *worg,
 
     h = o->ud;
 
-    prog = 0; /* hard-coded for now */
+    prog = worg->prog;
 
     if (*curlvl <= 0) *curlvl = 1;
 
@@ -567,7 +567,7 @@ void worgle_db_insert_file(worgle_d *worg,
     if(file->nxt == NULL) next_id = 0;
     else next_id = file->nxt->id;
 
-    prog = 0; /* hard-coded for now */
+    prog = worg->prog;
 
     sqlite3_prepare_v2(db,
                        "INSERT INTO files"
@@ -631,7 +631,7 @@ void worgle_db_insert_block(worgle_d *worg,
     s = block->head;
     hm = &worg->dict;
 
-    prog = 0; /* hard-coded for now */
+    prog = worg->prog;
 
     sqlite3_prepare_v2(db,
                        "INSERT INTO blocks"
