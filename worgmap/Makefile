@@ -18,6 +18,8 @@ get.c: core.h
 
 core.h: core.c
 
+worgmap.c: core.h
+
 install: worgmap
 	cp worgmap /usr/local/bin
 
