@@ -207,8 +207,7 @@ sqlite3_exec(db,
              "CREATE TABLE resources(\n"
              "program INTEGER,\n"
              "id INTEGER,\n"
-             "type INTEGER,\n"
-             "typename TEXT\n"
+             "type INTEGER\n"
              ");\n",
              NULL,
              NULL,
@@ -230,33 +229,15 @@ static void insert_resource(sqlite3 *db,
 
     sqlite3_prepare_v2(db,
                        "INSERT INTO resources"
-                       "(id, type, typename, program)\n"
-                       "VALUES(?1,?2,?3,?4);",
+                       "(id, type, program)\n"
+                       "VALUES(?1,?2,?3);",
                        -1,
                        &stmt,
                        NULL);
 
     sqlite3_bind_int(stmt, 1, id);
     sqlite3_bind_int(stmt, 2, type);
-    switch(type) {
-        case RES_SEGMENT:
-            sqlite3_bind_text(stmt, 3, "Segment", -1, NULL);
-            break;
-        case RES_BLOCK:
-            sqlite3_bind_text(stmt, 3, "Block", -1, NULL);
-            break;
-        case RES_FILE:
-            sqlite3_bind_text(stmt, 3, "File", -1, NULL);
-            break;
-        case RES_HEADER:
-            sqlite3_bind_text(stmt, 3, "Header", -1, NULL);
-            break;
-        default:
-            sqlite3_bind_text(stmt, 3, "Unknown", -1, NULL);
-            break;
-    }
-
-    sqlite3_bind_int(stmt, 4, prog);
+    sqlite3_bind_int(stmt, 3, prog);
 
     rc = sqlite3_step(stmt);
 
@@ -313,6 +294,29 @@ This is a separate section from the =blocks= section, for
 two reasons. One, because the section number is only derived
 while it is being parsed. Two, to more cleanly separate the
 woven content from the tangled content.
+*** Type View
+The resource table has a redundant column which provides
+a text version of the human readable type id. This view,
+called =reslist=, creates a more human readable version
+of the =resources= table.
+#+NAME: schemas
+#+BEGIN_SRC c
+sqlite3_exec(db,
+             "CREATE VIEW reslist AS "
+             "SELECT "
+             "program, id, "
+             "CASE type "
+             "WHEN 0 THEN 'Block' "
+             "WHEN 1 THEN 'Block' "
+             "WHEN 2 THEN 'Segment' "
+             "WHEN 3 THEN 'Header' "
+             "ELSE 'Unknown' END "
+             "FROM resources;"
+             ");\n",
+             NULL,
+             NULL,
+             NULL);
+#+END_SRC
 ** SQLite Insert Statements
 This section pertains to the actual SQLite insert statements
 that occur.
