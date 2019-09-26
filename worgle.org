@@ -987,7 +987,6 @@ static int check_for_reference(char *line , size_t size, worgle_string *str)
 }
 #+END_SRC
 ** Generation
-
 The last phase of the program is code generation.
 
 A parsed file generates a structure of how the code will look. The generation
@@ -1005,7 +1004,7 @@ write a string literal to disk, or a recursively expand block reference.
 
 #+NAME:generation
 #+BEGIN_SRC c
-if(!rc) if(!worgle_generate(&worg)) rc = 1;
+if(!rc && tangle_code) if(!worgle_generate(&worg)) rc = 1;
 #+END_SRC
 
 #+NAME:function_declarations
@@ -2688,7 +2687,7 @@ int c;
 #+NAME: parse_cli_args
 #+BEGIN_SRC c
 parg_init(&ps);
-while ((c = parg_getopt(&ps, argc, argv, "gW:m:d:p:")) != -1) {
+while ((c = parg_getopt(&ps, argc, argv, "gW:m:d:p:n")) != -1) {
     switch(c) {
         case 1:
             filename = (char *)ps.optarg;
@@ -2713,6 +2712,9 @@ while ((c = parg_getopt(&ps, argc, argv, "gW:m:d:p:")) != -1) {
             break;
         case 'p':
             <<set_program_id>>
+            break;
+        case 'n':
+            <<disable_tangling>>
             break;
         default:
             fprintf(stderr, "Unknown option -%c\n", c);
@@ -2921,6 +2923,18 @@ then written to the database.
 #+NAME: set_program_id
 #+BEGIN_SRC c
 worg.prog = atoi(ps.optarg);
+#+END_SRC
+** Disable tangling (-n)
+This flag will disable any tangling. This is useful
+with the =-d= flag for only generating the SQLite database.
+
+#+NAME: global_variables
+#+BEGIN_SRC c
+static int tangle_code = 1;
+#+END_SRC
+#+NAME: disable_tangling
+#+BEGIN_SRC c
+tangle_code = 0;
 #+END_SRC
 * Source mapping
 Worgle has the ability to produce Org data that outlines the structure
