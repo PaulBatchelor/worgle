@@ -2,7 +2,6 @@
 The "get" interface is a small test program used to test out
 some of the core SQLite querying routines supplied by
 worgmap.
-
 * Tangled Files
 #+NAME: get.c
 #+BEGIN_SRC c :tangle get.c
@@ -60,7 +59,6 @@ static void print_help(void)
     <<available_commands>>
 }
 #+END_SRC
-** Sub Commands
 ** Matching
 It's not enough to use =strncmp= with this program, because
 then =file= and =filelist= will be treated as the same.

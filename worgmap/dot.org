@@ -1,0 +1,135 @@
+#+TITLE: Dot
+Utility to generate directional dot graphs.
+* TODO Tangled Files
+#+NAME: dot.c
+#+BEGIN_SRC c :tangle dot.c
+#include <stdio.h>
+#include <string.h>
+<<function_declarations>>
+<<functions>>
+#+END_SRC
+* TODO The main program
+** Main subroutine
+#+NAME: function_declarations
+#+BEGIN_SRC c
+int p_dot(int argc, char *argv[]);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+int p_dot(int argc, char *argv[])
+{
+    int len;
+    if(argc < 2) {
+        print_help();
+        return 1;
+    }
+    len = strlen(argv[1]);
+    if(0) {
+        /* hack to start the chain */
+    }
+    <<command_parsing>>
+    else {
+        fprintf(stderr,
+                "Could not find subcommand '%s'\n",
+                argv[1]);
+        return 1;
+    }
+    return 0;
+}
+#+END_SRC
+** Print Help
+Prints all available commands if there are not enough
+arguments provided.
+#+NAME: function_declarations
+#+BEGIN_SRC c
+static void print_help(void);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+static void print_help(void)
+{
+    fprintf(stderr, "Available Commands\n\n");
+    <<available_commands>>
+}
+#+END_SRC
+** Matching
+(Copied from get.org)
+#+NAME: function_declarations
+#+BEGIN_SRC c
+static int match(const char *s1,
+                 int sz1,
+                 const char *s2,
+                 int sz2);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+static int match(const char *s1,
+                 int sz1,
+                 const char *s2,
+                 int sz2)
+{
+    return sz1 == sz2 && !strncmp(s1, s2, sz2);
+}
+#+END_SRC
+* TODO Block
+Creates a graph from a block.
+
+#+NAME: available_commands
+#+BEGIN_SRC c
+fprintf(stderr, "block: Creates graph from named block.\n");
+#+END_SRC
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+static int dot_block(int argc, char *argv[]);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+static int dot_block(int argc, char *argv[])
+{
+    /* wmp_core core; */
+    /* int rc; */
+    /* wmp_resource res; */
+    /* unsigned int id; */
+    /* int err; */
+
+    /* err = 0; */
+    /* if (argc < 2) { */
+    /*     fprintf(stderr, "Usage: %s UUID\n", argv[0]); */
+    /*     return 1; */
+    /* } */
+    /* rc = wmp_core_open(&core, wmp_filename_get()); */
+    /* if (!rc) return 0; */
+    /* id = atoi(argv[1]); */
+    /* rc = wmp_find_resource(&core, id, &res); */
+
+    /* if(!rc) { */
+    /*     fprintf(stderr, */
+    /*             "Could not find resource with id %d\n", */
+    /*             id); */
+    /*     err = 1; */
+    /* } else { */
+    /*     printf("%d %d %s\n", */
+    /*            res.id, */
+    /*            res.type, */
+    /*            wmp_resource_typestring(&res)); */
+    /* } */
+
+    /* wmp_core_close(&core); */
+    /* return err; */
+    printf("Not yet implemented.\n");
+    return 1;
+}
+#+END_SRC
+
+#+NAME: command_parsing
+#+BEGIN_SRC c
+else if (match(argv[1], len, "block", 5)) {
+    argv++;
+    argc--;
+    dot_block(argc, argv);
+}
+#+END_SRC
+* TODO File
+Creates a graph given, a filename.
