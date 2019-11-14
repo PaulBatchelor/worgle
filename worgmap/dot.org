@@ -5,10 +5,13 @@ Utility to generate directional dot graphs.
 #+BEGIN_SRC c :tangle dot.c
 #include <stdio.h>
 #include <string.h>
+#include <sqlite3.h>
+#include "core.h"
+#include "core_private.h"
 <<function_declarations>>
 <<functions>>
 #+END_SRC
-* TODO The main program
+* The main program
 ** Main subroutine
 #+NAME: function_declarations
 #+BEGIN_SRC c
@@ -71,7 +74,8 @@ static int match(const char *s1,
     return sz1 == sz2 && !strncmp(s1, s2, sz2);
 }
 #+END_SRC
-* TODO Block
+* DONE Block
+CLOSED: [2019-11-14 Thu 17:56]
 Creates a graph from a block.
 
 #+NAME: available_commands
@@ -86,40 +90,60 @@ static int dot_block(int argc, char *argv[]);
 
 #+NAME: functions
 #+BEGIN_SRC c
+static void print_tree(wmp_core *c, const char *name, int level)
+{
+    wmp_segment s;
+    wmp_block b;
+    int next;
+    int rc;
+
+    wmp_block_init(&b);
+    rc = wmp_lookup_block(c, name, &b);
+    if (!rc) {
+        fprintf(stderr,
+                "Could not find block '%s'",
+                name);
+        return;
+    }
+    wmp_segment_init(&s);
+    wmp_find_segment(c, b.head_segment, &s);
+
+    while (1) {
+        next = s.nxtseg;
+        if (s.id == next || s.id <= 0) {
+            wmp_segment_free(&s);
+            break;
+        }
+
+        if (s.type == 1) {
+            printf("\"%s\"->\"%s\"\n", name, s.str);
+            print_tree(c, s.str, level + 1);
+        }
+
+        wmp_segment_free(&s);
+        wmp_segment_init(&s);
+        wmp_find_segment(c, next, &s);
+    }
+    wmp_block_free(&b);
+}
+
 static int dot_block(int argc, char *argv[])
 {
-    /* wmp_core core; */
-    /* int rc; */
-    /* wmp_resource res; */
-    /* unsigned int id; */
-    /* int err; */
+    wmp_core core;
+    int rc;
 
-    /* err = 0; */
-    /* if (argc < 2) { */
-    /*     fprintf(stderr, "Usage: %s UUID\n", argv[0]); */
-    /*     return 1; */
-    /* } */
-    /* rc = wmp_core_open(&core, wmp_filename_get()); */
-    /* if (!rc) return 0; */
-    /* id = atoi(argv[1]); */
-    /* rc = wmp_find_resource(&core, id, &res); */
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s NAME\n", argv[0]);
+        return 1;
+    }
 
-    /* if(!rc) { */
-    /*     fprintf(stderr, */
-    /*             "Could not find resource with id %d\n", */
-    /*             id); */
-    /*     err = 1; */
-    /* } else { */
-    /*     printf("%d %d %s\n", */
-    /*            res.id, */
-    /*            res.type, */
-    /*            wmp_resource_typestring(&res)); */
-    /* } */
-
-    /* wmp_core_close(&core); */
-    /* return err; */
-    printf("Not yet implemented.\n");
-    return 1;
+    rc = wmp_core_open(&core, wmp_filename_get());
+    if (!rc) return 0;
+    printf("digraph {\n");
+    print_tree(&core, argv[1], 0);
+    printf("}\n");
+    wmp_core_close(&core);
+    return 0;
 }
 #+END_SRC
 
