@@ -155,5 +155,68 @@ else if (match(argv[1], len, "block", 5)) {
     dot_block(argc, argv);
 }
 #+END_SRC
-* TODO File
+* DONE File
+CLOSED: [2019-11-14 Thu 18:19]
 Creates a graph given, a filename.
+
+#+NAME: available_commands
+#+BEGIN_SRC c
+fprintf(stderr, "file: Creates graph from file.\n");
+#+END_SRC
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+static int dot_file(int argc, char *argv[]);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+static int dot_file(int argc, char *argv[])
+{
+    wmp_core core;
+    int rc;
+    wmp_file file;
+    wmp_block blk;
+
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s FILE\n", argv[0]);
+        return 1;
+    }
+
+    rc = wmp_core_open(&core, wmp_filename_get());
+    if (!rc) return 0;
+
+    wmp_file_init(&file);
+    rc = wmp_lookup_file(&core, argv[1], &file);
+
+    if (!rc) {
+        printf("Could not find file %s\n", argv[1]);
+        return 1;
+    }
+
+    wmp_block_init(&blk);
+    rc = wmp_find_block(&core, file.top, &blk);
+
+    if (!rc) {
+        printf("Could not find block with id %d\n", file.id);
+        return 1;
+    }
+
+    printf("digraph {\n");
+    print_tree(&core, blk.name, 0);
+    printf("}\n");
+
+    wmp_file_free(&file);
+    wmp_core_close(&core);
+    return 0;
+}
+#+END_SRC
+
+#+NAME: command_parsing
+#+BEGIN_SRC c
+else if (match(argv[1], len, "file", 4)) {
+    argv++;
+    argc--;
+    dot_file(argc, argv);
+}
+#+END_SRC
