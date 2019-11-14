@@ -1,10 +1,9 @@
-* Get
+#+TITLE: Get
 The "get" interface is a small test program used to test out
 some of the core SQLite querying routines supplied by
 worgmap.
 
-** DONE Tangled Files
-CLOSED: [2019-08-31 Sat 10:39]
+* Tangled Files
 #+NAME: get.c
 #+BEGIN_SRC c :tangle get.c
 #include <stdio.h>
@@ -16,8 +15,7 @@ CLOSED: [2019-08-31 Sat 10:39]
 <<function_declarations>>
 <<functions>>
 #+END_SRC
-** DONE The main program
-CLOSED: [2019-08-31 Sat 10:39]
+* The main program
 The main program is contained in a function called
 =get_main=, taking in =argc= and =argv= parameters.
 #+NAME: function_declarations
@@ -47,7 +45,7 @@ int p_get(int argc, char *argv[])
     return 0;
 }
 #+END_SRC
-*** Print Help
+** Print Help
 Prints all available commands if there are not enough
 arguments provided.
 #+NAME: function_declarations
@@ -62,8 +60,8 @@ static void print_help(void)
     <<available_commands>>
 }
 #+END_SRC
-*** Sub Commands
-*** Matching
+** Sub Commands
+** Matching
 It's not enough to use =strncmp= with this program, because
 then =file= and =filelist= will be treated as the same.
 String length of the input string must be taken into
@@ -88,8 +86,7 @@ static int match(const char *s1,
     return sz1 == sz2 && !strncmp(s1, s2, sz2);
 }
 #+END_SRC
-** DONE res
-CLOSED: [2019-08-31 Sat 07:07]
+* res
 The =res= command will return the information of
 a particular resource, given a UUID.
 #+NAME: available_commands
@@ -147,8 +144,7 @@ else if (match(argv[1], len, "res", 3)) {
     get_res(argc, argv);
 }
 #+END_SRC
-** DONE block
-CLOSED: [2019-08-31 Sat 09:41]
+* block
 The =block= command will return the information of
 block with a particular UUID.
 #+NAME: available_commands
@@ -207,8 +203,7 @@ else if (match(argv[1], len, "blk", 3)) {
     get_blk(argc, argv);
 }
 #+END_SRC
-** DONE segment
-CLOSED: [2019-08-31 Sat 10:38]
+* segment
 The =segement= command will return information of a
 particular segment, given it's UUID.
 #+NAME: available_commands
@@ -270,8 +265,7 @@ else if (match(argv[1], len, "seg", 3)) {
     get_seg(argc, argv);
 }
 #+END_SRC
-** DONE Block Find (fblk)
-CLOSED: [2019-08-31 Sat 16:25]
+* Block Find (fblk)
 #+NAME: available_commands
 #+BEGIN_SRC c
 fprintf(stderr, "fblk: looks up block given name\n");
@@ -326,8 +320,7 @@ else if (match(argv[1], len, "fblk", 4)) {
     get_fblk(argc, argv);
 }
 #+END_SRC
-** DONE File
-CLOSED: [2019-08-31 Sat 12:35]
+* File
 The =file= command will return information of a particular
 file.
 #+NAME: available_commands
@@ -387,8 +380,7 @@ else if (match(argv[1], len, "file", 4)) {
     get_file(argc, argv);
 }
 #+END_SRC
-** DONE File Find (ffile)
-CLOSED: [2019-08-31 Sat 16:25]
+* File Find (ffile)
 #+NAME: available_commands
 #+BEGIN_SRC c
 fprintf(stderr, "ffind: looks up file given name\n");
@@ -444,8 +436,7 @@ else if (match(argv[1], len, "ffile", 5)) {
     get_ffile(argc, argv);
 }
 #+END_SRC
-** DONE Filelist
-CLOSED: [2019-08-31 Sat 17:25]
+* Filelist
 The =filelist= command will list all tangled files.
 
 #+NAME: available_commands
@@ -507,8 +498,7 @@ else if (match(argv[1], len, "filelist", 8)) {
     get_filelist(argc, argv);
 }
 #+END_SRC
-** DONE Blocklist
-CLOSED: [2019-09-01 Sun 16:34]
+* Blocklist
 
 Given a block name, print underlying blocks associated with
 it.
@@ -579,8 +569,7 @@ else if (match(argv[1], len, "blklst", 6)) {
     get_blklst(argc, argv);
 }
 #+END_SRC
-** DONE Tree
-CLOSED: [2019-09-01 Sun 16:45]
+* Tree
 Like =blklist=, only recursively prints blocks
 
 #+NAME: available_commands
