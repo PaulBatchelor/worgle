@@ -310,7 +310,7 @@ sqlite3_exec(db,
              "WHEN 1 THEN 'Block' "
              "WHEN 2 THEN 'Segment' "
              "WHEN 3 THEN 'Header' "
-             "ELSE 'Unknown' END "
+             "ELSE 'Unknown' END as type "
              "FROM resources;"
              ");\n",
              NULL,
