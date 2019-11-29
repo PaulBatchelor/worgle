@@ -1,5 +1,4 @@
 #+TITLE: Worgle Database
-* Worgle Database
 This section outlines the portion of Worgle which handles
 database export.
 The main idea behind this is to be able to take a program
@@ -7,8 +6,8 @@ Org, and export all the metadata into a SQLite database. In
 the future, other programs will be written to query the
 generated database and dynamically display portions of the
 program in interesting ways.
-** Worgle Database Top
-*** Top-level files
+* Worgle Database Top
+** Top-level files
 The worgle database interface generates a single C and header file.
 #+NAME: db-top
 #+BEGIN_SRC c :tangle db.c
@@ -28,8 +27,8 @@ The worgle database interface generates a single C and header file.
 <<function_declarations>>
 #endif
 #+END_SRC
-*** Top-level functions
-**** Insert Schemas
+** Top-level functions
+*** Insert Schemas
 The initial worgle schemas are created inside the database
 using the function =worgle_db_schemas=. This *must* be
 called before attempting to do anything else, and it
@@ -45,7 +44,7 @@ void worgle_db_schemas(worgle_d *worg, sqlite3 *db)
     <<schemas>>
 }
 #+END_SRC
-**** Insert Data
+*** Insert Data
 When worgle is done parsing data, the data is
 written to the database using the funtion
 =worgle_db_generate=.
@@ -62,7 +61,7 @@ void worgle_db_generate(worgle_d *worg, sqlite3 *db)
     sqlite3_exec(db, "COMMIT;\n", NULL, NULL, NULL);
 }
 #+END_SRC
-**** Clear Tables
+*** Clear Tables
 Will clear any existing tables where information is stored.
 This will only eliminate tables that Worgle writes to,
 leaving other tables untouched. This is particularly useful
@@ -101,10 +100,10 @@ void worgle_db_clear(sqlite3 *db, int program)
     delete_table(db, sbuf, "files", program);
 }
 #+END_SRC
-** SQLite Table Schemas
+* SQLite Table Schemas
 The following section describes the SQLite schemas for all
 the tables needed by Worgle.
-*** Segment Schema
+** Segment Schema
 The segment schema contains the following items:
 
 - the UUID
@@ -140,7 +139,7 @@ sqlite3_exec(db,
              NULL,
              NULL);
 #+END_SRC
-*** Block Schema
+** Block Schema
 The block schema contains the following items:
 
 - the UUID
@@ -160,7 +159,7 @@ sqlite3_exec(db,
              NULL,
              NULL);
 #+END_SRC
-*** File Schema
+** File Schema
 A file name table contains the following:
 
 - UUID
@@ -182,7 +181,7 @@ sqlite3_exec(db,
              NULL,
              NULL);
 #+END_SRC
-*** Resource Schema
+** Resource Schema
 Every single UUID is logged into a single table. This table has every single
 UUID and their type.
 
@@ -250,7 +249,7 @@ static void insert_resource(sqlite3 *db,
     sqlite3_finalize(stmt);
 }
 #+END_SRC
-*** DONE Header Schema
+** DONE Header Schema
 CLOSED: [2019-09-12 Thu 08:44]
 The header schema contains the following:
 - UUID(?)
@@ -276,14 +275,14 @@ sqlite3_exec(db,
              NULL,
              NULL);
 #+END_SRC
-*** TODO Content Schema
+** TODO Content Schema
 Hopefully, it will be:
 - UUID(?)
 - Section Location (as a string)
 - Starting Line Number
 - File name
 - Content
-*** TODO Block Position
+** TODO Block Position
 This provides information about a particular Block position,
 but not the content itself.
 This includes:
@@ -294,7 +293,7 @@ This is a separate section from the =blocks= section, for
 two reasons. One, because the section number is only derived
 while it is being parsed. Two, to more cleanly separate the
 woven content from the tangled content.
-*** Type View
+** Type View
 The resource table has a redundant column which provides
 a text version of the human readable type id. This view,
 called =reslist=, creates a more human readable version
@@ -317,25 +316,25 @@ sqlite3_exec(db,
              NULL,
              NULL);
 #+END_SRC
-** SQLite Insert Statements
+* SQLite Insert Statements
 This section pertains to the actual SQLite insert statements
 that occur.
 Generally speaking, data in Worgle can be broken up into
 two perspectives: tangled data (the generated code for the
 compiler), and woven data (the markup and semantics).
-*** SQLite Woven Data
+** SQLite Woven Data
 Unlike Tangled data, woven data is inserted while the file
 is being parsed. As a result of this, the functionality is
 split up amongst a few functions instead of having one
 top-level function.
-**** DONE Top-level Weave Insert
+*** DONE Top-level Weave Insert
 CLOSED: [2019-09-12 Thu 08:55]
 Entry point for inserting woven data are the org file lists.
 #+NAME: inserts
 #+BEGIN_SRC c
 worgle_db_insert_orglist(worg, db);
 #+END_SRC
-**** DONE Org Filelist Insert
+*** DONE Org Filelist Insert
 CLOSED: [2019-09-12 Thu 10:39]
 #+NAME: function_declarations
 #+BEGIN_SRC c
@@ -369,7 +368,7 @@ void worgle_db_insert_orglist(worgle_d *worg, sqlite3 *db)
     }
 }
 #+END_SRC
-**** DONE Org File Insert
+*** DONE Org File Insert
 CLOSED: [2019-09-12 Thu 10:40]
 #+NAME: function_declarations
 #+BEGIN_SRC c
@@ -418,7 +417,7 @@ void worgle_db_insert_orgfile(worgle_d *worg,
     *sec = counter[0];
 }
 #+END_SRC
-**** DONE Header Insert
+*** DONE Header Insert
 CLOSED: [2019-09-12 Thu 14:29]
 :LOGBOOK:
 CLOCK: [2019-09-12 Thu 09:48]--[2019-09-12 Thu 09:48] =>  0:00
@@ -513,19 +512,19 @@ void worgle_db_insert_header(worgle_d *worg,
     sqlite3_finalize(stmt);
 }
 #+END_SRC
-**** TODO Content Insert
+*** TODO Content Insert
 Anything in between a header and the start of a code block
 is considered to be "content". Any time a new header or
 codeblock is started, this function will be inserted
-**** TODO Block (Position) Insert
+*** TODO Block (Position) Insert
 Any time a block is started, a note of the position it is in
 is stored as metadata. This will include the section, as
 well as line number and filename.
-*** SQLite Tangled Data
+** SQLite Tangled Data
 The way Worgle generates data is by recursively iterating
 through the file list. The SQLite table will be populated
 in the same way.
-**** Top-level tangle insert
+*** Top-level tangle insert
 Table population tangle insert is done inside the function
 =worgle_db_generate=.
 
@@ -533,7 +532,7 @@ Table population tangle insert is done inside the function
 #+BEGIN_SRC c
 worgle_db_insert_filelist(worg, &worg->flist, db);
 #+END_SRC
-**** Filelist Insert
+*** Filelist Insert
 The top-level part of the code walks through the file list inside of
 =worgle_db_insert_filelist=.
 #+NAME: function_declarations
@@ -559,7 +558,7 @@ void worgle_db_insert_filelist(worgle_d *worg,
     }
 }
 #+END_SRC
-**** File Insert
+*** File Insert
 A file is inserted with the function =worgle_db_insert_file=.
 #+NAME: function_declarations
 #+BEGIN_SRC c
@@ -619,7 +618,7 @@ void worgle_db_insert_file(worgle_d *worg,
     worgle_db_insert_block(worg, file->top, db);
 }
 #+END_SRC
-**** Block Insert
+*** Block Insert
 A block is inserted with the function =worgle_db_insert_block=.
 #+NAME:function_declarations
 #+BEGIN_SRC c
