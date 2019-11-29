@@ -702,6 +702,19 @@ static int parse_header(worgle_d *worg,
 }
 #endif
 #+END_SRC
+***** TODO Content Parsing
+In between headers and codeblocks are things called
+"content". It is assumed to be text like this, but it can
+also contain comments and commands that worgle doesn't
+yet understand.
+
+Content is similar to code in code blocks. While the parser
+is just shifting through ORG code (that's not a header), it
+will append lines to a buffer. When it reaches either a
+code block or a new header, it will save that buffer as
+a unit.
+
+More on this in the future.
 **** MODE_BEGINCODE
 #+NAME:parse_modes
 #+BEGIN_SRC c
