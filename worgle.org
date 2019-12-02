@@ -260,6 +260,67 @@ fread(buf, size, 1, fp);
 fclose(fp);
 #+END_SRC
 ** Parsing
+*** Top Level Parsing Function
+The second phase of the program is the parsing stage.
+
+The parsing stage will parse files line-by-line. The program will find a line
+by skimming through the block up to a line break character, then pass
+that off to be parsed. Line by line, the parser will read the program and
+produce a structure of the tangled code in memory.
+
+Parsing is done via the function =parse_file=.
+
+#+NAME: local_variables
+#+BEGIN_SRC c
+int i;
+#+END_SRC
+
+#+NAME: parsing
+#+BEGIN_SRC c
+for(i = 0; i < worg.nbuffers; i++) {
+    rc = parse_file(&worg, i);
+    if(rc) goto cleanup;
+}
+#+END_SRC
+
+The =parse_file= function will parse a file whose filename is located
+in the index position denoted by =file=.
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+int parse_file(worgle_d *worg, int file);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+int parse_file(worgle_d *worg, int file)
+{
+    char *buf;
+    size_t size;
+    worgle_textbuf *curbuf;
+    <<parser_local_variables>>
+
+    curbuf = &worg->buffers[file];
+    buf = curbuf->buf;
+    size = curbuf->size;
+    worg->curbuf = curbuf;
+#ifndef WORGLITE
+    worg->curorg = &worg->orgs[file];
+#endif
+    <<parser_initialization>>
+    while(1) {
+        <<getline>>
+        if(mode == MODE_ORG) {
+            <<parse_mode_org>>
+        } else if(mode == MODE_CODE) {
+            <<parse_mode_code>>
+        } else if(mode == MODE_BEGINCODE) {
+            <<parse_mode_begincode>>
+        }
+    }
+    return rc;
+}
+#+END_SRC
 *** Parsing Modes
 The parser is implemented as a relatively simple state
 machine, whose behavior shifts between parsing org-mode
@@ -291,6 +352,11 @@ if (generate_db) {
 }
 #endif
 <<find_next_named_block>>
+#ifndef WORGLITE
+if (generate_db) {
+    <<parse_content>>
+}
+#endif
 #+END_SRC
 ***** Finding the next named block
 When the parser is in =MODE_ORG=, it mostly searching for
@@ -319,7 +385,6 @@ if(read >= 7) {
 }
 #+END_SRC
 ***** Extracting information from #+NAME
-
 Name extraction of the current line is done with a function called =parse_name=.
 
 #+NAME: static_function_declarations
@@ -375,8 +440,8 @@ static int parse_name(char *line, size_t len, worgle_string *str)
 }
 #+END_SRC
 ***** Beginning a new block
-
-A new code block is started with the function =worgle_begin_block=.
+A new code block is started with the function
+=worgle_begin_block=.
 
 #+NAME: function_declarations
 #+BEGIN_SRC c
@@ -392,6 +457,7 @@ void worgle_begin_block(worgle_d *worg, worgle_string *name)
 {
     worg->curblock = worgle_hashmap_get(&worg->dict, name);
     <<worgle_block_set_id>>
+    <<append_code_reference>>
 }
 #+END_SRC
 ***** DONE Parsing Header Information
@@ -466,6 +532,7 @@ static int parse_header(worgle_d *worg,
                 str.str = header;
                 str.size = len - s;
                 str.size -= line[len - 1] == '\n';
+                <<append_content_before_header>>
                 worgle_orgfile_append_header(worg,
                                              &str,
                                              lvl);
@@ -482,27 +549,72 @@ In between headers and codeblocks are things called
 also contain comments and commands that worgle doesn't
 yet understand.
 
-Content is similar to code in code blocks. While the parser
-is just shifting through ORG code (that's not a header), it
-will append lines to a buffer. When it reaches either a
-code block or a new header, it will save that buffer as
-a unit. For this reason, content parsing should happen last.
+Content parsing happens =MODE_ORG=, and is the fallback
+option when no other pattern is picked up. When it reaches
+that point, the parser will take the current line and append
+it to the context block.
 
 Appending content to the content block is simply a matter of
 extending the size of the block (text is mapped to a
 contiguous memory block).
+
+#+NAME: parse_content
+#+BEGIN_SRC c
+#ifndef WORGLITE
+/* TODO: implement me! */
+<<setup_new_content_block>>
+#endif
+#+END_SRC
 
 When a content block is started, the block variable must be
 reset. The circumstances for a starting a content block
 happen: whenever a new header is found, or whenever content
 is found immediately after a code block ends.
 
-# ^^^ But how will worgle know this?
+The solution to this is to have a flag for this that
+is set anytime a new content block has the poential to be
+started. The next time the parser arrives as a line that
+is considered to be content, it will check this flag, and
+utilize the block.
+#+NAME: setup_new_content_block
+#+BEGIN_SRC c
+if (worg->new_content) {
+    worg->new_content = 0;
+    /* TODO set up + initialize text block */
+}
+#+END_SRC
+
+A content block is considered finished when a code block
+or new header section is reached, or if a document has
+ended(?)
+
+No =WORGLITE= macro magic or =generate_db= conditionals are
+needed to append a content block before a header. At this
+level, it is already assumed.
+#+NAME: append_content_before_header
+#+BEGIN_SRC c
+/* append content block */
+#+END_SRC
+
+A content block should be appeneded before a code block
+starts, which is when a code reference is appended.
+#+NAME: append_content_before_code
+#+BEGIN_SRC c
+/* TODO: implement me! */
+#+END_SRC
+
+Any remaining blocks at the end of all parsing will be
+appended to. Not sure where this logic will go yet.
 ***** TODO Code Reference
 Anytime a new code block begins, a reference to this new
 block is stored in the data representation of the file. This
 should happen when a new block begins. Probably in
 =worgle_begin_block=.
+#+NAME: append_code_reference
+#+BEGIN_SRC c
+/* TODO: implement me! */
+<<append_content_before_code>>
+#+END_SRC
 **** MODE_BEGINCODE
 #+NAME:parse_modes
 #+BEGIN_SRC c
@@ -792,67 +904,6 @@ static int check_for_reference(char *line , size_t size, worgle_string *str)
     }
 
     return (mode == 5);
-}
-#+END_SRC
-*** Top Level Parsing Function
-The second phase of the program is the parsing stage.
-
-The parsing stage will parse files line-by-line. The program will find a line
-by skimming through the block up to a line break character, then pass
-that off to be parsed. Line by line, the parser will read the program and
-produce a structure of the tangled code in memory.
-
-Parsing is done via the function =parse_file=.
-
-#+NAME: local_variables
-#+BEGIN_SRC c
-int i;
-#+END_SRC
-
-#+NAME: parsing
-#+BEGIN_SRC c
-for(i = 0; i < worg.nbuffers; i++) {
-    rc = parse_file(&worg, i);
-    if(rc) goto cleanup;
-}
-#+END_SRC
-
-The =parse_file= function will parse a file whose filename is located
-in the index position denoted by =file=.
-
-#+NAME: function_declarations
-#+BEGIN_SRC c
-int parse_file(worgle_d *worg, int file);
-#+END_SRC
-
-#+NAME: functions
-#+BEGIN_SRC c
-int parse_file(worgle_d *worg, int file)
-{
-    char *buf;
-    size_t size;
-    worgle_textbuf *curbuf;
-    <<parser_local_variables>>
-
-    curbuf = &worg->buffers[file];
-    buf = curbuf->buf;
-    size = curbuf->size;
-    worg->curbuf = curbuf;
-#ifndef WORGLITE
-    worg->curorg = &worg->orgs[file];
-#endif
-    <<parser_initialization>>
-    while(1) {
-        <<getline>>
-        if(mode == MODE_ORG) {
-            <<parse_mode_org>>
-        } else if(mode == MODE_CODE) {
-            <<parse_mode_code>>
-        } else if(mode == MODE_BEGINCODE) {
-            <<parse_mode_begincode>>
-        }
-    }
-    return rc;
 }
 #+END_SRC
 *** Parser Local Variables
@@ -1190,6 +1241,24 @@ It is set to be FALSE (0).
 #+NAME:worgle_init
 #+BEGIN_SRC c
 worg->block_started = 0;
+#+END_SRC
+**** New Content Flag
+This gets set any time Worgle is ready to begin a new
+content block.
+#+NAME:worgle_struct_contents
+#+BEGIN_SRC c
+#ifndef WORGLITE
+int new_content;
+#endif
+#+END_SRC
+
+It is enabled by default.
+
+#+NAME:worgle_init
+#+BEGIN_SRC c
+#ifndef WORGLITE
+worg->new_content = 1;
+#endif
 #+END_SRC
 **** Dictionary
 
