@@ -260,6 +260,540 @@ fread(buf, size, 1, fp);
 fclose(fp);
 #+END_SRC
 ** Parsing
+*** Parsing Modes
+The parser is implemented as a relatively simple state
+machine, whose behavior shifts between parsing org-mode
+markup (=MODE_ORG=), and code blocks (=MODE_BEGINCODE= and
+=MODE_CODE=). The state machine makes a distinction between
+the start of a new code block (=MODE_BEGINCODE=), which
+provides information like the name of the code block and
+optionally the name of the file to tangle to, and the code
+block itself (=MODE_CODE=).
+#+NAME: enums
+#+BEGIN_SRC c
+enum {
+<<parse_modes>>
+};
+#+END_SRC
+**** MODE_ORG
+#+NAME:parse_modes
+#+BEGIN_SRC c
+MODE_ORG,
+#+END_SRC
+***** Org Parse Top
+When the parser state is set to be in =MODE_ORG=, this is
+what happens.
+#+NAME: parse_mode_org
+#+BEGIN_SRC c
+#ifndef WORGLITE
+if (generate_db) {
+    <<parse_headers>>
+}
+#endif
+<<find_next_named_block>>
+#+END_SRC
+***** Finding the next named block
+When the parser is in =MODE_ORG=, it mostly searching for
+the start of the next named block. When it finds a match,
+it extracts the name, gets ready to begin the a new block,
+and changes the mode =MODE_BEGINCODE=.
+
+A common hard-to-find error happens when a colon is
+forgotten in the =NAME= tag. A special check will occur
+here to make sure that colon isn't forgotten.
+#+NAME: find_next_named_block
+#+BEGIN_SRC c
+if(read >= 7) {
+    if(!strncmp(line, "#+NAME", 6)) {
+        if(line[6] != ':') {
+            fprintf(stderr,
+                    "line %lu: expected ':'\n",
+                    worg->linum);
+            rc = 1;
+            break;
+        }
+        mode = MODE_BEGINCODE;
+        parse_name(line, read, &str);
+        worgle_begin_block(worg, &str);
+    }
+}
+#+END_SRC
+***** Extracting information from #+NAME
+
+Name extraction of the current line is done with a function called =parse_name=.
+
+#+NAME: static_function_declarations
+#+BEGIN_SRC c
+static int parse_name(char *line, size_t len, worgle_string *str);
+#+END_SRC
+
+# TODO: words here
+
+#+NAME: functions
+#+BEGIN_SRC c
+static int parse_name(char *line, size_t len, worgle_string *str)
+{
+    size_t n;
+    size_t pos;
+    int mode;
+
+    line+=7;
+    len-=7;
+    /* *namelen = 0; */
+    str->size = 0;
+    str->str = NULL;
+    if(len <= 0) return 1;
+    pos = 0;
+    mode = 0;
+    for(n = 0; n < len; n++) {
+        if(mode == 2) break;
+        switch(mode) {
+            case 0:
+                if(line[n] == ' ') {
+
+                } else {
+                    str->str = &line[n];
+                    str->size++;
+                    pos++;
+                    mode = 1;
+                }
+                break;
+            case 1:
+                if(line[n] == 0xa) {
+                    mode = 2;
+                    break;
+                }
+                pos++;
+                str->size++;
+                break;
+            default:
+                break;
+        }
+    }
+    /* *namelen = pos; */
+    return 1;
+}
+#+END_SRC
+***** Beginning a new block
+
+A new code block is started with the function =worgle_begin_block=.
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_begin_block(worgle_d *worg, worgle_string *name);
+#+END_SRC
+
+When a new block begins, the current block in Worgle is set to be
+a value retrieved from the block dictionary.
+
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_begin_block(worgle_d *worg, worgle_string *name)
+{
+    worg->curblock = worgle_hashmap_get(&worg->dict, name);
+    <<worgle_block_set_id>>
+}
+#+END_SRC
+***** DONE Parsing Header Information
+CLOSED: [2019-09-12 Thu 07:10]
+A valid header in org mode starts with one or more
+as one or more asterisks, followed by a space.
+Anything after this space is considered to be the name
+of the header. The number of asterisks indicates the
+header level.
+
+If indeed the line is a header, both the header name
+and level are appended to the currently opened org file.
+
+A quick sanity check is done before the header is parsed
+via =parse_header=.
+
+#+NAME: parse_headers
+#+BEGIN_SRC c
+if (read >= 2) {
+    parse_header(worg, line, read);
+}
+#+END_SRC
+
+The actual parsing logic happens in the function
+=parse_header=.
+
+#+NAME: static_function_declarations
+#+BEGIN_SRC c
+#ifndef WORGLITE
+static int parse_header(worgle_d *worg,
+                        char *line,
+                        size_t len);
+#endif
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+#ifndef WORGLITE
+static int parse_header(worgle_d *worg,
+                        char *line,
+                        size_t len)
+{
+    int mode;
+    int rc;
+    size_t s;
+    char *header;
+    worgle_string str;
+    int lvl;
+    mode = 0;
+
+    if(line[0] != '*') return 0;
+
+    rc = 0;
+    worgle_string_init(&str);
+    lvl = 1;
+    for (s = 1; s < len; s++) {
+        if (mode == 2) break;
+        switch (mode) {
+            case 0:
+                if (line[s] == '*') {
+                    lvl++;
+                } else if (line[s] == ' '){
+                    mode = 1;
+                } else {
+                    mode = 2;
+                    rc = 0;
+                }
+                break;
+            case 1:
+                rc = 1;
+                mode = 2;
+                header = &line[s];
+                str.str = header;
+                str.size = len - s;
+                str.size -= line[len - 1] == '\n';
+                worgle_orgfile_append_header(worg,
+                                             &str,
+                                             lvl);
+                break;
+        }
+    }
+    return rc;
+}
+#endif
+#+END_SRC
+***** TODO Content Parsing
+In between headers and codeblocks are things called
+=content=. It is assumed to be text like this, but it can
+also contain comments and commands that worgle doesn't
+yet understand.
+
+Content is similar to code in code blocks. While the parser
+is just shifting through ORG code (that's not a header), it
+will append lines to a buffer. When it reaches either a
+code block or a new header, it will save that buffer as
+a unit. For this reason, content parsing should happen last.
+
+Appending content to the content block is simply a matter of
+extending the size of the block (text is mapped to a
+contiguous memory block).
+
+When a content block is started, the block variable must be
+reset. The circumstances for a starting a content block
+happen: whenever a new header is found, or whenever content
+is found immediately after a code block ends.
+
+# ^^^ But how will worgle know this?
+***** TODO Code Reference
+Anytime a new code block begins, a reference to this new
+block is stored in the data representation of the file. This
+should happen when a new block begins. Probably in
+=worgle_begin_block=.
+**** MODE_BEGINCODE
+#+NAME:parse_modes
+#+BEGIN_SRC c
+MODE_BEGINCODE,
+#+END_SRC
+
+A parser set to mode =MODE_BEGINCODE= is only interested in
+finding the beginning block. If it doesn't, it returns a
+syntax error. If it does, it goes on to extract a potential
+new filename to tangle, which then gets appended to the
+Worgle file list.
+
+#+NAME: parse_mode_begincode
+#+BEGIN_SRC c
+if (read >= 11) {
+    if(!strncmp (line, "#+BEGIN_SRC",11)) {
+        <<begin_the_code>>
+        if (parse_begin(line, read, &str) == 2) {
+            worgle_append_file(worg, &str);
+        }
+        continue;
+    } else {
+        fwrite(line, read, 1, stderr);
+        fprintf(stderr,
+                "line %lu: Expected #+BEGIN_SRC\n",
+                worg->linum);
+        rc = 1;
+        break;
+    }
+}
+fprintf(stderr,
+        "line %lu: Expected #+BEGIN_SRC\n",
+        worg->linum);
+rc = 1;
+#+END_SRC
+***** Extracting information from #+BEGIN_SRC
+
+The begin source flag in org-mode can have a number of options,
+but the only one we really care about for this tangler is
+the ":tangle" option.
+
+#+NAME: static_function_declarations
+#+BEGIN_SRC c
+static int parse_begin(char *line, size_t len, worgle_string *str);
+#+END_SRC
+
+The state machine begins right after the BEGIN_SRC declaration, which
+is why the string is offset by 11.
+
+The state machine for this parser is linear, and has 5 modes:
+
+- mode 0: Skip whitespace after BEGIN_SRC
+- mode 1: Find ":tangle" pattern
+- mode 2: Ignore imediate whitespace after "tangle", and begin getting filename
+- mode 3: Get filename size by reading up to the next space or line break
+- mode 4: Don't do anything, wait for line to end.
+
+#+NAME: functions
+#+BEGIN_SRC c
+static int parse_begin(char *line, size_t len, worgle_string *str)
+{
+    size_t n;
+    int mode;
+    int rc;
+
+    line += 11;
+    len -= 11;
+
+    if(len <= 0) return 0;
+
+
+    mode = 0;
+    n = 0;
+    rc = 1;
+    str->str = NULL;
+    str->size = 0;
+    while(n < len) {
+        switch(mode) {
+            case 0: /* initial spaces after BEGIN_SRC */
+                if(line[n] == ' ') {
+                    n++;
+                } else {
+                    mode = 1;
+                }
+                break;
+            case 1: /* look for :tangle */
+                if(line[n] == ' ') {
+                    mode = 0;
+                    n++;
+                } else {
+                    if(line[n] == ':') {
+                        if(!strncmp(line + n + 1, "tangle", 6)) {
+                            n+=7;
+                            mode = 2;
+                            rc = 2;
+                        }
+                    }
+                    n++;
+                }
+                break;
+            case 2: /* save file name, spaces after tangle */
+                if(line[n] != ' ') {
+                    str->str = &line[n];
+                    str->size++;
+                    mode = 3;
+                }
+                n++;
+                break;
+            case 3: /* read up to next space or line break */
+                if(line[n] == ' ' || line[n] == '\n') {
+                    mode = 4;
+                } else {
+                    str->size++;
+                }
+                n++;
+                break;
+            case 4: /* countdown til end */
+                n++;
+                break;
+        }
+    }
+
+    return rc;
+}
+#+END_SRC
+***** Setting up code for a new read
+When a new codeblock has indeed been found, the mode is switched to =MODE_CODE=,
+and the =block_started= boolean flag gets set. In addition, the string used
+to keep track of the new block is reset.
+#+NAME: begin_the_code
+#+BEGIN_SRC c
+mode = MODE_CODE;
+worg->block_started = 1;
+worgle_string_reset(&worg->block);
+#+END_SRC
+***** Appending a new file
+If a new file is found, the filename gets appended to the file list
+via the function =worgle_append_file=.
+
+#+NAME:function_declarations
+#+BEGIN_SRC c
+void worgle_append_file(worgle_d *worg, worgle_string *filename);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_append_file(worgle_d *worg, worgle_string *filename)
+{
+    worgle_file *f;
+    f = worgle_filelist_append(&worg->flist, filename, worg->curblock);
+    <<worgle_file_set_id>>
+}
+#+END_SRC
+**** MODE_CODE
+#+NAME:parse_modes
+#+BEGIN_SRC c
+MODE_CODE
+#+END_SRC
+
+In =MODE_CODE=, actual code is parsed inside of the code
+block. The parser will keep reading chunks of code until
+one of two things happen: a code reference is found, or the
+=END_SRC= command is found.
+
+#+NAME: parse_mode_code
+#+BEGIN_SRC c
+if(read >= 9) {
+    if(!strncmp(line, "#+END_SRC", 9)) {
+        mode = MODE_ORG;
+        worg->block_started = 0;
+        worgle_append_string(worg);
+        continue;
+    }
+}
+
+if(check_for_reference(line, read, &str)) {
+    worgle_append_string(worg);
+    worgle_append_reference(worg, &str);
+    worg->block_started = 1;
+    worgle_string_reset(&worg->block);
+    continue;
+}
+
+worg->block.size += read;
+
+if(worg->block_started) {
+    worg->block.str = line;
+    worg->block_started = 0;
+    worg->curline = worg->linum;
+}
+#+END_SRC
+
+#+NAME:function_declarations
+#+BEGIN_SRC c
+void worgle_append_string(worgle_d *worg);
+#+END_SRC
+
+In this function, the currently active string block is
+appened to the currently active code block. It is called
+when the parser is inside a code block (aka =MODE_CODE=).
+
+The current line number is checked if it
+is a valid (positive) value. A negative value indicates an
+properly initialized, but unset value. This will happen if
+the initial code block begins with a reference. A negative
+value will cause invalid line declarations in the generated
+code.
+
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_append_string(worgle_d *worg)
+{
+    worgle_segment *seg;
+    if(worg->curblock == NULL) return;
+    if(worg->curline < 0) return;
+    seg = worgle_block_append_string(worg->curblock,
+                                     &worg->block,
+                                     worg->curline,
+                                     &worg->curbuf->filename);
+    <<worgle_segment_string_set_id>>
+}
+#+END_SRC
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_append_reference(worgle_d *worg, worgle_string *ref);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_append_reference(worgle_d *worg, worgle_string *ref)
+{
+    worgle_segment *seg;
+    if(worg->curblock == NULL) return;
+    seg = worgle_block_append_reference(worg->curblock,
+                                        ref,
+                                        worg->linum,
+                                        &worg->curbuf->filename);
+    <<worgle_segment_reference_set_id>>
+}
+#+END_SRC
+
+#+NAME: static_function_declarations
+#+BEGIN_SRC c
+static int check_for_reference(char *line , size_t size, worgle_string *str);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+static int check_for_reference(char *line , size_t size, worgle_string *str)
+{
+    int mode;
+    size_t n;
+    mode = 0;
+
+    str->size = 0;
+    str->str = NULL;
+    for(n = 0; n < size; n++) {
+        if(mode < 0) break;
+        switch(mode) {
+            case 0: /* spaces */
+                if(line[n] == ' ') continue;
+                else if(line[n] == '<') mode = 1;
+                else mode = -1;
+                break;
+            case 1: /* second < */
+                if(line[n] == '<') mode = 2;
+                else mode = -1;
+                break;
+            case 2: /* word setup */
+                str->str = &line[n];
+                str->size++;
+                mode = 3;
+                break;
+            case 3: /* the word */
+                if(line[n] == '>') {
+                    mode = 4;
+                    break;
+                }
+                str->size++;
+                break;
+            case 4: /* last > */
+                if(line[n] == '>') mode = 5;
+                else mode = -1;
+                break;
+        }
+    }
+
+    return (mode == 5);
+}
+#+END_SRC
 *** Top Level Parsing Function
 The second phase of the program is the parsing stage.
 
@@ -486,519 +1020,6 @@ static int worgle_getline(char *fullbuf,
     }
 }
 #+END_SRC
-
-*** Parsing Modes
-The parser is implemented as a relatively simple state machine, whose behavior
-shifts between parsing org-mode markup (=MODE_ORG=), and code blocks
-(=MODE_BEGINCODE= and =MODE_CODE=).
-The state machine makes a distinction between the start of a new code
-block (=MODE_BEGINCODE=), which provides information like the name of
-the code block and optionally the name of the file to tangle to, and
-the code block itself (=MODE_CODE=).
-#+NAME: enums
-#+BEGIN_SRC c
-enum {
-<<parse_modes>>
-};
-#+END_SRC
-**** MODE_ORG
-#+NAME:parse_modes
-#+BEGIN_SRC c
-MODE_ORG,
-#+END_SRC
-***** Org Parse Top
-When the parser state is set to be in =MODE_ORG=, this is
-what happens.
-#+NAME: parse_mode_org
-#+BEGIN_SRC c
-#ifndef WORGLITE
-if (generate_db) {
-    <<parse_headers>>
-}
-#endif
-<<find_next_named_block>>
-#+END_SRC
-***** Finding the next named block
-When the parser is in =MODE_ORG=, it mostly searching for
-the start of the next named block. When it finds a match,
-it extracts the name, gets ready to begin the a new block,
-and changes the mode =MODE_BEGINCODE=.
-
-A common hard-to-find error happens when a colon is
-forgotten in the =NAME= tag. A special check will occur
-here to make sure that colon isn't forgotten.
-#+NAME: find_next_named_block
-#+BEGIN_SRC c
-if(read >= 7) {
-    if(!strncmp(line, "#+NAME", 6)) {
-        if(line[6] != ':') {
-            fprintf(stderr,
-                    "line %lu: expected ':'\n",
-                    worg->linum);
-            rc = 1;
-            break;
-        }
-        mode = MODE_BEGINCODE;
-        parse_name(line, read, &str);
-        worgle_begin_block(worg, &str);
-    }
-}
-#+END_SRC
-***** Extracting information from #+NAME
-
-Name extraction of the current line is done with a function called =parse_name=.
-
-#+NAME: static_function_declarations
-#+BEGIN_SRC c
-static int parse_name(char *line, size_t len, worgle_string *str);
-#+END_SRC
-
-# TODO: words here
-
-#+NAME: functions
-#+BEGIN_SRC c
-static int parse_name(char *line, size_t len, worgle_string *str)
-{
-    size_t n;
-    size_t pos;
-    int mode;
-
-    line+=7;
-    len-=7;
-    /* *namelen = 0; */
-    str->size = 0;
-    str->str = NULL;
-    if(len <= 0) return 1;
-    pos = 0;
-    mode = 0;
-    for(n = 0; n < len; n++) {
-        if(mode == 2) break;
-        switch(mode) {
-            case 0:
-                if(line[n] == ' ') {
-
-                } else {
-                    str->str = &line[n];
-                    str->size++;
-                    pos++;
-                    mode = 1;
-                }
-                break;
-            case 1:
-                if(line[n] == 0xa) {
-                    mode = 2;
-                    break;
-                }
-                pos++;
-                str->size++;
-                break;
-            default:
-                break;
-        }
-    }
-    /* *namelen = pos; */
-    return 1;
-}
-#+END_SRC
-***** Beginning a new block
-
-A new code block is started with the function =worgle_begin_block=.
-
-#+NAME: function_declarations
-#+BEGIN_SRC c
-void worgle_begin_block(worgle_d *worg, worgle_string *name);
-#+END_SRC
-
-When a new block begins, the current block in Worgle is set to be
-a value retrieved from the block dictionary.
-
-#+NAME: functions
-#+BEGIN_SRC c
-void worgle_begin_block(worgle_d *worg, worgle_string *name)
-{
-    worg->curblock = worgle_hashmap_get(&worg->dict, name);
-    <<worgle_block_set_id>>
-}
-#+END_SRC
-***** DONE Parsing Header Information
-CLOSED: [2019-09-12 Thu 07:10]
-A valid header in org mode starts with one or more
-as one or more asterisks, followed by a space.
-Anything after this space is considered to be the name
-of the header. The number of asterisks indicates the
-header level.
-
-If indeed the line is a header, both the header name
-and level are appended to the currently opened org file.
-
-A quick sanity check is done before the header is parsed
-via =parse_header=.
-
-#+NAME: parse_headers
-#+BEGIN_SRC c
-if (read >= 2) {
-    parse_header(worg, line, read);
-}
-#+END_SRC
-
-The actual parsing logic happens in the function
-=parse_header=.
-
-#+NAME: static_function_declarations
-#+BEGIN_SRC c
-#ifndef WORGLITE
-static int parse_header(worgle_d *worg,
-                        char *line,
-                        size_t len);
-#endif
-#+END_SRC
-#+NAME: functions
-#+BEGIN_SRC c
-#ifndef WORGLITE
-static int parse_header(worgle_d *worg,
-                        char *line,
-                        size_t len)
-{
-    int mode;
-    int rc;
-    size_t s;
-    char *header;
-    worgle_string str;
-    int lvl;
-    mode = 0;
-
-    if(line[0] != '*') return 0;
-
-    rc = 0;
-    worgle_string_init(&str);
-    lvl = 1;
-    for (s = 1; s < len; s++) {
-        if (mode == 2) break;
-        switch (mode) {
-            case 0:
-                if (line[s] == '*') {
-                    lvl++;
-                } else if (line[s] == ' '){
-                    mode = 1;
-                } else {
-                    mode = 2;
-                    rc = 0;
-                }
-                break;
-            case 1:
-                rc = 1;
-                mode = 2;
-                header = &line[s];
-                str.str = header;
-                str.size = len - s;
-                str.size -= line[len - 1] == '\n';
-                worgle_orgfile_append_header(worg,
-                                             &str,
-                                             lvl);
-                break;
-        }
-    }
-    return rc;
-}
-#endif
-#+END_SRC
-***** TODO Content Parsing
-In between headers and codeblocks are things called
-"content". It is assumed to be text like this, but it can
-also contain comments and commands that worgle doesn't
-yet understand.
-
-Content is similar to code in code blocks. While the parser
-is just shifting through ORG code (that's not a header), it
-will append lines to a buffer. When it reaches either a
-code block or a new header, it will save that buffer as
-a unit.
-
-More on this in the future.
-**** MODE_BEGINCODE
-#+NAME:parse_modes
-#+BEGIN_SRC c
-MODE_BEGINCODE,
-#+END_SRC
-
-A parser set to mode =MODE_BEGINCODE= is only interested in
-finding the beginning block. If it doesn't, it returns a
-syntax error. If it does, it goes on to extract a potential
-new filename to tangle, which then gets appended to the
-Worgle file list.
-
-#+NAME: parse_mode_begincode
-#+BEGIN_SRC c
-if (read >= 11) {
-    if(!strncmp (line, "#+BEGIN_SRC",11)) {
-        <<begin_the_code>>
-        if (parse_begin(line, read, &str) == 2) {
-            worgle_append_file(worg, &str);
-        }
-        continue;
-    } else {
-        fwrite(line, read, 1, stderr);
-        fprintf(stderr,
-                "line %lu: Expected #+BEGIN_SRC\n",
-                worg->linum);
-        rc = 1;
-        break;
-    }
-}
-fprintf(stderr,
-        "line %lu: Expected #+BEGIN_SRC\n",
-        worg->linum);
-rc = 1;
-#+END_SRC
-***** Extracting information from #+BEGIN_SRC
-
-The begin source flag in org-mode can have a number of options,
-but the only one we really care about for this tangler is
-the ":tangle" option.
-
-#+NAME: static_function_declarations
-#+BEGIN_SRC c
-static int parse_begin(char *line, size_t len, worgle_string *str);
-#+END_SRC
-
-The state machine begins right after the BEGIN_SRC declaration, which
-is why the string is offset by 11.
-
-The state machine for this parser is linear, and has 5 modes:
-
-- mode 0: Skip whitespace after BEGIN_SRC
-- mode 1: Find ":tangle" pattern
-- mode 2: Ignore imediate whitespace after "tangle", and begin getting filename
-- mode 3: Get filename size by reading up to the next space or line break
-- mode 4: Don't do anything, wait for line to end.
-
-#+NAME: functions
-#+BEGIN_SRC c
-static int parse_begin(char *line, size_t len, worgle_string *str)
-{
-    size_t n;
-    int mode;
-    int rc;
-
-    line += 11;
-    len -= 11;
-
-    if(len <= 0) return 0;
-
-
-    mode = 0;
-    n = 0;
-    rc = 1;
-    str->str = NULL;
-    str->size = 0;
-    while(n < len) {
-        switch(mode) {
-            case 0: /* initial spaces after BEGIN_SRC */
-                if(line[n] == ' ') {
-                    n++;
-                } else {
-                    mode = 1;
-                }
-                break;
-            case 1: /* look for :tangle */
-                if(line[n] == ' ') {
-                    mode = 0;
-                    n++;
-                } else {
-                    if(line[n] == ':') {
-                        if(!strncmp(line + n + 1, "tangle", 6)) {
-                            n+=7;
-                            mode = 2;
-                            rc = 2;
-                        }
-                    }
-                    n++;
-                }
-                break;
-            case 2: /* save file name, spaces after tangle */
-                if(line[n] != ' ') {
-                    str->str = &line[n];
-                    str->size++;
-                    mode = 3;
-                }
-                n++;
-                break;
-            case 3: /* read up to next space or line break */
-                if(line[n] == ' ' || line[n] == '\n') {
-                    mode = 4;
-                } else {
-                    str->size++;
-                }
-                n++;
-                break;
-            case 4: /* countdown til end */
-                n++;
-                break;
-        }
-    }
-
-    return rc;
-}
-#+END_SRC
-***** Setting up code for a new read
-When a new codeblock has indeed been found, the mode is switched to =MODE_CODE=,
-and the =block_started= boolean flag gets set. In addition, the string used
-to keep track of the new block is reset.
-#+NAME: begin_the_code
-#+BEGIN_SRC c
-mode = MODE_CODE;
-worg->block_started = 1;
-worgle_string_reset(&worg->block);
-#+END_SRC
-***** Appending a new file
-If a new file is found, the filename gets appended to the file list
-via the function =worgle_append_file=.
-
-#+NAME:function_declarations
-#+BEGIN_SRC c
-void worgle_append_file(worgle_d *worg, worgle_string *filename);
-#+END_SRC
-
-#+NAME: functions
-#+BEGIN_SRC c
-void worgle_append_file(worgle_d *worg, worgle_string *filename)
-{
-    worgle_file *f;
-    f = worgle_filelist_append(&worg->flist, filename, worg->curblock);
-    <<worgle_file_set_id>>
-}
-#+END_SRC
-**** MODE_CODE
-#+NAME:parse_modes
-#+BEGIN_SRC c
-MODE_CODE
-#+END_SRC
-
-In =MODE_CODE=, actual code is parsed inside of the code block. The parser will
-keep reading chunks of code until one of two things happen: a code reference
-is found, or the =END_SRC= command is found.
-
-#+NAME: parse_mode_code
-#+BEGIN_SRC c
-if(read >= 9) {
-    if(!strncmp(line, "#+END_SRC", 9)) {
-        mode = MODE_ORG;
-        worg->block_started = 0;
-        worgle_append_string(worg);
-        continue;
-    }
-}
-
-if(check_for_reference(line, read, &str)) {
-    worgle_append_string(worg);
-    worgle_append_reference(worg, &str);
-    worg->block_started = 1;
-    worgle_string_reset(&worg->block);
-    continue;
-}
-
-worg->block.size += read;
-
-if(worg->block_started) {
-    worg->block.str = line;
-    worg->block_started = 0;
-    worg->curline = worg->linum;
-}
-#+END_SRC
-
-#+NAME:function_declarations
-#+BEGIN_SRC c
-void worgle_append_string(worgle_d *worg);
-#+END_SRC
-
-In this function, the current line number is checked if it is a valid (positive)
-value. A negative value indicates an properly initialized, but unset value.
-This will happen if the initial code block begins with a reference.
-A negative value will cause invalid line declarations in the generated code.
-
-#+NAME: functions
-#+BEGIN_SRC c
-void worgle_append_string(worgle_d *worg)
-{
-    worgle_segment *seg;
-    if(worg->curblock == NULL) return;
-    if(worg->curline < 0) return;
-    seg = worgle_block_append_string(worg->curblock,
-                                     &worg->block,
-                                     worg->curline,
-                                     &worg->curbuf->filename);
-    <<worgle_segment_string_set_id>>
-}
-#+END_SRC
-
-#+NAME: function_declarations
-#+BEGIN_SRC c
-void worgle_append_reference(worgle_d *worg, worgle_string *ref);
-#+END_SRC
-
-#+NAME: functions
-#+BEGIN_SRC c
-void worgle_append_reference(worgle_d *worg, worgle_string *ref)
-{
-    worgle_segment *seg;
-    if(worg->curblock == NULL) return;
-    seg = worgle_block_append_reference(worg->curblock,
-                                        ref,
-                                        worg->linum,
-                                        &worg->curbuf->filename);
-    <<worgle_segment_reference_set_id>>
-}
-#+END_SRC
-
-#+NAME: static_function_declarations
-#+BEGIN_SRC c
-static int check_for_reference(char *line , size_t size, worgle_string *str);
-#+END_SRC
-
-#+NAME: functions
-#+BEGIN_SRC c
-static int check_for_reference(char *line , size_t size, worgle_string *str)
-{
-    int mode;
-    size_t n;
-    mode = 0;
-
-    str->size = 0;
-    str->str = NULL;
-    for(n = 0; n < size; n++) {
-        if(mode < 0) break;
-        switch(mode) {
-            case 0: /* spaces */
-                if(line[n] == ' ') continue;
-                else if(line[n] == '<') mode = 1;
-                else mode = -1;
-                break;
-            case 1: /* second < */
-                if(line[n] == '<') mode = 2;
-                else mode = -1;
-                break;
-            case 2: /* word setup */
-                str->str = &line[n];
-                str->size++;
-                mode = 3;
-                break;
-            case 3: /* the word */
-                if(line[n] == '>') {
-                    mode = 4;
-                    break;
-                }
-                str->size++;
-                break;
-            case 4: /* last > */
-                if(line[n] == '>') mode = 5;
-                else mode = -1;
-                break;
-        }
-    }
-
-    return (mode == 5);
-}
-#+END_SRC
 ** Generation
 The last phase of the program is code generation.
 
@@ -1120,15 +1141,17 @@ void worgle_free(worgle_d *worg)
 #+END_SRC
 
 *** Worgle Data
-**** Current Block Name
-The name of current block being parsed is stored in a variable called
-=block=.
-# this needs to be renamed.
-# this needs to be explained better: why not use the name in curblock?
+**** Text Block
+The =block= variable is used to store multi-line text blocks
+being parsed, such as those in a code block when the parser,
+such as when the parser is in =MODE_CODE=.
+
+It may also be used to parse content while the parser in
+mode =MODE_ORG=.
 
 #+NAME:worgle_struct_contents
 #+BEGIN_SRC c
-worgle_string block; /* TODO: rename */
+worgle_string block;
 #+END_SRC
 
 It is initialized to be an empty string.
@@ -1274,8 +1297,7 @@ the first line. Do not be tempted to set this to be -1, because it won't work.
 #+BEGIN_SRC c
 worg->linum = 0;
 #+END_SRC
-**** DONE Orgfile Array
-CLOSED: [2019-09-12 Thu 13:24]
+**** Orgfile Array
 The orgfile array keeps track of data representations
 of orgfiles to be tangled.
 ***** Declaration + Initialization
