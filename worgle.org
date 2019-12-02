@@ -2617,7 +2617,7 @@ void worgle_orgfile_append_header(worgle_d *worg,
     h->lvl = lvl;
     worgle_orglet_init(orglet);
 
-    orglet->type = 0;
+    orglet->type = ORGLET_HEADER;
     orglet->ud = h;
     orglet->linum = linum;
     worgle_orgfile_append(worg, f, orglet);
@@ -2630,6 +2630,31 @@ Appends content block to an org file.
 void worgle_orgfile_append_content(worgle_d *worg,
                                    worgle_string *text);
 #+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_orgfile_append_content(worgle_d *worg,
+                                   worgle_string *text)
+{
+    worgle_orglet *orglet;
+    worgle_orglet_content *c;
+    worgle_orgfile *f;
+    size_t linum;
+
+    f = worg->curorg;
+    linum = worg->linum;
+
+    orglet = calloc(1, sizeof(worgle_orglet));
+    c = calloc(1, sizeof(worgle_orglet_content));
+
+    c->text = *text;
+    worgle_orglet_init(orglet);
+
+    orglet->type = ORGLET_CONTENT;
+    orglet->ud = c;
+    orglet->linum = linum;
+    worgle_orgfile_append(worg, f, orglet);
+}
+#+END_SRC
 **** TODO Appending Block Reference
 Appends a reference to a code block. Should be called when
 a block first starts.
@@ -2637,6 +2662,31 @@ a block first starts.
 #+BEGIN_SRC c
 void worgle_orgfile_append_reference(worgle_d *worg,
                                      worgle_block *blk);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_orgfile_append_reference(worgle_d *worg,
+                                     worgle_block *blk)
+{
+    worgle_orglet *orglet;
+    worgle_orglet_blkref *br;
+    worgle_orgfile *f;
+    size_t linum;
+
+    f = worg->curorg;
+    linum = worg->linum;
+
+    orglet = calloc(1, sizeof(worgle_orglet));
+    br = calloc(1, sizeof(worgle_orglet_blkref));
+
+    br->blk = blk;
+    worgle_orglet_init(orglet);
+
+    orglet->type = ORGLET_CONTENT;
+    orglet->ud = br;
+    orglet->linum = linum;
+    worgle_orgfile_append(worg, f, orglet);
+}
 #+END_SRC
 ** DONE Orglet
 CLOSED: [2019-09-11 Wed 04:55]
@@ -2667,7 +2717,7 @@ void worgle_orglet_init(worgle_orglet *orglet);
 #+BEGIN_SRC c
 void worgle_orglet_init(worgle_orglet *orglet)
 {
-    orglet->type = -1;
+    orglet->type = ORGLET_UNKNOWN;
     orglet->ud = NULL;
     orglet->next = NULL;
     orglet->linum = 0;
@@ -2687,8 +2737,21 @@ void worgle_orglet_free(worgle_orglet *orglet)
     free(orglet);
 }
 #+END_SRC
+*** Types
+populated here
+#+NAME: enums
+#+BEGIN_SRC c
+enum {
+<<orglet_types>>
+ORGLET_UNKNOWN
+};
+#+END_SRC
 *** DONE Orglet Header
 CLOSED: [2019-09-11 Wed 04:55]
+#+NAME: orglet_types
+#+BEGIN_SRC c
+ORGLET_HEADER,
+#+END_SRC
 #+NAME: typedefs
 #+BEGIN_SRC c
 typedef struct worgle_orglet_header worgle_orglet_header;
@@ -2698,6 +2761,36 @@ typedef struct worgle_orglet_header worgle_orglet_header;
 struct worgle_orglet_header {
     worgle_string str;
     int lvl;
+};
+#+END_SRC
+*** TODO Orglet Content
+#+NAME: orglet_types
+#+BEGIN_SRC c
+ORGLET_CONTENT,
+#+END_SRC
+#+NAME: typedefs
+#+BEGIN_SRC c
+typedef struct worgle_orglet_content worgle_orglet_content;
+#+END_SRC
+#+NAME: worgle_orglet_subtypes
+#+BEGIN_SRC c
+struct worgle_orglet_content {
+    worgle_string text;
+};
+#+END_SRC
+*** TODO Orglet Block Reference
+#+NAME: orglet_types
+#+BEGIN_SRC c
+ORGLET_BLKREF,
+#+END_SRC
+#+NAME: typedefs
+#+BEGIN_SRC c
+typedef struct worgle_orglet_blkref worgle_orglet_blkref;
+#+END_SRC
+#+NAME: worgle_orglet_subtypes
+#+BEGIN_SRC c
+struct worgle_orglet_blkref {
+    worgle_block *blk;
 };
 #+END_SRC
 * Command Line Arguments
