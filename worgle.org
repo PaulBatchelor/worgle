@@ -2556,6 +2556,7 @@ void worgle_orgfile_free(worgle_orgfile *org)
 }
 #+END_SRC
 *** Appending To File
+Operations to append things to files.
 **** Appending an orglet
 This operation applies a general orglet to a
 =worgle_orgfile=. This orglet should be initialized and
@@ -2621,6 +2622,21 @@ void worgle_orgfile_append_header(worgle_d *worg,
     orglet->linum = linum;
     worgle_orgfile_append(worg, f, orglet);
 }
+#+END_SRC
+**** TODO Appending Content
+Appends content block to an org file.
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_orgfile_append_content(worgle_d *worg,
+                                   worgle_string *text);
+#+END_SRC
+**** TODO Appending Block Reference
+Appends a reference to a code block. Should be called when
+a block first starts.
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_orgfile_append_reference(worgle_d *worg,
+                                     worgle_block *blk);
 #+END_SRC
 ** DONE Orglet
 CLOSED: [2019-09-11 Wed 04:55]
