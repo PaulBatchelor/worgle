@@ -1,42 +1,44 @@
 #+TITLE: Worgle
 * What is Worgle?
 Hello, fellow human. I'm glad you could stop by.
-
-This is a document written
-in Org markup, talking about a thing I'm building called Worgle. The name
-*Worgle* is derived from what it is: a Worg Tangler. =Worg= is the name of this
-project. It too gets its name from what it is: a WEB + Org project.
+This is a document written in Org markup, talking about a
+thing I'm building called Worgle.
+** The name "Worgle"
+The name *Worgle* is
+derived from what it is: a Worg Tangler. =Worg= is the name
+of this project. The word "Worg" is a mix of WEB + ORG, two
+systems used for literate programming.
 Org is the very decent markup language from org-mode.
 WEB is
-the name of the first literate programming tool ever created by Donald Knuth.
-In literate programming,
-one writes language and code together in a markup language, which can
-then be parsed two ways. The *weaver* parses the markup to produce a
-human readable document, usually a (La)TeX or HTML file. The *tangler*
-parses the markup and produces computer code that can be read by a computer
-to run or compile the program.
+the name of the first literate programming tool ever created
+by Donald Knuth. In literate programming,
+one writes language and code together in a markup language,
+which can then be parsed two ways. The *weaver* parses
+the markup to produce a human readable document, usually a
+(La)TeX or HTML file. The *tangler* parses the markup and
+produces computer code that can be read by a computer to run
+or compile the program.
 
-In other words, Worgle is a literate programming tangler used to convert
-org-like markup into (primarily) code.
+In other words, Worgle is a literate programming tangler
+used to convert org-like markup into (primarily) code.
+** Bootstrapping
+Worgle itself is a literate program, so what tangles the
+worgle code? Orgle does! Orgle is a program written in
+ANSI C (without literate programming).
+It is designed to be just enough of a program to tangle this
+file into a slightly better program called Worglite.
+Worglite then tangles this file *again* to build to full
+Worgle program.
 
-Worgle itself is a literate program, so what tangles the worgle code? Orgle
-does! Orgle is a program written in C without literate programming. It is
-designed to be just enough of a program to bootstrap Worgle. Worgle will
-then be used as the tangler for the rest of Worg.
-
-Worgle will initially start out as a literate program of Orgle. In fact,
-this document will initially start out as an outline for the Orgle program.
-The Orgle program will be considered done when it is able to produce a similar
-program by parsing this Worgle document. After that is done, more work will
-be put into Worgle to make it more suitable for managing larger projects
-written in C.
+Worgle initially started out as a literate program rewrite
+of Orgle. In fact, this write-up initially started out as an
+outline for the Orgle program!
 
 Following me so far? No? Yes? Great, let's get started.
 * Top-level files
-Like Orgle, Worgle is self contained inside of a single C file.
-For the time being, this is suitable enough. The current scope of Worgle is
-to be a self-contained standalone CLI application.
-
+Worgle is amalgamated into one C files and two header files:
+public and private.
+** Top Level C File
 #+NAME: worgle-top
 #+BEGIN_SRC c :tangle worgle.c
 #include <stdio.h>
@@ -70,11 +72,10 @@ int main(int argc, char *argv[])
 }
 
 #+END_SRC
-
+** Header File
 In more recent developments of Worgle, a corresponding header file will be
 generated with the C file. This is needed so that other C files can be
 generated.
-
 #+NAME: worgle-header
 #+BEGIN_SRC c :tangle worgle.h
 #ifndef WORGLE_H
@@ -83,10 +84,9 @@ generated.
 <<function_declarations>>
 #endif
 #+END_SRC
-
-Private data (for things like structs), is stored in a header file called
-=worgle_private.h=.
-
+** Header File (private)
+Private data (for things like structs), is stored in a
+header file called =worgle_private.h=.
 #+NAME: worgle-private-header
 #+BEGIN_SRC c :tangle worgle_private.h
 #ifndef WORGLE_PRIVATE_H
