@@ -95,26 +95,24 @@ header file called =worgle_private.h=.
 #endif
 #+END_SRC
 * An Outline of What Worgle does
-This aims to show a broad overview of how Orgle (and Worgle) will work
-essentially. Orgle is a bootstrap program written in C, used to generate
-C code for Worgle (this program here). At the highest level, the two
-programs share the same basic program structure.
+This aims to show a broad overview of how Orgle (and Worgle)
+will work essentially. Orgle is a bootstrap program written
+in C, used to generate C code for Worgle
+(this program here). At the highest level, the two programs
+share the same basic program structure.
 ** Initialization
 *** Initialize worgle data
-
 Worgle is initialized before stuff is loaded.
 
 #+NAME: local_variables
 #+BEGIN_SRC c
 worgle_d worg;
 #+END_SRC
-
 #+NAME: initialization
 #+BEGIN_SRC c
 worgle_init(&worg);
 #+END_SRC
 *** Get and set filename
-
 The file name is currently aqcuired from the command line, so the
 program must check and make sure that there are the right number of
 arguments. If there isn't, return an error.
@@ -145,10 +143,9 @@ if(filename == NULL) {
     return 1;
 }
 #+END_SRC
-
 *** Initialize return codes
-
-The main return code determines the overall state of the program.
+The main return code determines the overall state of the
+program.
 
 #+NAME: local_variables
 #+BEGIN_SRC c
@@ -161,14 +158,14 @@ By default, it is set to be okay, which is 0 on POSIX systems.
 #+BEGIN_SRC c
 rc = 0;
 #+END_SRC
-
 ** Load file into memory
 The first thing the program will do is load the file.
 
-While most parsers tend to parse things on a line by line basis via
-a file stream, this parser will load the entire file into memory. This
-is done due to the textual nature of the program. It is much easier to
-simply allocate everything in one big block and reference chunks, then to
+While most parsers tend to parse things on a line by line
+basis via a file stream, this parser will load the entire
+file into memory. This is done due to the textual nature of
+the program. It is much easier to simply allocate
+everything in one big block and reference chunks, then to
 allocate smaller chunks as you go.
 *** Loadfile function
 #+NAME: loading
@@ -178,14 +175,16 @@ for(i = 0; i < worg.nbuffers; i++) {
     if(!rc) goto cleanup;
 }
 #+END_SRC
-A file is loaded into a textbuffer via the function =loadfile=. In the
-worg startup sequence, the buffer list has been preallocated with the
-filename after parsing the command line arguments (see <<append_filename>>).
-It is in this stage that the memory block is allocated and the file loaded into
-it. The file will be allocated and loaded into the file located in index
-position =file=.
+A file is loaded into a textbuffer via the function 
+=loadfile=. In the worg startup sequence, the buffer list 
+has been preallocated with the filename after parsing the 
+command line arguments (see <<append_filename>>). It is in 
+this stage that the memory block is allocated and the file 
+loaded into it. The file will be allocated and loaded into 
+the file located in index position =file=.
 
-On success, the function will return TRUE (1). On failure, FALSE (0).
+On success, the function will return TRUE (1). On failure,
+FALSE (0).
 #+NAME: static_function_declarations
 #+BEGIN_SRC c
 static int loadfile(worgle_d *worg, int file);
@@ -222,8 +221,8 @@ if(fp == NULL) {
 }
 #+END_SRC
 *** Get file size
-The size is acquired by going to the end of the file and getting the current
-file position.
+The size is acquired by going to the end of the file and
+getting the current file position.
 
 #+NAME: loadfile_localvars
 #+BEGIN_SRC c
@@ -236,8 +235,8 @@ fseek(fp, 0, SEEK_END);
 size = ftell(fp);
 #+END_SRC
 *** Allocate memory, read, and close
-Memory is allocated in a local buffer variable via =calloc=. The buffer
-is then stored inside of the worg struct.
+Memory is allocated in a local buffer variable via =calloc=.
+The buffer is then stored inside of the worg struct.
 
 #+NAME: loadfile_localvars
 #+BEGIN_SRC c
@@ -250,8 +249,9 @@ buf = calloc(1, size);
 worgle_textbuf_init(&worg->buffers[file], buf, size);
 #+END_SRC
 
-The file is rewound back to the beginning and then read into the buffer. The
-file is no longer needed at this point, so it is closed.
+The file is rewound back to the beginning and then read into
+the buffer. The file is no longer needed at this point, so
+it is closed.
 
 #+NAME: loadfile
 #+BEGIN_SRC c
