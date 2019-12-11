@@ -277,10 +277,11 @@ int i;
 
 #+NAME: parsing
 #+BEGIN_SRC c
-for(i = 0; i < worg.nbuffers; i++) {
+for (i = 0; i < worg.nbuffers; i++) {
     rc = parse_file(&worg, i);
-    if(rc) goto cleanup;
+    if (rc) goto cleanup;
 }
+<<flush_last_block>>
 #+END_SRC
 
 The =parse_file= function will parse a file whose filename is located
@@ -457,7 +458,9 @@ void worgle_begin_block(worgle_d *worg, worgle_string *name)
 {
     worg->curblock = worgle_hashmap_get(&worg->dict, name);
     <<worgle_block_set_id>>
+#ifndef WORGLITE
     <<append_code_reference>>
+#endif
 }
 #+END_SRC
 ***** DONE Parsing Header Information
@@ -477,7 +480,9 @@ via =parse_header=.
 #+NAME: parse_headers
 #+BEGIN_SRC c
 if (read >= 2) {
-    parse_header(worg, line, read);
+    if (parse_header(worg, line, read)) {
+        continue;
+    }
 }
 #+END_SRC
 
@@ -536,6 +541,7 @@ static int parse_header(worgle_d *worg,
                 worgle_orgfile_append_header(worg,
                                              &str,
                                              lvl);
+                <<set_content_flag_after_header>>
                 break;
         }
     }
@@ -543,18 +549,19 @@ static int parse_header(worgle_d *worg,
 }
 #endif
 #+END_SRC
-***** TODO Content Parsing
+***** DONE Content Parsing
+CLOSED: [2019-12-10 Tue 20:26]
 In between headers and codeblocks are things called
 =content=. It is assumed to be text like this, but it can
 also contain comments and commands that worgle doesn't
 yet understand.
 
-Content parsing happens =MODE_ORG=, and is the fallback
+Content parsing happens in =MODE_ORG=, and is the fallback
 option when no other pattern is picked up. When it reaches
 that point, the parser will take the current line and append
 it to the context block.
 
-Appending content to the content block is simply a matter of
+Appending content to the content block is a matter of
 extending the size of the block (text is mapped to a
 contiguous memory block).
 
@@ -563,6 +570,7 @@ contiguous memory block).
 #ifndef WORGLITE
 /* TODO: implement me! */
 <<setup_new_content_block>>
+worg->block.size += read;
 #endif
 #+END_SRC
 
@@ -576,12 +584,27 @@ is set anytime a new content block has the poential to be
 started. The next time the parser arrives as a line that
 is considered to be content, it will check this flag, and
 utilize the block.
+
 #+NAME: setup_new_content_block
 #+BEGIN_SRC c
 if (worg->new_content) {
     worg->new_content = 0;
-    /* TODO set up + initialize text block */
+    worgle_string_reset(&worg->block);
+    worg->block.str = line;
 }
+#+END_SRC
+
+The =new_content= flag at startup. It is also set when a
+code bock ends, or after a header.
+
+#+NAME: set_content_flag_after_block
+#+BEGIN_SRC c
+worg->new_content = 1;
+#+END_SRC
+
+#+NAME: set_content_flag_after_header
+#+BEGIN_SRC c
+worg->new_content = 1;
 #+END_SRC
 
 A content block is considered finished when a code block
@@ -591,29 +614,47 @@ ended(?)
 No =WORGLITE= macro magic or =generate_db= conditionals are
 needed to append a content block before a header. At this
 level, it is already assumed.
+
 #+NAME: append_content_before_header
 #+BEGIN_SRC c
-/* append content block */
+worgle_orgfile_append_content(worg, &worg->block);
+worgle_string_reset(&worg->block);
 #+END_SRC
 
-A content block should be appeneded before a code block
+A content block should be appended before a code block
 starts, which is when a code reference is appended.
+
 #+NAME: append_content_before_code
 #+BEGIN_SRC c
-/* TODO: implement me! */
+worgle_orgfile_append_content(worg, &worg->block);
+worgle_string_reset(&worg->block);
 #+END_SRC
 
 Any remaining blocks at the end of all parsing will be
 appended to. Not sure where this logic will go yet.
-***** TODO Code Reference
+
+At the end of all parsing, the last block must be flushed
+out.
+
+#+NAME: flush_last_block
+#+BEGIN_SRC c
+#ifndef WORGLITE
+if (generate_db) {
+    worgle_orgfile_append_content(&worg, &worg.block);
+}
+#endif
+#+END_SRC
+***** DONE Code Reference
+CLOSED: [2019-12-10 Tue 20:26]
 Anytime a new code block begins, a reference to this new
 block is stored in the data representation of the file. This
 should happen when a new block begins. Probably in
 =worgle_begin_block=.
+
 #+NAME: append_code_reference
 #+BEGIN_SRC c
-/* TODO: implement me! */
 <<append_content_before_code>>
+worgle_orgfile_append_reference(worg, worg->curblock);
 #+END_SRC
 **** MODE_BEGINCODE
 #+NAME:parse_modes
@@ -786,6 +827,9 @@ if(read >= 9) {
         mode = MODE_ORG;
         worg->block_started = 0;
         worgle_append_string(worg);
+#ifndef WORGLITE
+        <<set_content_flag_after_block>>
+#endif
         continue;
     }
 }
@@ -1114,7 +1158,8 @@ if(!rc && use_warnings) rc = worgle_warn_unused(&worg);
 #+END_SRC
 
 ** Cleanup
-At the end up the program, all allocated memory is freed via =worgle_free=.
+At the end up the program, all allocated memory is freed via
+=worgle_free=.
 #+NAME: cleanup
 #+BEGIN_SRC c
 cleanup:
@@ -1122,9 +1167,9 @@ worgle_free(&worg);
 return rc;
 #+END_SRC
 * Core Data Structures
-The Worgle/Orgle program is very much a data-structure driven program.
-Understanding the hierarchy of data here will provide a clear picture for
-how the tangling works.
+The Worgle/Orgle program is very much a data-structure
+driven program. Understanding the hierarchy of data here
+will provide a clear picture for how the tangling works.
 
 #+NAME: structs
 #+BEGIN_SRC c
@@ -2714,7 +2759,8 @@ void worgle_orgfile_append_header(worgle_d *worg,
     worgle_orgfile_append(worg, f, orglet);
 }
 #+END_SRC
-**** TODO Appending Content
+**** DONE Appending Content
+CLOSED: [2019-12-10 Tue 15:49]
 Appends content block to an org file.
 #+NAME: function_declarations
 #+BEGIN_SRC c
@@ -2731,6 +2777,9 @@ void worgle_orgfile_append_content(worgle_d *worg,
     worgle_orgfile *f;
     size_t linum;
 
+    if (text->size == 0) return;
+    if (text->size == 1) return;
+
     f = worg->curorg;
     linum = worg->linum;
 
@@ -2738,6 +2787,11 @@ void worgle_orgfile_append_content(worgle_d *worg,
     c = calloc(1, sizeof(worgle_orglet_content));
 
     c->text = *text;
+
+    /* printf("CONTENT(%d): '", c->text.size); */
+    /* fwrite(c->text.str, 1, c->text.size, stdout); */
+    /* printf("'\n"); */
+
     worgle_orglet_init(orglet);
 
     orglet->type = ORGLET_CONTENT;
@@ -2746,7 +2800,8 @@ void worgle_orgfile_append_content(worgle_d *worg,
     worgle_orgfile_append(worg, f, orglet);
 }
 #+END_SRC
-**** TODO Appending Block Reference
+**** DONE Appending Block Reference
+CLOSED: [2019-12-10 Tue 15:49]
 Appends a reference to a code block. Should be called when
 a block first starts.
 #+NAME: function_declarations
@@ -2773,7 +2828,7 @@ void worgle_orgfile_append_reference(worgle_d *worg,
     br->blk = blk;
     worgle_orglet_init(orglet);
 
-    orglet->type = ORGLET_CONTENT;
+    orglet->type = ORGLET_BLKREF;
     orglet->ud = br;
     orglet->linum = linum;
     worgle_orgfile_append(worg, f, orglet);
@@ -2854,7 +2909,8 @@ struct worgle_orglet_header {
     int lvl;
 };
 #+END_SRC
-*** TODO Orglet Content
+*** DONE Orglet Content
+CLOSED: [2019-12-10 Tue 15:46]
 #+NAME: orglet_types
 #+BEGIN_SRC c
 ORGLET_CONTENT,
@@ -2869,7 +2925,8 @@ struct worgle_orglet_content {
     worgle_string text;
 };
 #+END_SRC
-*** TODO Orglet Block Reference
+*** DONE Orglet Block Reference
+CLOSED: [2019-12-10 Tue 15:46]
 #+NAME: orglet_types
 #+BEGIN_SRC c
 ORGLET_BLKREF,

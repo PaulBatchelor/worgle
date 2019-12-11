@@ -196,7 +196,8 @@ enum {
     RES_FILE,
     RES_BLOCK,
     RES_SEGMENT,
-    RES_HEADER
+    RES_HEADER,
+    RES_CONTENT
 };
 #+END_SRC
 
@@ -275,14 +276,31 @@ sqlite3_exec(db,
              NULL,
              NULL);
 #+END_SRC
-** TODO Content Schema
+** DONE Content Schema
+CLOSED: [2019-12-10 Tue 17:20]
 Hopefully, it will be:
-- UUID(?)
+- UUID
 - Section Location (as a string)
 - Starting Line Number
 - File name
 - Content
-** TODO Block Position
+#+NAME: schemas
+#+BEGIN_SRC c
+sqlite3_exec(db,
+             "CREATE TABLE content(\n"
+             "program INTEGER,\n"
+             "id INTEGER,\n"
+             "section TEXT,\n"
+             "filename TEXT,\n"
+             "linum INTEGER,\n"
+             "content TEXT,\n"
+             "next integer\n"
+             ");\n",
+             NULL,
+             NULL,
+             NULL);
+#+END_SRC
+** TODO Block Reference
 This provides information about a particular Block position,
 but not the content itself.
 This includes:
@@ -293,6 +311,22 @@ This is a separate section from the =blocks= section, for
 two reasons. One, because the section number is only derived
 while it is being parsed. Two, to more cleanly separate the
 woven content from the tangled content.
+#+NAME: schemas
+#+BEGIN_SRC c
+sqlite3_exec(db,
+             "CREATE TABLE blkref(\n"
+             "program INTEGER,\n"
+             "id INTEGER,\n"
+             "ref INTEGER,\n"
+             "section TEXT,\n"
+             "filename TEXT,\n"
+             "linum INTEGER,\n"
+             "next integer\n"
+             ");\n",
+             NULL,
+             NULL,
+             NULL);
+#+END_SRC
 ** Type View
 The resource table has a redundant column which provides
 a text version of the human readable type id. This view,
@@ -305,7 +339,7 @@ sqlite3_exec(db,
              "SELECT "
              "program, id, "
              "CASE type "
-             "WHEN 0 THEN 'Block' "
+             "WHEN 0 THEN 'File' "
              "WHEN 1 THEN 'Block' "
              "WHEN 2 THEN 'Segment' "
              "WHEN 3 THEN 'Header' "
@@ -411,6 +445,24 @@ void worgle_db_insert_orgfile(worgle_d *worg,
                                         strbuf,
                                         db);
                 break;
+            case 1: /* Content */
+                worgle_db_insert_content(worg,
+                                         o,
+                                         filename,
+                                         curlvl,
+                                         counter,
+                                         strbuf,
+                                         db);
+                break;
+            case 2: /* blkref */
+                worgle_db_insert_blkref(worg,
+                                        o,
+                                        filename,
+                                        curlvl,
+                                        counter,
+                                        strbuf,
+                                        db);
+                break;
         }
         o = nxt;
     }
@@ -512,14 +564,171 @@ void worgle_db_insert_header(worgle_d *worg,
     sqlite3_finalize(stmt);
 }
 #+END_SRC
-*** TODO Content Insert
+*** DONE Content Insert
+CLOSED: [2019-12-10 Tue 20:15]
 Anything in between a header and the start of a code block
 is considered to be "content". Any time a new header or
 codeblock is started, this function will be inserted
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_db_insert_content(worgle_d *worg,
+                              worgle_orglet *o,
+                              worgle_string *fname,
+                              int curlvl,
+                              int *counter,
+                              char *strbuf,
+                              sqlite3 *db);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_db_insert_content(worgle_d *worg,
+                              worgle_orglet *o,
+                              worgle_string *fname,
+                              int curlvl,
+                              int *counter,
+                              char *strbuf,
+                              sqlite3 *db)
+{
+    worgle_orglet_content *c;
+    int n;
+    int bufpos;
+    sqlite3_stmt *stmt;
+    int rc;
+    int prog;
+
+    c = o->ud;
+
+    prog = worg->prog;
+
+    bufpos = 0;
+
+    for (n = 0; n < curlvl; n++) {
+        bufpos += sprintf(&strbuf[bufpos], "%d.",
+                          counter[n]);
+    }
+
+    insert_resource(db, prog, o->id, RES_CONTENT);
+
+    sqlite3_prepare_v2(db,
+                       "INSERT INTO content"
+                       "(program, id, section, "
+                       "filename, linum, content, next)"
+                       "VALUES(?1,?2,?3,?4,?5,?6,?7);",
+                       -1,
+                       &stmt,
+                       NULL);
+
+    sqlite3_bind_int(stmt, 1, prog);
+    sqlite3_bind_int(stmt, 2, o->id);
+    sqlite3_bind_text(stmt, 3, strbuf, bufpos, NULL);
+    sqlite3_bind_text(stmt, 4,
+                      fname->str, fname->size,
+                      NULL);
+    sqlite3_bind_int(stmt, 5, o->linum);
+
+    sqlite3_bind_text(stmt, 6,
+                      c->text.str, c->text.size,
+                      NULL);
+
+    if (o->next == NULL) {
+        sqlite3_bind_int(stmt, 7, 0);
+    } else {
+        sqlite3_bind_int(stmt, 7, o->next->id);
+    }
+
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_DONE) {
+        fprintf(stderr,
+                "SQLite error: %s\n",
+                sqlite3_errmsg(db));
+    }
+
+    sqlite3_finalize(stmt);
+}
+#+END_SRC
 *** TODO Block (Position) Insert
 Any time a block is started, a note of the position it is in
 is stored as metadata. This will include the section, as
 well as line number and filename.
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void worgle_db_insert_blkref(worgle_d *worg,
+                             worgle_orglet *o,
+                             worgle_string *fname,
+                             int curlvl,
+                             int *counter,
+                             char *strbuf,
+                             sqlite3 *db);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+void worgle_db_insert_blkref(worgle_d *worg,
+                             worgle_orglet *o,
+                             worgle_string *fname,
+                             int curlvl,
+                             int *counter,
+                             char *strbuf,
+                             sqlite3 *db)
+{
+    worgle_orglet_blkref *b;
+    int n;
+    int bufpos;
+    sqlite3_stmt *stmt;
+    int rc;
+    int prog;
+
+    b = o->ud;
+
+    prog = worg->prog;
+
+    bufpos = 0;
+
+    for (n = 0; n < curlvl; n++) {
+        bufpos += sprintf(&strbuf[bufpos], "%d.",
+                          counter[n]);
+    }
+
+    insert_resource(db, prog, o->id, RES_CONTENT);
+
+    sqlite3_prepare_v2(db,
+                       "INSERT INTO blkref"
+                       "(program, id, section, "
+                       "filename, linum, next, ref)"
+                       "VALUES(?1,?2,?3,?4,?5,?6,?7);",
+                       -1,
+                       &stmt,
+                       NULL);
+
+    sqlite3_bind_int(stmt, 1, prog);
+    sqlite3_bind_int(stmt, 2, o->id);
+    sqlite3_bind_text(stmt, 3, strbuf, bufpos, NULL);
+    sqlite3_bind_text(stmt, 4,
+                      fname->str, fname->size,
+                      NULL);
+    sqlite3_bind_int(stmt, 5, o->linum);
+
+    if (o->next == NULL) {
+        sqlite3_bind_int(stmt, 6, 0);
+    } else {
+        sqlite3_bind_int(stmt, 6, o->next->id);
+    }
+
+    sqlite3_bind_int(stmt, 7, b->blk->id);
+
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_DONE) {
+        fprintf(stderr,
+                "SQLite error: %s\n",
+                sqlite3_errmsg(db));
+    }
+
+    sqlite3_finalize(stmt);
+}
+#+END_SRC
 ** SQLite Tangled Data
 The way Worgle generates data is by recursively iterating
 through the file list. The SQLite table will be populated
