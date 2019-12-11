@@ -372,6 +372,11 @@ here to make sure that colon isn't forgotten.
 #+BEGIN_SRC c
 if(read >= 7) {
     if(!strncmp(line, "#+NAME", 6)) {
+#ifndef WORGLITE
+        if (generate_db) {
+            <<append_content_before_code>>
+        }
+#endif
         if(line[6] != ':') {
             fprintf(stderr,
                     "line %lu: expected ':'\n",
@@ -382,6 +387,9 @@ if(read >= 7) {
         mode = MODE_BEGINCODE;
         parse_name(line, read, &str);
         worgle_begin_block(worg, &str);
+/* #ifndef WORGLITE */
+/*         continue; */
+/* #endif */
     }
 }
 #+END_SRC
@@ -570,7 +578,7 @@ contiguous memory block).
 #ifndef WORGLITE
 /* TODO: implement me! */
 <<setup_new_content_block>>
-worg->block.size += read;
+worg->segblock.size += read;
 #endif
 #+END_SRC
 
@@ -589,8 +597,8 @@ utilize the block.
 #+BEGIN_SRC c
 if (worg->new_content) {
     worg->new_content = 0;
-    worgle_string_reset(&worg->block);
-    worg->block.str = line;
+    worgle_string_reset(&worg->segblock);
+    worg->segblock.str = line;
 }
 #+END_SRC
 
@@ -617,8 +625,8 @@ level, it is already assumed.
 
 #+NAME: append_content_before_header
 #+BEGIN_SRC c
-worgle_orgfile_append_content(worg, &worg->block);
-worgle_string_reset(&worg->block);
+worgle_orgfile_append_content(worg, &worg->segblock);
+worgle_string_reset(&worg->segblock);
 #+END_SRC
 
 A content block should be appended before a code block
@@ -626,8 +634,8 @@ starts, which is when a code reference is appended.
 
 #+NAME: append_content_before_code
 #+BEGIN_SRC c
-worgle_orgfile_append_content(worg, &worg->block);
-worgle_string_reset(&worg->block);
+worgle_orgfile_append_content(worg, &worg->segblock);
+worgle_string_reset(&worg->segblock);
 #+END_SRC
 
 Any remaining blocks at the end of all parsing will be
@@ -640,7 +648,7 @@ out.
 #+BEGIN_SRC c
 #ifndef WORGLITE
 if (generate_db) {
-    worgle_orgfile_append_content(&worg, &worg.block);
+    worgle_orgfile_append_content(&worg, &worg.segblock);
 }
 #endif
 #+END_SRC
@@ -653,7 +661,6 @@ should happen when a new block begins. Probably in
 
 #+NAME: append_code_reference
 #+BEGIN_SRC c
-<<append_content_before_code>>
 worgle_orgfile_append_reference(worg, worg->curblock);
 #+END_SRC
 **** MODE_BEGINCODE
@@ -1255,6 +1262,25 @@ It is initialized to be an empty string.
 #+NAME:worgle_init
 #+BEGIN_SRC c
 worgle_string_init(&worg->block);
+#+END_SRC
+**** Segment Block
+Like the text block, but for holding segments instead.
+Only included in the full-version.
+
+#+NAME:worgle_struct_contents
+#+BEGIN_SRC c
+#ifndef WORGLITE
+worgle_string segblock;
+#endif
+#+END_SRC
+
+It is initialized to be an empty string.
+
+#+NAME:worgle_init
+#+BEGIN_SRC c
+#ifndef WORGLITE
+worgle_string_init(&worg->segblock);
+#endif
 #+END_SRC
 **** Current Line
 
