@@ -387,9 +387,9 @@ if(read >= 7) {
         mode = MODE_BEGINCODE;
         parse_name(line, read, &str);
         worgle_begin_block(worg, &str);
-/* #ifndef WORGLITE */
-/*         continue; */
-/* #endif */
+#ifndef WORGLITE
+        continue;
+#endif
     }
 }
 #+END_SRC
