@@ -1,6 +1,7 @@
 #+TITLE: Dot
 Utility to generate directional dot graphs.
-* TODO Tangled Files
+* DONE Tangled Files
+CLOSED: [2019-12-15 Sun 17:56]
 #+NAME: dot.c
 #+BEGIN_SRC c :tangle dot.c
 #include <stdio.h>

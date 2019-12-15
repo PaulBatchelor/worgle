@@ -1,0 +1,160 @@
+#+TITLE: HTML
+Describes the HTML interface.
+* Tangled Files
+#+NAME: html.c
+#+BEGIN_SRC c :tangle html.c
+#include <stdio.h>
+#include <string.h>
+#include <sqlite3.h>
+#include "core.h"
+#include "core_private.h"
+<<funcdefs>>
+<<functions>>
+#+END_SRC
+* The main program
+** Main subroutine
+#+NAME: funcdefs
+#+BEGIN_SRC c
+int p_html(int argc, char *argv[]);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+int p_html(int argc, char *argv[])
+{
+    int len;
+    if(argc < 2) {
+        print_help();
+        return 1;
+    }
+    len = strlen(argv[1]);
+    if(0) {
+        /* hack to start the chain */
+    }
+    <<command_parsing>>
+    else {
+        fprintf(stderr,
+                "Could not find subcommand '%s'\n",
+                argv[1]);
+        return 1;
+    }
+    return 0;
+}
+#+END_SRC
+** Print Help
+Prints all available commands if there are not enough
+arguments provided.
+#+NAME: funcdefs
+#+BEGIN_SRC c
+static void print_help(void);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+static void print_help(void)
+{
+    fprintf(stderr, "Available Commands\n\n");
+    <<available_commands>>
+}
+#+END_SRC
+** Matching
+(Copied from dot.org)
+#+NAME: funcdefs
+#+BEGIN_SRC c
+static int match(const char *s1,
+                 int sz1,
+                 const char *s2,
+                 int sz2);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+static int match(const char *s1,
+                 int sz1,
+                 const char *s2,
+                 int sz2)
+{
+    return sz1 == sz2 && !strncmp(s1, s2, sz2);
+}
+#+END_SRC
+* TODO toc
+Generates table of contents, given program id.
+#+NAME: available_commands
+#+BEGIN_SRC c
+fprintf(stderr, "toc: generates table of contents, given program id.\n");
+#+END_SRC
+
+#+NAME: funcdefs
+#+BEGIN_SRC c
+static int html_toc(int argc, char *argv[]);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+static int html_toc(int argc, char *argv[])
+{
+    wmp_core core;
+    int rc;
+
+    fprintf(stderr, "Not yet implemented.\n");
+    return 1;
+
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s id\n", argv[0]);
+        return 1;
+    }
+
+    rc = wmp_core_open(&core, wmp_filename_get());
+    if (!rc) return 0;
+    wmp_core_close(&core);
+    return 0;
+}
+#+END_SRC
+
+#+NAME: command_parsing
+#+BEGIN_SRC c
+else if (match(argv[1], len, "toc", 3)) {
+    argv++;
+    argc--;
+    html_toc(argc, argv);
+}
+#+END_SRC
+* TODO pages
+Generates pages, given program id.
+#+NAME: available_commands
+#+BEGIN_SRC c
+fprintf(stderr, "pages: generates all pages.\n");
+#+END_SRC
+
+#+NAME: funcdefs
+#+BEGIN_SRC c
+static int html_pages(int argc, char *argv[]);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+static int html_pages(int argc, char *argv[])
+{
+    wmp_core core;
+    int rc;
+
+    fprintf(stderr, "Not yet implemented.\n");
+    return 1;
+
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s id\n", argv[0]);
+        return 1;
+    }
+
+    rc = wmp_core_open(&core, wmp_filename_get());
+    if (!rc) return 0;
+    wmp_core_close(&core);
+    return 0;
+}
+#+END_SRC
+
+#+NAME: command_parsing
+#+BEGIN_SRC c
+else if (match(argv[1], len, "pages", 5)) {
+    argv++;
+    argc--;
+    html_pages(argc, argv);
+}
+#+END_SRC

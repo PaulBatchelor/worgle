@@ -19,6 +19,22 @@ The main C file is called =worgmap.c=.
 
 int p_get(int argc, char *argv[]);
 int p_dot(int argc, char *argv[]);
+int p_html(int argc, char *argv[]);
+
+#define NCOMMANDS 3
+
+typedef struct {
+    const char *name;
+    int (*fun)(int, char **);
+} worgmap_cmd;
+
+worgmap_cmd commands[NCOMMANDS] = {
+    {"get", p_get},
+    {"dot", p_dot},
+    {"html", p_html},
+};
+
+
 
 int main(int argc, char *argv[])
 {
@@ -27,6 +43,10 @@ int main(int argc, char *argv[])
 
     if (argc < 2) {
         fprintf(stderr, "Usage: %s subcommand\n", argv[0]);
+        fprintf(stderr, "Available subcommands:\n");
+        for (n = 0; n < NCOMMANDS; n++) {
+            fprintf(stderr, "%s\n", commands[n].name);
+        }
         return 1;
     }
 
@@ -63,10 +83,11 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    if (!strncmp(argv[0], "get", 3)) {
-        return p_get(argc, argv);
-    } else if (!strcmp(argv[0], "dot")) {
-        return p_dot(argc, argv);
+
+    for (n = 0; n < 3; n++) {
+        if (!strcmp(argv[0], commands[n].name)) {
+            return commands[n].fun(argc, argv);
+        }
     }
 
     return 0;
