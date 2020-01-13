@@ -287,7 +287,7 @@ while(sorg->pos < size) {
         case MODE_BEGIN_CODE:
             if(!is_begin(sorg, buf, size)) return 0;
             else {
-                fprintf(out, "\n<p><code>");
+                fprintf(out, "\n<p><pre><code>");
                 sorg->mode = MODE_CODE;
                 return 1;
             }
@@ -295,7 +295,7 @@ while(sorg->pos < size) {
         case MODE_CODE:
             if(is_end(sorg, buf, size)) {
                 sorg->mode = MODE_NONE;
-                fprintf(out, "\n</code></p>\n");
+                fprintf(out, "</code></pre></p>\n");
                 return 1;
             }
             sorg->blksize++;
@@ -316,7 +316,7 @@ while(sorg->pos < size) {
                     fwrite(buf + sorg->off, 1, sorg->blksize - 1, out);
                     sorg->off = sorg->pos + 1;
                     sorg->blksize = 0;
-                    fprintf(out, "<br>\n");
+                    fprintf(out, "\n");
                     break;
                 case ' ':
                     fwrite(buf + sorg->off, 1, sorg->blksize - 1, out);
