@@ -3039,9 +3039,12 @@ static int use_debug = 0;
 #+END_SRC
 
 ** Turning on Warnings (-W)
-
 Worgle can print out warnings about things like unused
 sections of code. By default, this is turned off.
+
+There are right now two options for warnings. "soft"
+will print warnings. "error" will print warnings as
+errors and break out of the program.
 
 #+NAME:global_variables
 #+BEGIN_SRC c
