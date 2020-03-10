@@ -300,7 +300,8 @@ sqlite3_exec(db,
              NULL,
              NULL);
 #+END_SRC
-** TODO Block Reference
+** DONE Block Reference
+CLOSED: [2020-03-10 Tue 18:50]
 This provides information about a particular Block position,
 but not the content itself.
 This includes:
