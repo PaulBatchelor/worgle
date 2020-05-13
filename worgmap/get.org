@@ -739,7 +739,69 @@ else if (match(argv[1], len, "tree", 4)) {
     get_tree(argc, argv);
 }
 #+END_SRC
-* TODO Block Reference (blkref)
+* Block Reference (blkref)
 Given a block name and program ID, return metadata
 information about the block, such as file, line number, and
 section it belongs to.
+
+#+NAME: available_commands
+#+BEGIN_SRC c
+fprintf(stderr, "blkref: prints info about block\n");
+#+END_SRC
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+static int get_blkref(int argc, char *argv[]);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+static int get_blkref(int argc, char *argv[])
+{
+    wmp_core core;
+    int rc;
+    int prog;
+    sqlite3_stmt *stmt;
+    wmp_blkref br;
+    const char *name;
+
+    if (argc < 3) {
+        fprintf(stderr, "Usage: %s NAME program_id\n", argv[0]);
+        return 1;
+    }
+
+    rc = wmp_core_open(&core, wmp_filename_get());
+    if (!rc) return 0;
+    prog = atoi(argv[2]);
+    name = argv[1];
+
+    rc = wmp_blkref_lookup_setup(&core, name, prog, &stmt);
+
+    if (!rc) {
+        fprintf(stderr,
+                "Could not find block '%s' in program %d\n",
+                name,
+                prog);
+    }
+
+    while (1) {
+        rc = wmp_blkref_lookup_step(&core, stmt, &br);
+        if (!rc) break;
+        printf("%s:%d\n",
+               br.filename,
+               br.linum);
+    }
+
+    wmp_core_close(&core);
+    return 0;
+}
+#+END_SRC
+
+#+NAME: command_parsing
+#+BEGIN_SRC c
+else if (match(argv[1], len, "blkref", 6)) {
+    argv++;
+    argc--;
+    get_blkref(argc, argv);
+}
+#+END_SRC

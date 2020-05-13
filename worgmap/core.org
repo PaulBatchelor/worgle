@@ -2,8 +2,7 @@
 The section described here outlines core functionality for
 worgmap. This involves anything related to querying tables
 for SQLite data.
-** DONE Tangled Files
-CLOSED: [2019-08-31 Sat 06:13]
+** Tangled Files
 Core tanlges itself into a C and a header file, called
 =core.c= and =core.h=, respectively.
 #+NAME: core.h
@@ -32,8 +31,7 @@ Core tanlges itself into a C and a header file, called
 <<constants>>
 <<functions>>
 #+END_SRC
-** DONE wmp_core
-CLOSED: [2019-08-31 Sat 06:13]
+** wmp_core
 *** Struct
 SQLite data is indirectly handled inside of a struct called
 =wmp_core=. That's all it does for now, but I fully expect
@@ -153,8 +151,7 @@ void wmp_filename_set(const char *filename)
     db_filename = filename;
 }
 #+END_SRC
-** DONE Resource
-CLOSED: [2019-08-31 Sat 07:14]
+** Resource
 *** Struct
 A =wmp_resource= is a record from the resource table.
 Any thing that is a thing has a record here. The only things
@@ -249,8 +246,7 @@ const char *wmp_resource_typestring(wmp_resource *r)
     return "Unknown";
 }
 #+END_SRC
-** DONE Segment
-CLOSED: [2019-08-31 Sat 10:19]
+** Segment
 *** Struct
 A =wmp_segment= stores a segment of text from the segment
 table.
@@ -387,8 +383,7 @@ int wmp_find_segment(wmp_core *c,
     return 1;
 }
 #+END_SRC
-** DONE Block
-CLOSED: [2019-08-31 Sat 12:40]
+** Block
 *** struct
 =wmp_block= stores a reference to a codeblock.
 #+NAME: typedefs
@@ -475,12 +470,12 @@ int wmp_find_block(wmp_core *c,
 
     rc = sqlite3_step(stmt);
 
-    if(rc == SQLITE_DONE) {
+    if (rc == SQLITE_DONE) {
         sqlite3_finalize(stmt);
         return 0;
     }
 
-    if(rc == SQLITE_ROW) {
+    if (rc == SQLITE_ROW) {
         b->id = uuid;
         b->head_segment = sqlite3_column_int(stmt, 0);
         nbytes = sqlite3_column_bytes(stmt, 1);
@@ -558,8 +553,7 @@ int wmp_lookup_block(wmp_core *c,
     return 1;
 }
 #+END_SRC
-** DONE File
-CLOSED: [2019-08-31 Sat 12:40]
+** File
 *** Struct
 A =wmp_file= is a record containing the name of a file to
 tangle to.
@@ -786,7 +780,7 @@ int wmp_file_top(wmp_core *c, wmp_file *f, int prog)
     return 1;
 }
 #+END_SRC
-** TODO Block Ref
+** Block Ref
 *** Struct
 Known as =wmp_blkref=.
 #+NAME: typedefs
@@ -837,21 +831,132 @@ void wmp_blkref_free(wmp_blkref *br)
     if (br->section != NULL) free(br->section);
 }
 #+END_SRC
-*** TODO Lookup
-A file can be queried by name directly via the function
-=wmp_lookup_file=.
-
+*** Lookup
 This function is interesting because it is only possible to
 do with a SQL query; Worgle has no way of doing this
 internally in C.
 
 Due to the SQL-yness of this operation, this functionality
-needs to be broken up into 3 parts.
+needs to be broken up into 2 parts.
 
 The first part sets up the SQLite query. This creats a
 =sqlite3_stmt=.
 
+#+NAME: function_declarations
+#+BEGIN_SRC c
+#ifdef SQLITE3_H
+<<blkref_funcdefs>>
+#endif
+#+END_SRC
+
+#+NAME: blkref_funcdefs
+#+BEGIN_SRC c
+int wmp_blkref_lookup_setup(wmp_core *core,
+                            const char *name,
+                            int prog,
+                            sqlite3_stmt **pstmt);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+int wmp_blkref_lookup_setup(wmp_core *core,
+                            const char *name,
+                            int prog,
+                            sqlite3_stmt **pstmt)
+{
+    sqlite3 *db;
+    int rc;
+    wmp_block b;
+
+    wmp_block_init(&b);
+    rc = wmp_lookup_block(core, name, &b, prog);
+
+    if (!rc) return rc;
+
+    db = wmp_core_db(core);
+
+    sqlite3_prepare_v2(db,
+                       "SELECT "
+                         "id, "
+                         "ref, "
+                         "section, "
+                         "filename, "
+                         "linum, "
+                         "next, "
+                         "program "
+                       "FROM blkref "
+                       "WHERE(program == ?1) AND "
+                       "(ref == ?2);"
+                       ,
+                       -1,
+                       pstmt,
+                       NULL);
+    sqlite3_bind_int(*pstmt, 1, prog);
+    sqlite3_bind_int(*pstmt, 2, b.id);
+    wmp_block_free(&b);
+
+    return 1;
+}
+#+END_SRC
+
 The second part steps through the query and gets called
 until there are no more values to return.
 
-The third and final part cleans things up.
+#+NAME: blkref_funcdefs
+#+BEGIN_SRC c
+int wmp_blkref_lookup_step(wmp_core *core,
+                           sqlite3_stmt *stmt,
+                           wmp_blkref *br);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+int wmp_blkref_lookup_step(wmp_core *core,
+                           sqlite3_stmt *stmt,
+                           wmp_blkref *br)
+{
+    int rc;
+
+    rc = sqlite3_step(stmt);
+
+    if (rc == SQLITE_DONE) {
+        wmp_blkref_free(br);
+        sqlite3_finalize(stmt);
+        return 0;
+    }
+
+    if (rc == SQLITE_ROW) {
+        int nbytes;
+        const char *sec;
+        const char *fname;
+        wmp_blkref_free(br);
+        br->id = sqlite3_column_int(stmt, 0);
+        br->ref = sqlite3_column_int(stmt, 1);
+
+        nbytes = sqlite3_column_bytes(stmt, 2);
+        br->section = calloc(1, nbytes + 1);
+        sec = (const char *)sqlite3_column_text(stmt, 2);
+        strncpy(br->section, sec, nbytes);
+
+        nbytes = sqlite3_column_bytes(stmt, 3);
+        br->filename = calloc(1, nbytes + 1);
+        fname = (const char *)sqlite3_column_text(stmt, 3);
+        strncpy(br->filename, fname, nbytes);
+
+        br->linum = sqlite3_column_int(stmt, 4);
+
+        br->next = sqlite3_column_int(stmt, 5);
+
+        br->prog = sqlite3_column_int(stmt, 6);
+    } else {
+        sqlite3 *db;
+
+        db = wmp_core_db(core);
+        fprintf(stderr, "Error: %s\n", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+        return 0;
+    }
+
+    return 1;
+}
+#+END_SRC
