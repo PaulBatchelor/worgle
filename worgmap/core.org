@@ -668,8 +668,7 @@ int wmp_find_file(wmp_core *c,
     return 1;
 }
 #+END_SRC
-*** DONE Lookup
-CLOSED: [2019-08-31 Sat 12:35]
+*** Lookup
 A file can be queried by name directly via the function
 =wmp_lookup_file=.
 
@@ -731,8 +730,7 @@ int wmp_lookup_file(wmp_core *c,
     return 1;
 }
 #+END_SRC
-*** DONE Top File
-CLOSED: [2019-08-31 Sat 17:26]
+*** Top File
 Gets top file from the files column. Useful if you want to
 iterate throught the file list.
 #+NAME: function_declarations
@@ -788,3 +786,72 @@ int wmp_file_top(wmp_core *c, wmp_file *f, int prog)
     return 1;
 }
 #+END_SRC
+** TODO Block Ref
+*** Struct
+Known as =wmp_blkref=.
+#+NAME: typedefs
+#+BEGIN_SRC c
+typedef struct wmp_blkref wmp_blkref;
+#+END_SRC
+#+NAME: structs
+#+BEGIN_SRC c
+struct wmp_blkref {
+    unsigned int id;
+    int ref;
+    char *section;
+    char *filename;
+    int linum;
+    int next;
+    int prog;
+};
+#+END_SRC
+*** init
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void wmp_blkref_init(wmp_blkref *br);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+void wmp_blkref_init(wmp_blkref *br)
+{
+    br->id = -1;
+    br->ref = -1;
+    br->section = NULL;
+    br->filename = NULL;
+    br->linum = -1;
+    br->next = -1;
+    br->prog = -1;
+}
+#+END_SRC
+*** Free
+It is freed using =wmp_blkref_free=.
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void wmp_blkref_free(wmp_blkref *br);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+void wmp_blkref_free(wmp_blkref *br)
+{
+    if (br->filename != NULL) free(br->filename);
+    if (br->section != NULL) free(br->section);
+}
+#+END_SRC
+*** TODO Lookup
+A file can be queried by name directly via the function
+=wmp_lookup_file=.
+
+This function is interesting because it is only possible to
+do with a SQL query; Worgle has no way of doing this
+internally in C.
+
+Due to the SQL-yness of this operation, this functionality
+needs to be broken up into 3 parts.
+
+The first part sets up the SQLite query. This creats a
+=sqlite3_stmt=.
+
+The second part steps through the query and gets called
+until there are no more values to return.
+
+The third and final part cleans things up.

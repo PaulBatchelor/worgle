@@ -2598,7 +2598,7 @@ also has a string name, so this needs to be assigned as well.
 
 #+NAME: worgle_block_set_id
 #+BEGIN_SRC c
-if(worgle_block_id_get(worg->curblock) == 0) {
+if (worgle_block_id_get(worg->curblock) == 0) {
     worgle_block_id_set(worg->curblock, worgle_uuid_new(worg));
 }
 #+END_SRC

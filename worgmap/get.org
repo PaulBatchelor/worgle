@@ -739,3 +739,7 @@ else if (match(argv[1], len, "tree", 4)) {
     get_tree(argc, argv);
 }
 #+END_SRC
+* TODO Block Reference (blkref)
+Given a block name and program ID, return metadata
+information about the block, such as file, line number, and
+section it belongs to.

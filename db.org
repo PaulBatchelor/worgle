@@ -650,7 +650,8 @@ void worgle_db_insert_content(worgle_d *worg,
     sqlite3_finalize(stmt);
 }
 #+END_SRC
-*** TODO Block (Position) Insert
+*** DONE Block (Position) Insert
+CLOSED: [2020-05-13 Wed 08:56]
 Any time a block is started, a note of the position it is in
 is stored as metadata. This will include the section, as
 well as line number and filename.
