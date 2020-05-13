@@ -456,28 +456,13 @@ static int get_filelist(int argc, char *argv[]);
 
 #+NAME: functions
 #+BEGIN_SRC c
-static int get_filelist(int argc, char *argv[])
+static int print_filelist(wmp_core *core, int prog)
 {
-    wmp_core core;
     int rc;
     wmp_file f;
-    int next;
-    int id;
-    int prog;
-
-    prog = 0;
-    rc = wmp_core_open(&core, wmp_filename_get());
-
-    if (!rc) return 0;
 
     wmp_file_init(&f);
-
-    if (argc > 1) {
-        prog = atoi(argv[1]);
-    }
-
-    rc = wmp_file_top(&core, &f, prog);
-
+    rc = wmp_file_top(core, &f, prog);
 
     if (!rc) {
         fprintf(stderr, "No files to be found!\n");
@@ -485,6 +470,9 @@ static int get_filelist(int argc, char *argv[])
     }
 
     while (1) {
+        int next;
+        int id;
+
         printf("%s\n", f.filename);
         next = f.next_file;
         id = f.id;
@@ -494,15 +482,82 @@ static int get_filelist(int argc, char *argv[])
         if (id == next || id == 0) {
             break;
         } else {
-            rc = wmp_find_file(&core, next, &f, prog);
+            rc = wmp_find_file(core, next, &f, prog);
             if (!rc) {
                 wmp_file_free(&f);
                 break;
             }
         }
     }
-    wmp_core_close(&core);
+
     return 0;
+}
+
+static int print_all_files(wmp_core *core)
+{
+    sqlite3 *db;
+    sqlite3_stmt *stmt;
+    int rc;
+    int err;
+
+    db = wmp_core_db(core);
+
+    sqlite3_prepare_v2(db,
+                       "SELECT DISTINCT program FROM files;",
+                       -1,
+                       &stmt,
+                       NULL);
+    err = 0;
+
+    while (1) {
+        rc = sqlite3_step(stmt);
+        if (rc == SQLITE_DONE) {
+            sqlite3_finalize(stmt);
+            stmt = NULL;
+            break;
+        } else if (rc == SQLITE_ROW) {
+            int prog;
+            prog = sqlite3_column_int(stmt, 0);
+            print_filelist(core, prog);
+            err = 1;
+        } else {
+            fprintf(stderr,
+                    "Error: %s\n",
+                    sqlite3_errmsg(db));
+            sqlite3_finalize(stmt);
+            stmt = NULL;
+            err = 0;
+            break;
+        }
+    }
+
+    if (stmt != NULL) {
+        sqlite3_finalize(stmt);
+    }
+
+    return err;
+}
+
+static int get_filelist(int argc, char *argv[])
+{
+    wmp_core core;
+    int rc;
+    int prog;
+
+    prog = 0;
+    rc = wmp_core_open(&core, wmp_filename_get());
+
+    if (!rc) return 0;
+
+    if (argc > 1) {
+        prog = atoi(argv[1]);
+        rc = print_filelist(&core, prog);
+    } else {
+        rc = print_all_files(&core);
+    }
+
+    wmp_core_close(&core);
+    return rc;
 }
 #+END_SRC
 

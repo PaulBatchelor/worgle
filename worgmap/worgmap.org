@@ -34,8 +34,6 @@ worgmap_cmd commands[NCOMMANDS] = {
     {"html", p_html},
 };
 
-
-
 int main(int argc, char *argv[])
 {
     int nargs;
@@ -90,6 +88,9 @@ int main(int argc, char *argv[])
         }
     }
 
-    return 0;
+    fprintf(stderr,
+            "Could not find command '%s'\n",
+            argv[0]);
+    return 1;
 }
 #+END_SRC

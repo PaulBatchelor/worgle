@@ -2,7 +2,6 @@
 The section described here outlines core functionality for
 worgmap. This involves anything related to querying tables
 for SQLite data.
-
 ** DONE Tangled Files
 CLOSED: [2019-08-31 Sat 06:13]
 Core tanlges itself into a C and a header file, called
@@ -210,12 +209,12 @@ int wmp_find_resource(wmp_core *c,
 
     rc = sqlite3_step(stmt);
 
-    if(rc == SQLITE_DONE) {
+    if (rc == SQLITE_DONE) {
         sqlite3_finalize(stmt);
         return 0;
     }
 
-    if(rc == SQLITE_ROW) {
+    if (rc == SQLITE_ROW) {
         type = sqlite3_column_int(stmt, 0);
 
         r->id = uuid;
@@ -677,7 +676,7 @@ int wmp_lookup_file(wmp_core *c,
                        "SELECT "
                          "id,"
                          "next_file, "
-                         "top "
+                         "top, "
                          "program "
                        "FROM files "
                        "WHERE(filename==?1);",
