@@ -269,6 +269,7 @@ struct wmp_segment {
     int linum;
     char *filename;
     int nxtseg;
+    int prog;
 };
 #+END_SRC
 
@@ -295,6 +296,7 @@ void wmp_segment_init(wmp_segment *s)
     s->linum = 0;
     s->filename = NULL;
     s->nxtseg = -1;
+    s->prog = -1;
 }
 #+END_SRC
 *** Free
@@ -315,13 +317,15 @@ void wmp_segment_free(wmp_segment *s)
 #+BEGIN_SRC c
 int wmp_find_segment(wmp_core *c,
                      unsigned int uuid,
-                     wmp_segment *s);
+                     wmp_segment *s,
+                     int prog);
 #+END_SRC
 #+NAME: functions
 #+BEGIN_SRC c
 int wmp_find_segment(wmp_core *c,
                      unsigned int uuid,
-                     wmp_segment *s)
+                     wmp_segment *s,
+                     int prog)
 {
     sqlite3 *db;
     sqlite3_stmt *stmt;
@@ -338,13 +342,16 @@ int wmp_find_segment(wmp_core *c,
                          "str,"
                          "linum,"
                          "filename,"
-                         "next_segment "
+                         "next_segment, "
+                         "program "
                        "FROM segments "
-                       "WHERE(id==?1);",
+                       "WHERE(id==?1) AND "
+                       "(program==?2) ",
                        -1,
                        &stmt,
                        NULL);
     sqlite3_bind_int(stmt, 1, uuid);
+    sqlite3_bind_int(stmt, 2, prog);
 
     rc = sqlite3_step(stmt);
 
@@ -370,7 +377,7 @@ int wmp_find_segment(wmp_core *c,
         strncpy(s->filename, fname, nbytes);
 
         s->nxtseg = sqlite3_column_int(stmt, 4);
-
+        s->prog = sqlite3_column_int(stmt, 5);
     } else {
         fprintf(stderr, "Error: %s\n", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);

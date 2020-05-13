@@ -231,7 +231,9 @@ static int get_seg(int argc, char *argv[])
     wmp_segment seg;
     unsigned int id;
     int err;
+    int prog;
 
+    prog = 0; /* TODO: make parameter */
     err = 0;
     if (argc < 2) {
         fprintf(stderr, "Usage: %s UUID\n", argv[0]);
@@ -241,7 +243,7 @@ static int get_seg(int argc, char *argv[])
     if (!rc) return 0;
     wmp_segment_init(&seg);
     id = atoi(argv[1]);
-    rc = wmp_find_segment(&core, id, &seg);
+    rc = wmp_find_segment(&core, id, &seg, prog);
 
     if(!rc) {
         fprintf(stderr,
@@ -599,7 +601,9 @@ static int get_blklst(int argc, char *argv[])
     wmp_segment s;
     wmp_block b;
     int next;
+    int prog;
 
+    prog = 0; /* TODO: make parameter */
     if (argc < 2) {
         fprintf(stderr, "Usage: %s NAME\n", argv[0]);
         return 1;
@@ -616,7 +620,7 @@ static int get_blklst(int argc, char *argv[])
         return 1;
     }
     wmp_segment_init(&s);
-    wmp_find_segment(&core, b.head_segment, &s);
+    wmp_find_segment(&core, b.head_segment, &s, prog);
 
     while (1) {
         next = s.nxtseg;
@@ -631,7 +635,7 @@ static int get_blklst(int argc, char *argv[])
 
         wmp_segment_free(&s);
         wmp_segment_init(&s);
-        wmp_find_segment(&core, next, &s);
+        wmp_find_segment(&core, next, &s, prog);
     }
     wmp_block_free(&b);
     wmp_core_close(&core);
@@ -662,7 +666,10 @@ static int get_tree(int argc, char *argv[]);
 
 #+NAME: functions
 #+BEGIN_SRC c
-static void print_tree(wmp_core *c, const char *name, int level)
+static void print_tree(wmp_core *c,
+                       const char *name,
+                       int level,
+                       int prog)
 {
     wmp_segment s;
     wmp_block b;
@@ -679,7 +686,7 @@ static void print_tree(wmp_core *c, const char *name, int level)
         return;
     }
     wmp_segment_init(&s);
-    wmp_find_segment(c, b.head_segment, &s);
+    wmp_find_segment(c, b.head_segment, &s, prog);
 
     while (1) {
         next = s.nxtseg;
@@ -691,12 +698,12 @@ static void print_tree(wmp_core *c, const char *name, int level)
         if (s.type == 1) {
             for(n = 0; n < level; n++) printf(" ");
             printf("%s\n", s.str);
-            print_tree(c, s.str, level + 1);
+            print_tree(c, s.str, level + 1, prog);
         }
 
         wmp_segment_free(&s);
         wmp_segment_init(&s);
-        wmp_find_segment(c, next, &s);
+        wmp_find_segment(c, next, &s, prog);
     }
     wmp_block_free(&b);
 }
@@ -705,15 +712,17 @@ static int get_tree(int argc, char *argv[])
 {
     wmp_core core;
     int rc;
+    int prog;
 
-    if (argc < 2) {
-        fprintf(stderr, "Usage: %s NAME\n", argv[0]);
+    if (argc < 3) {
+        fprintf(stderr, "Usage: %s NAME program_id\n", argv[0]);
         return 1;
     }
 
     rc = wmp_core_open(&core, wmp_filename_get());
     if (!rc) return 0;
-    print_tree(&core, argv[1], 0);
+    prog = atoi(argv[2]);
+    print_tree(&core, argv[1], 0, prog);
     wmp_core_close(&core);
     return 0;
 }

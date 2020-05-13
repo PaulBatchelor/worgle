@@ -98,7 +98,9 @@ static void print_tree(wmp_core *c, const char *name, int level)
     wmp_block b;
     int next;
     int rc;
+    int prog;
 
+    prog = 0; /* TODO: make parameter */
     wmp_block_init(&b);
     rc = wmp_lookup_block(c, name, &b);
     if (!rc) {
@@ -108,7 +110,7 @@ static void print_tree(wmp_core *c, const char *name, int level)
         return;
     }
     wmp_segment_init(&s);
-    wmp_find_segment(c, b.head_segment, &s);
+    wmp_find_segment(c, b.head_segment, &s, prog);
 
     while (1) {
         next = s.nxtseg;
@@ -124,7 +126,7 @@ static void print_tree(wmp_core *c, const char *name, int level)
 
         wmp_segment_free(&s);
         wmp_segment_init(&s);
-        wmp_find_segment(c, next, &s);
+        wmp_find_segment(c, next, &s, prog);
     }
     wmp_block_free(&b);
 }
