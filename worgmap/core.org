@@ -394,6 +394,7 @@ struct wmp_block {
     int id;
     int head_segment;
     char *name;
+    int prog;
 };
 #+END_SRC
 *** init
@@ -409,6 +410,7 @@ void wmp_block_init(wmp_block *b)
     b->id = -1;
     b->head_segment = -1;
     b->name = NULL;
+    b->prog = -1;
 }
 #+END_SRC
 *** free
@@ -431,14 +433,16 @@ It is queried using =wmp_find_block=.
 #+BEGIN_SRC c
 int wmp_find_block(wmp_core *c,
                    unsigned int uuid,
-                   wmp_block *b);
+                   wmp_block *b,
+                   int prog);
 #+END_SRC
 TODO: implement me.
 #+NAME: functions
 #+BEGIN_SRC c
 int wmp_find_block(wmp_core *c,
                    unsigned int uuid,
-                   wmp_block *b)
+                   wmp_block *b,
+                   int prog)
 {
     sqlite3 *db;
     sqlite3_stmt *stmt;
@@ -451,13 +455,16 @@ int wmp_find_block(wmp_core *c,
     sqlite3_prepare_v2(db,
                        "SELECT "
                          "head_segment,"
-                         "name "
+                         "name, "
+                         "program "
                        "FROM blocks "
-                       "WHERE(id==?1);",
+                       "WHERE(id==?1) AND "
+                       "(program==?2);",
                        -1,
                        &stmt,
                        NULL);
     sqlite3_bind_int(stmt, 1, uuid);
+    sqlite3_bind_int(stmt, 2, prog);
 
     rc = sqlite3_step(stmt);
 
@@ -473,6 +480,7 @@ int wmp_find_block(wmp_core *c,
         b->name = calloc(1, nbytes + 1);
         str = (const char *)sqlite3_column_text(stmt, 1);
         strncpy(b->name, str, nbytes);
+        b->prog = sqlite3_column_int(stmt, 2);
     } else {
         fprintf(stderr, "Error: %s\n", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);

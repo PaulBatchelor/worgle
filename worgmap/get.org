@@ -164,21 +164,28 @@ static int get_blk(int argc, char *argv[])
     wmp_block blk;
     unsigned int id;
     int err;
+    int prog;
 
+    prog = 0;
     err = 0;
     if (argc < 2) {
-        fprintf(stderr, "Usage: %s UUID\n", argv[0]);
+        fprintf(stderr, "Usage: %s UUID [prog]\n", argv[0]);
         return 1;
     }
     rc = wmp_core_open(&core, wmp_filename_get());
     if (!rc) return 0;
     wmp_block_init(&blk);
     id = atoi(argv[1]);
-    rc = wmp_find_block(&core, id, &blk);
+
+    if (argc > 2) prog = atoi(argv[2]);
+
+    rc = wmp_find_block(&core, id, &blk, prog);
 
     if(!rc) {
         fprintf(stderr,
-                "Could not find block with id %d\n",
+                "Could not find block in program %d "
+                "with id %d\n",
+                prog,
                 id);
         err = 1;
     } else {

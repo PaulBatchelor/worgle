@@ -198,7 +198,7 @@ static int dot_file(int argc, char *argv[])
     }
 
     wmp_block_init(&blk);
-    rc = wmp_find_block(&core, file.top, &blk);
+    rc = wmp_find_block(&core, file.top, &blk, 0);
 
     if (!rc) {
         printf("Could not find block with id %d\n", file.id);
