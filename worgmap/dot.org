@@ -5,6 +5,7 @@ CLOSED: [2019-12-15 Sun 17:56]
 #+NAME: dot.c
 #+BEGIN_SRC c :tangle dot.c
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sqlite3.h>
 #include "core.h"
@@ -179,8 +180,11 @@ static int dot_file(int argc, char *argv[])
     wmp_file file;
     wmp_block blk;
 
+    int prog;
+
+    prog = 0;
     if (argc < 2) {
-        fprintf(stderr, "Usage: %s FILE\n", argv[0]);
+        fprintf(stderr, "Usage: %s FILE [prog]\n", argv[0]);
         return 1;
     }
 
@@ -188,7 +192,11 @@ static int dot_file(int argc, char *argv[])
     if (!rc) return 0;
 
     wmp_file_init(&file);
-    rc = wmp_lookup_file(&core, argv[1], &file);
+
+    if (argc > 2) prog = atoi(argv[2]);
+
+
+    rc = wmp_lookup_file(&core, argv[1], &file, prog);
 
     if (!rc) {
         printf("Could not find file %s\n", argv[1]);

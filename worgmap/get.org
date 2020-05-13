@@ -117,7 +117,7 @@ static int get_res(int argc, char *argv[])
     id = atoi(argv[1]);
     rc = wmp_find_resource(&core, id, &res);
 
-    if(!rc) {
+    if (!rc) {
         fprintf(stderr,
                 "Could not find resource with id %d\n",
                 id);
@@ -341,17 +341,19 @@ static int get_file(int argc, char *argv[])
     wmp_file file;
     unsigned int id;
     int err;
+    int prog;
 
     err = 0;
+    prog = 0;
     if (argc < 2) {
-        fprintf(stderr, "Usage: %s UUID\n", argv[0]);
+        fprintf(stderr, "Usage: %s UUID [prog]\n", argv[0]);
         return 1;
     }
     rc = wmp_core_open(&core, wmp_filename_get());
     if (!rc) return 0;
     wmp_file_init(&file);
     id = atoi(argv[1]);
-    rc = wmp_find_file(&core, id, &file);
+    rc = wmp_find_file(&core, id, &file, prog);
 
     if(!rc) {
         fprintf(stderr,
@@ -397,17 +399,23 @@ static int get_ffile(int argc, char *argv[])
     int rc;
     wmp_file file;
     int err;
+    int prog;
 
+    prog = 0;
     err = 0;
     if (argc < 2) {
-        fprintf(stderr, "Usage: %s NAME\n", argv[0]);
+        fprintf(stderr, "Usage: %s NAME [prog]\n", argv[0]);
         return 1;
     }
     rc = wmp_core_open(&core, wmp_filename_get());
     if (!rc) return 0;
     wmp_file_init(&file);
 
-    rc = wmp_lookup_file(&core, argv[1], &file);
+    if (argc > 2) {
+        prog = atoi(argv[2]);
+    }
+
+    rc = wmp_lookup_file(&core, argv[1], &file, prog);
 
     if(!rc) {
         fprintf(stderr,
@@ -456,17 +464,28 @@ static int get_filelist(int argc, char *argv[])
     wmp_file f;
     int next;
     int id;
+    int prog;
 
+    prog = 0;
     rc = wmp_core_open(&core, wmp_filename_get());
+
     if (!rc) return 0;
+
     wmp_file_init(&f);
-    rc = wmp_file_top(&core, &f);
+
+    if (argc > 1) {
+        prog = atoi(argv[1]);
+    }
+
+    rc = wmp_file_top(&core, &f, prog);
+
+
     if (!rc) {
         fprintf(stderr, "No files to be found!\n");
         return 1;
     }
 
-    while(1) {
+    while (1) {
         printf("%s\n", f.filename);
         next = f.next_file;
         id = f.id;
@@ -476,7 +495,7 @@ static int get_filelist(int argc, char *argv[])
         if (id == next || id == 0) {
             break;
         } else {
-            rc = wmp_find_file(&core, next, &f);
+            rc = wmp_find_file(&core, next, &f, prog);
             if (!rc) {
                 wmp_file_free(&f);
                 break;

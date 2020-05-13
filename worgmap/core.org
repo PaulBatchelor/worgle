@@ -591,13 +591,15 @@ It is queried using =wmp_find_file=.
 #+BEGIN_SRC c
 int wmp_find_file(wmp_core *c,
                   unsigned int uuid,
-                  wmp_file *f);
+                  wmp_file *f,
+                  int prog);
 #+END_SRC
 #+NAME: functions
 #+BEGIN_SRC c
 int wmp_find_file(wmp_core *c,
                   unsigned int uuid,
-                  wmp_file *f)
+                  wmp_file *f,
+                  int prog)
 {
     sqlite3 *db;
     sqlite3_stmt *stmt;
@@ -613,11 +615,13 @@ int wmp_find_file(wmp_core *c,
                          "next_file, "
                          "top "
                        "FROM files "
-                       "WHERE(id==?1);",
+                       "WHERE(id==?1) AND "
+                       "(program == ?2);",
                        -1,
                        &stmt,
                        NULL);
     sqlite3_bind_int(stmt, 1, uuid);
+    sqlite3_bind_int(stmt, 2, prog);
 
     rc = sqlite3_step(stmt);
 
@@ -652,13 +656,15 @@ A file can be queried by name directly via the function
 #+BEGIN_SRC c
 int wmp_lookup_file(wmp_core *c,
                      const char *filename,
-                     wmp_file *f);
+                     wmp_file *f,
+                     int prog);
 #+END_SRC
 #+NAME: functions
 #+BEGIN_SRC c
 int wmp_lookup_file(wmp_core *c,
                      const char *filename,
-                     wmp_file *f)
+                     wmp_file *f,
+                     int prog)
 {
     sqlite3 *db;
     sqlite3_stmt *stmt;
@@ -673,13 +679,15 @@ int wmp_lookup_file(wmp_core *c,
                          "next_file, "
                          "top "
                        "FROM files "
-                       "WHERE(filename==?1);",
+                       "WHERE(filename==?1) AND "
+                       "(program==?2);",
                        -1,
                        &stmt,
                        NULL);
     sqlite3_bind_text(stmt, 1,
                       filename, strlen(filename),
                       NULL);
+    sqlite3_bind_int(stmt, 2, prog);
 
     rc = sqlite3_step(stmt);
 
@@ -710,11 +718,11 @@ Gets top file from the files column. Useful if you want to
 iterate throught the file list.
 #+NAME: function_declarations
 #+BEGIN_SRC c
-int wmp_file_top(wmp_core *c, wmp_file *f);
+int wmp_file_top(wmp_core *c, wmp_file *f, int prog);
 #+END_SRC
 #+NAME: functions
 #+BEGIN_SRC c
-int wmp_file_top(wmp_core *c, wmp_file *f)
+int wmp_file_top(wmp_core *c, wmp_file *f, int prog)
 {
     sqlite3 *db;
     sqlite3_stmt *stmt;
@@ -731,11 +739,12 @@ int wmp_file_top(wmp_core *c, wmp_file *f)
                          "next_file, "
                          "top "
                        "FROM files "
+                       "WHERE (program == ?1) "
                        "LIMIT 1;",
                        -1,
                        &stmt,
                        NULL);
-
+    sqlite3_bind_int(stmt, 1, prog);
     rc = sqlite3_step(stmt);
 
     if(rc == SQLITE_DONE) {
