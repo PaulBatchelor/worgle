@@ -291,16 +291,19 @@ static int get_fblk(int argc, char *argv[])
     int rc;
     wmp_block blk;
     int err;
+    int prog;
 
     err = 0;
-    if (argc < 2) {
-        fprintf(stderr, "Usage: %s NAME\n", argv[0]);
+    if (argc < 3) {
+        fprintf(stderr, "Usage: %s NAME prog\n", argv[0]);
         return 1;
     }
     rc = wmp_core_open(&core, wmp_filename_get());
     if (!rc) return 0;
     wmp_block_init(&blk);
-    rc = wmp_lookup_block(&core, argv[1], &blk);
+
+    prog = atoi(argv[2]);
+    rc = wmp_lookup_block(&core, argv[1], &blk, prog);
 
     if(!rc) {
         fprintf(stderr,
@@ -308,7 +311,7 @@ static int get_fblk(int argc, char *argv[])
                 argv[1]);
         err = 1;
     } else {
-        printf("%d %d %s\n",
+        printf("id = %d\nhead = %d\nname = %s\n",
                blk.id,
                blk.head_segment,
                blk.name);
@@ -612,7 +615,7 @@ static int get_blklst(int argc, char *argv[])
     rc = wmp_core_open(&core, wmp_filename_get());
     if (!rc) return 0;
     wmp_block_init(&b);
-    rc = wmp_lookup_block(&core, argv[1], &b);
+    rc = wmp_lookup_block(&core, argv[1], &b, prog);
     if (!rc) {
         fprintf(stderr,
                 "Could not find block '%s'",
@@ -678,7 +681,7 @@ static void print_tree(wmp_core *c,
     int rc;
 
     wmp_block_init(&b);
-    rc = wmp_lookup_block(c, name, &b);
+    rc = wmp_lookup_block(c, name, &b, prog);
     if (!rc) {
         fprintf(stderr,
                 "Could not find block '%s'",

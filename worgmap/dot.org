@@ -102,7 +102,7 @@ static void print_tree(wmp_core *c, const char *name, int level)
 
     prog = 0; /* TODO: make parameter */
     wmp_block_init(&b);
-    rc = wmp_lookup_block(c, name, &b);
+    rc = wmp_lookup_block(c, name, &b, prog);
     if (!rc) {
         fprintf(stderr,
                 "Could not find block '%s'",

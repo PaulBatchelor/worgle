@@ -505,13 +505,15 @@ function =wmp_lookup_block=.
 #+BEGIN_SRC c
 int wmp_lookup_block(wmp_core *c,
                      const char *name,
-                     wmp_block *b);
+                     wmp_block *b,
+                     int prog);
 #+END_SRC
 #+NAME: functions
 #+BEGIN_SRC c
 int wmp_lookup_block(wmp_core *c,
                      const char *name,
-                     wmp_block *b)
+                     wmp_block *b,
+                     int prog)
 {
     sqlite3 *db;
     sqlite3_stmt *stmt;
@@ -525,11 +527,13 @@ int wmp_lookup_block(wmp_core *c,
                          "id,"
                          "head_segment "
                        "FROM blocks "
-                       "WHERE(name==?1);",
+                       "WHERE(name==?1) AND "
+                       "(program == ?2);",
                        -1,
                        &stmt,
                        NULL);
     sqlite3_bind_text(stmt, 1, name, strlen(name), NULL);
+    sqlite3_bind_int(stmt, 2, prog);
 
     rc = sqlite3_step(stmt);
 
@@ -544,6 +548,7 @@ int wmp_lookup_block(wmp_core *c,
         nbytes = strlen(name);
         b->name = calloc(1, nbytes + 1);
         strncpy(b->name, name, nbytes);
+        b->prog = prog;
     } else {
         fprintf(stderr, "Error: %s\n", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
