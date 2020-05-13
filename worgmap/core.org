@@ -555,6 +555,7 @@ struct wmp_file {
     char *filename;
     int top;
     int next_file;
+    int prog;
 };
 #+END_SRC
 *** init
@@ -570,6 +571,7 @@ void wmp_file_init(wmp_file *f)
     f->id = 0;
     f->filename = NULL;
     f->next_file = -1;
+    f->prog = -1;
 }
 #+END_SRC
 *** Free
@@ -656,15 +658,13 @@ A file can be queried by name directly via the function
 #+BEGIN_SRC c
 int wmp_lookup_file(wmp_core *c,
                      const char *filename,
-                     wmp_file *f,
-                     int prog);
+                     wmp_file *f);
 #+END_SRC
 #+NAME: functions
 #+BEGIN_SRC c
 int wmp_lookup_file(wmp_core *c,
                      const char *filename,
-                     wmp_file *f,
-                     int prog)
+                     wmp_file *f)
 {
     sqlite3 *db;
     sqlite3_stmt *stmt;
@@ -678,31 +678,31 @@ int wmp_lookup_file(wmp_core *c,
                          "id,"
                          "next_file, "
                          "top "
+                         "program "
                        "FROM files "
-                       "WHERE(filename==?1) AND "
-                       "(program==?2);",
+                       "WHERE(filename==?1);",
                        -1,
                        &stmt,
                        NULL);
     sqlite3_bind_text(stmt, 1,
                       filename, strlen(filename),
                       NULL);
-    sqlite3_bind_int(stmt, 2, prog);
 
     rc = sqlite3_step(stmt);
 
-    if(rc == SQLITE_DONE) {
+    if (rc == SQLITE_DONE) {
         sqlite3_finalize(stmt);
         return 0;
     }
 
-    if(rc == SQLITE_ROW) {
+    if (rc == SQLITE_ROW) {
         f->id = sqlite3_column_int(stmt, 0);
         f->next_file = sqlite3_column_int(stmt, 1);
         nbytes = strlen(filename);
         f->filename = calloc(1, nbytes + 1);
         strncpy(f->filename, filename, nbytes);
         f->top = sqlite3_column_int(stmt, 2);
+        f->prog = sqlite3_column_int(stmt, 3);
     } else {
         fprintf(stderr, "Error: %s\n", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);

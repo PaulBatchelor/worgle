@@ -399,25 +399,23 @@ static int get_ffile(int argc, char *argv[])
     int rc;
     wmp_file file;
     int err;
-    int prog;
 
-    prog = 0;
     err = 0;
+
     if (argc < 2) {
         fprintf(stderr, "Usage: %s NAME [prog]\n", argv[0]);
         return 1;
     }
+
     rc = wmp_core_open(&core, wmp_filename_get());
+
     if (!rc) return 0;
+
     wmp_file_init(&file);
 
-    if (argc > 2) {
-        prog = atoi(argv[2]);
-    }
+    rc = wmp_lookup_file(&core, argv[1], &file);
 
-    rc = wmp_lookup_file(&core, argv[1], &file, prog);
-
-    if(!rc) {
+    if (!rc) {
         fprintf(stderr,
                 "Could not find file '%s'\n",
                 argv[1]);
@@ -427,6 +425,7 @@ static int get_ffile(int argc, char *argv[])
         printf("filename = %s\n", file.filename);
         printf("top = %d\n", file.top);
         printf("next_file = %d\n", file.next_file);
+        printf("program id = %d\n", file.prog);
     }
     wmp_file_free(&file);
     wmp_core_close(&core);

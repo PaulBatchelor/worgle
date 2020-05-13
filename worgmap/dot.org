@@ -180,9 +180,6 @@ static int dot_file(int argc, char *argv[])
     wmp_file file;
     wmp_block blk;
 
-    int prog;
-
-    prog = 0;
     if (argc < 2) {
         fprintf(stderr, "Usage: %s FILE [prog]\n", argv[0]);
         return 1;
@@ -193,10 +190,7 @@ static int dot_file(int argc, char *argv[])
 
     wmp_file_init(&file);
 
-    if (argc > 2) prog = atoi(argv[2]);
-
-
-    rc = wmp_lookup_file(&core, argv[1], &file, prog);
+    rc = wmp_lookup_file(&core, argv[1], &file);
 
     if (!rc) {
         printf("Could not find file %s\n", argv[1]);
