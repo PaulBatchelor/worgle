@@ -69,6 +69,13 @@ worgmap_clean:
 	$(SORG) -s $< > $@
 	$(SORG) -t $@ -s $< > $*_toc.html
 
+
+db: a.db $(WORGLE)
+	> a.db
+	$(WORGLE) -p 0 -n -d a.db worgle.org
+	$(WORGLE) -p 1 -n -d a.db sorg.org
+	$(WORGLE) -p 2 -n -d a.db db.org
+
 clean:
 	$(RM) orgle worgle sorg worglite
 	$(RM) $(OBJ)
