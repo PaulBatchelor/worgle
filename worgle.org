@@ -576,7 +576,6 @@ contiguous memory block).
 #+NAME: parse_content
 #+BEGIN_SRC c
 #ifndef WORGLITE
-/* TODO: implement me! */
 <<setup_new_content_block>>
 worg->segblock.size += read;
 #endif
