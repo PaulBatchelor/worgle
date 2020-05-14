@@ -23,6 +23,10 @@ Core tanlges itself into a C and a header file, called
 #+NAME: core.c
 #+BEGIN_SRC c :tangle core.c
 #include <sqlite3.h>
+/* OSX is a real jerk */
+#ifdef _SQLITE3_H
+#define SQLITE3_H
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
