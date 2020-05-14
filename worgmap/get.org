@@ -813,3 +813,59 @@ else if (match(argv[1], len, "blkref", 6)) {
     get_blkref(argc, argv);
 }
 #+END_SRC
+* Block Search (blksearch)
+Find a block with a name.
+#+NAME: available_commands
+#+BEGIN_SRC c
+fprintf(stderr, "blksearch: finds a block with a name.\n");
+#+END_SRC
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+static int get_blksearch(int argc, char *argv[]);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+static int get_blksearch(int argc, char *argv[])
+{
+    wmp_core core;
+    int rc;
+    sqlite3_stmt *stmt;
+    wmp_block blk;
+    const char *name;
+
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s NAME\n", argv[0]);
+        return 1;
+    }
+
+    rc = wmp_core_open(&core, wmp_filename_get());
+    if (!rc) return 0;
+    name = argv[1];
+
+    wmp_block_init(&blk);
+    wmp_blksearch_setup(&core, name, &stmt);
+
+    while (1) {
+        rc = wmp_blksearch_step(&core, stmt, &blk);
+        if (!rc) break;
+        printf("%s:prog=%d:id=%d\n",
+               blk.name,
+               blk.prog,
+               blk.id);
+    }
+
+    wmp_core_close(&core);
+    return 0;
+}
+#+END_SRC
+
+#+NAME: command_parsing
+#+BEGIN_SRC c
+else if (match(argv[1], len, "blksearch", 9)) {
+    argv++;
+    argc--;
+    get_blksearch(argc, argv);
+}
+#+END_SRC

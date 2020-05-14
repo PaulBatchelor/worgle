@@ -964,3 +964,103 @@ int wmp_blkref_lookup_step(wmp_core *core,
     return 1;
 }
 #+END_SRC
+* Block Search
+Under the hood, this performs a SQL query in the blocks
+table for any block matching a keyword, and returns the
+a blocks that match it.
+
+It's a two step function: setup and step. The last step
+will automatically clean.
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+#ifdef SQLITE3_H
+<<blksearch_funcdefs>>
+#endif
+#+END_SRC
+** Setup
+#+NAME: blksearch_funcdefs
+#+BEGIN_SRC c
+int wmp_blksearch_setup(wmp_core *core,
+                        const char *name,
+                        sqlite3_stmt **pstmt);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+int wmp_blksearch_setup(wmp_core *core,
+                        const char *name,
+                        sqlite3_stmt **pstmt)
+{
+    sqlite3 *db;
+
+    db = wmp_core_db(core);
+
+    sqlite3_prepare_v2(db,
+                       "SELECT "
+                         "id, "
+                         "head_segment, "
+                         "name, "
+                         "program "
+                       "FROM blocks "
+                       "WHERE name LIKE ?1;"
+                       ,
+                       -1,
+                       pstmt,
+                       NULL);
+
+    sqlite3_bind_text(*pstmt, 1, name, strlen(name), NULL);
+    return 1;
+}
+#+END_SRC
+
+#+NAME: blksearch_funcdefs
+#+BEGIN_SRC c
+int wmp_blksearch_step(wmp_core *core,
+                       sqlite3_stmt *stmt,
+                       wmp_block *blk);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+int wmp_blksearch_step(wmp_core *core,
+                       sqlite3_stmt *stmt,
+                       wmp_block *blk)
+{
+    int rc;
+
+    rc = sqlite3_step(stmt);
+
+    if (rc == SQLITE_DONE) {
+        wmp_block_free(blk);
+        sqlite3_finalize(stmt);
+        return 0;
+    }
+
+    if (rc == SQLITE_ROW) {
+        int nbytes;
+        const char *name;
+        wmp_block_free(blk);
+
+        blk->id = sqlite3_column_int(stmt, 0);
+
+        blk->head_segment = sqlite3_column_int(stmt, 1);
+
+        nbytes = sqlite3_column_bytes(stmt, 2);
+        blk->name = calloc(1, nbytes + 1);
+        name = (const char *)sqlite3_column_text(stmt, 2);
+        strncpy(blk->name, name, nbytes);
+
+        blk->prog = sqlite3_column_int(stmt, 3);
+    } else {
+        sqlite3 *db;
+
+        db = wmp_core_db(core);
+        fprintf(stderr, "Error: %s\n", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+        return 0;
+    }
+
+    return 1;
+}
+#+END_SRC
