@@ -9,6 +9,10 @@ Core tanlges itself into a C and a header file, called
 #+BEGIN_SRC c :tangle core.h
 #ifndef CORE_H
 #define CORE_H
+/* OSX is a real jerk */
+#ifdef _SQLITE3_H_
+#define SQLITE3_H
+#endif
 <<typedefs>>
 <<function_declarations>>
 #endif
