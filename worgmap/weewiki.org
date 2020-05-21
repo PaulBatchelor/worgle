@@ -1,0 +1,40 @@
+#+TITLE: WeeWiki
+
+A work in progress idea...
+
+The gist of this is to take a worgle program and export it
+to a weewiki. From there, the weewiki can export the content
+to HTML. Supplementary pages can also be added and linked.
+
+My core thinking is to be able to export every major header
+to it's own page. It will have the name format =wm_PROG_ID=,
+where =PROG= is the program number, and =ID= is the resource
+ID.
+
+Every program generates a table of contents. It has the name
+=wm_PROG_toc= where =PROG= is the program id.
+
+Worgmap will write stuff to a file that is supplied. It
+could be the worgmap db, but not necessarily.
+
+In addition to appending stuff to the "wiki" table, a
+reference table called =wm_ref= will be created, which links
+worgmap page names to resource + program ids. Even though
+this is information could be parsed in the page name, this
+is a bit cleaner.
+
+In order for this to work, worgmap must be able to
+dynamically recreate org code, given a section (or resource
+id of a section). This functionality will be implemented in
+worgmap core.
+
+Generating an org file is a a piecemeal operation. It is
+created by stringing together a bunch headers, content, and
+codeblocks to a string.
+
+When worgle generates the database, it recreates the headers
+and subheaders to include their section number.
+
+Codeblocks... how to recreate those? This may not be
+possible yet. And even if it is, one would want to have
+hyperlinks to references inside of codeblocks (eventually).
