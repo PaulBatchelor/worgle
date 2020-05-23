@@ -154,7 +154,8 @@ sqlite3_exec(db,
              "id INTEGER,\n"
              "head_segment INTEGER,\n"
              "name TEXT,\n"
-             "nblocks INTEGER\n"
+             "nblocks INTEGER,\n"
+             "nsegs INTEGER\n"
              ");\n",
              NULL,
              NULL,
@@ -869,8 +870,9 @@ void worgle_db_insert_block(worgle_d *worg,
                        "head_segment,"
                        "name,"
                        "program,"
-                       "nblocks)\n"
-                       "VALUES(?1, ?2, ?3, ?4, ?5);",
+                       "nblocks,"
+                       "nsegs)\n"
+                       "VALUES(?1, ?2, ?3, ?4, ?5, ?6);",
                        -1,
                        &stmt,
                        NULL);
@@ -883,6 +885,7 @@ void worgle_db_insert_block(worgle_d *worg,
                       NULL);
     sqlite3_bind_int(stmt, 4, prog);
     sqlite3_bind_int(stmt, 5, block->nblocks);
+    sqlite3_bind_int(stmt, 6, block->nsegs);
 
     rc = sqlite3_step(stmt);
 
