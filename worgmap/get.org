@@ -869,3 +869,11 @@ else if (match(argv[1], len, "blksearch", 9)) {
     get_blksearch(argc, argv);
 }
 #+END_SRC
+* TODO Header
+Prints header information, given an id.
+* TODO Content
+Gets content information, given an id.
+* TODO TOC
+Prints table of contents of a program.
+* TODO Org
+Prints Org markup, given a reference id of a section.
