@@ -175,12 +175,12 @@ for(i = 0; i < worg.nbuffers; i++) {
     if(!rc) goto cleanup;
 }
 #+END_SRC
-A file is loaded into a textbuffer via the function 
-=loadfile=. In the worg startup sequence, the buffer list 
-has been preallocated with the filename after parsing the 
-command line arguments (see <<append_filename>>). It is in 
-this stage that the memory block is allocated and the file 
-loaded into it. The file will be allocated and loaded into 
+A file is loaded into a textbuffer via the function
+=loadfile=. In the worg startup sequence, the buffer list
+has been preallocated with the filename after parsing the
+command line arguments (see <<append_filename>>). It is in
+this stage that the memory block is allocated and the file
+loaded into it. The file will be allocated and loaded into
 the file located in index position =file=.
 
 On success, the function will return TRUE (1). On failure,
@@ -1818,14 +1818,15 @@ void worgle_block_free(worgle_block *lst)
 }
 #+END_SRC
 *** Appending a segment to a code block
-A generic segment is appended to a code block with the function.
-=worgle_block_append_segment=.
-The block =b=, name of the block =str=, and type =type= are mandatory parameters
-which describe the segment. The location in the file is also required, so the
-line number =linum= and name of file =filename= are also provided as well.
-This function is called inside of a type-specific append function instead of
-being called directly.
+A generic segment is appended to a code block with the
+function =worgle_block_append_segment=.
 
+The block =b=, name of the block =str=, and type =type= are
+mandatory parameters which describe the segment. The
+location in the file is also required, so the line number
+=linum= and name of file =filename= are also provided as
+well. This function is called inside of a type-specific
+append function instead of being called directly.
 
 #+NAME: function_declarations
 #+BEGIN_SRC c
@@ -1860,7 +1861,6 @@ worgle_segment* worgle_block_append_segment(worgle_block *b,
     return s;
 }
 #+END_SRC
-
 **** Appending a string segment
 
 A string segment is appended to a code block using the function
@@ -1972,7 +1972,21 @@ int worgle_block_write(worgle_block *b, worgle_hashmap *h, FILE *fp)
     return 1;
 }
 #+END_SRC
+*** Keeping track of the last segment
+The id of the last segment appended is kept track of. This
+done for the benefit of =worgle_orglet_blkref=.
 
+When a new block reference is created, the id of the last
+appended segment is saved. This id, if a positive value,
+would be the end segment of the previous block. This
+information can be used later by worgmap to help extrapolate
+which segments belong to which blocks. This is how the
+variable gets the name =prev_last_seg=.
+
+The first segment of a given code subblock =N= is obtained
+by looking at the stored segment id, and then finding the
+next segment. The last segment is obtained by looking at
+the id stored in the next subblock =N + 1=.
 ** Code Block List
 A code block list is a linked list of blocks, which is used inside of a
 hash map.
@@ -3263,8 +3277,8 @@ static int tangle_code = 1;
 tangle_code = 0;
 #+END_SRC
 * Source mapping
-Worgle has the ability to produce Org data that outlines the structure
-of the named blocks.
+Worgle has the ability to produce Org data that outlines the
+structure of the named blocks.
 
 #+NAME: mapping
 #+BEGIN_SRC c
@@ -3274,10 +3288,11 @@ if(map_source_code && map_filename != NULL) {
 #+END_SRC
 
 The idea behind this functionality is to provide
-a quick overview of the source code structure from the blocks
-perspective, rather than from the text perspective.
+a quick overview of the source code structure from the
+blocks perspective, rather than from the text perspective.
 
-Every file has a top level block, which is recursively iterated through.
+Every file has a top level block, which is recursively
+iterated through.
 
 #+NAME: function_declarations
 #+BEGIN_SRC c
