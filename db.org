@@ -153,7 +153,8 @@ sqlite3_exec(db,
              "program INTEGER,\n"
              "id INTEGER,\n"
              "head_segment INTEGER,\n"
-             "name TEXT\n"
+             "name TEXT,\n"
+             "nblocks INTEGER\n"
              ");\n",
              NULL,
              NULL,
@@ -319,6 +320,7 @@ sqlite3_exec(db,
              "program INTEGER,\n"
              "id INTEGER,\n"
              "ref INTEGER,\n"
+             "pos INTEGER,\n"
              "section TEXT,\n"
              "filename TEXT,\n"
              "linum INTEGER,\n"
@@ -699,8 +701,8 @@ void worgle_db_insert_blkref(worgle_d *worg,
     sqlite3_prepare_v2(db,
                        "INSERT INTO blkref"
                        "(program, id, section, "
-                       "filename, linum, next, ref)"
-                       "VALUES(?1,?2,?3,?4,?5,?6,?7);",
+                       "filename, linum, next, ref, pos)"
+                       "VALUES(?1,?2,?3,?4,?5,?6,?7,?8);",
                        -1,
                        &stmt,
                        NULL);
@@ -720,6 +722,7 @@ void worgle_db_insert_blkref(worgle_d *worg,
     }
 
     sqlite3_bind_int(stmt, 7, b->blk->id);
+    sqlite3_bind_int(stmt, 8, b->pos);
 
     rc = sqlite3_step(stmt);
 
@@ -865,8 +868,9 @@ void worgle_db_insert_block(worgle_d *worg,
                        "(id,"
                        "head_segment,"
                        "name,"
-                       "program)\n"
-                       "VALUES(?1, ?2, ?3, ?4);",
+                       "program,"
+                       "nblocks)\n"
+                       "VALUES(?1, ?2, ?3, ?4, ?5);",
                        -1,
                        &stmt,
                        NULL);
@@ -878,6 +882,7 @@ void worgle_db_insert_block(worgle_d *worg,
                       name->str, name->size,
                       NULL);
     sqlite3_bind_int(stmt, 4, prog);
+    sqlite3_bind_int(stmt, 5, block->nblocks);
 
     rc = sqlite3_step(stmt);
 

@@ -466,6 +466,7 @@ void worgle_begin_block(worgle_d *worg, worgle_string *name)
 {
     worg->curblock = worgle_hashmap_get(&worg->dict, name);
     <<worgle_block_set_id>>
+    <<increment_nblocks>>
 #ifndef WORGLITE
     <<append_code_reference>>
 #endif
@@ -1761,8 +1762,8 @@ int am_i_used;
 worgle_block *nxt;
 #+END_SRC
 *** Initializing a code block
-
-A worgle code block is initialized using the function =worgle_block_init=.
+A worgle code block is initialized using the function
+=worgle_block_init=.
 
 #+NAME: function_declarations
 #+BEGIN_SRC c
@@ -1908,10 +1909,35 @@ worgle_segment* worgle_block_append_reference(worgle_block *b,
 }
 #+END_SRC
 *** Appending a code block to a code block
+In both CWEB and Org-tangle, existing code blocks can be
+appeneded to in different sections. Because of how this
+program works, this functionality comes for free.
 
-In both CWEB and Org-tangle, existing code blocks can be appeneded to in
-different sections. Because of how this program works, we get this functionality
-for free!
+It can be useful to be able to differentiate between
+different code block sections. This is done using a variable
+called =nblocks=, which keeps track of the number of blocks
+in a code block.
+
+#+NAME: worgle_block_contents
+#+BEGIN_SRC c
+int nblocks;
+#+END_SRC
+
+#+NAME: worgle_block_init
+#+BEGIN_SRC c
+b->nblocks = 0;
+#+END_SRC
+
+Every time a new =NAME='d block appears,
+the =nblock= variable gets incremented. The current =nblock=
+value is used as a position value that gets stored in the
+=worgle_orglet_blkref=.
+
+
+#+NAME: increment_nblocks
+#+BEGIN_SRC c
+worg->curblock->nblocks++;
+#+END_SRC
 *** Writing a code block to filehandle
 
 Writing a code block to a filehandle can be done using the function
@@ -2851,6 +2877,7 @@ void worgle_orgfile_append_reference(worgle_d *worg,
     br = calloc(1, sizeof(worgle_orglet_blkref));
 
     br->blk = blk;
+    br->pos = blk->nblocks;
     worgle_orglet_init(orglet);
 
     orglet->type = ORGLET_BLKREF;
@@ -2964,6 +2991,7 @@ typedef struct worgle_orglet_blkref worgle_orglet_blkref;
 #+BEGIN_SRC c
 struct worgle_orglet_blkref {
     worgle_block *blk;
+    int pos;
 };
 #+END_SRC
 * Command Line Arguments

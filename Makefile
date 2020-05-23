@@ -70,7 +70,7 @@ worgmap_clean:
 	$(SORG) -t $@ -s $< > $*_toc.html
 
 
-db: a.db $(WORGLE)
+db: $(WORGLE)
 	> a.db
 	$(WORGLE) -p 0 -n -d a.db worgle.org
 	$(WORGLE) -p 1 -n -d a.db sorg.org
