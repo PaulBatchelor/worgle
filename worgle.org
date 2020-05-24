@@ -1858,6 +1858,7 @@ worgle_segment* worgle_block_append_segment(worgle_block *b,
     b->tail->nxt = s;
     b->tail = s;
     b->nsegs++;
+    <<store_last_seg>>
     return s;
 }
 #+END_SRC
@@ -1976,12 +1977,28 @@ int worgle_block_write(worgle_block *b, worgle_hashmap *h, FILE *fp)
 The id of the last segment appended is kept track of. This
 done for the benefit of =worgle_orglet_blkref=.
 
+#+NAME: worgle_block_contents
+#+BEGIN_SRC c
+int last_seg;
+#+END_SRC
+
+#+NAME: worgle_block_init
+#+BEGIN_SRC c
+b->last_seg = -1;
+#+END_SRC
+
 When a new block reference is created, the id of the last
-appended segment is saved. This id, if a positive value,
-would be the end segment of the previous block. This
-information can be used later by worgmap to help extrapolate
-which segments belong to which blocks. This is how the
-variable gets the name =prev_last_seg=.
+appended segment is saved.
+
+#+NAME: store_last_seg
+#+BEGIN_SRC c
+b->last_seg = s->id;
+#+END_SRC
+
+This id, if a positive value, would be the last segment of
+the previous block. This information can be used later by
+worgmap to help extrapolate which segments belong to which
+blocks.
 
 The first segment of a given code subblock =N= is obtained
 by looking at the stored segment id, and then finding the
@@ -2890,8 +2907,7 @@ void worgle_orgfile_append_reference(worgle_d *worg,
     orglet = calloc(1, sizeof(worgle_orglet));
     br = calloc(1, sizeof(worgle_orglet_blkref));
 
-    br->blk = blk;
-    br->pos = blk->nblocks;
+    <<orglet_blkref_setup>>
     worgle_orglet_init(orglet);
 
     orglet->type = ORGLET_BLKREF;
@@ -3001,12 +3017,41 @@ ORGLET_BLKREF,
 #+BEGIN_SRC c
 typedef struct worgle_orglet_blkref worgle_orglet_blkref;
 #+END_SRC
+
 #+NAME: worgle_orglet_subtypes
 #+BEGIN_SRC c
 struct worgle_orglet_blkref {
     worgle_block *blk;
     int pos;
+    int prev_lastseg;
+    int segoff;
 };
+#+END_SRC
+
+The integer variables here take a snapshot of current
+code block, and can be used to recreate the code inside a
+code subblock.
+
+=pos= is derived from the =nblocks= counter, and is turned
+into a relative position id.
+
+=prev_lastseg= is the id of last segment of the previous
+block, and is negative if it doesn't exist. Peaking at the
+next id of this segment gets the first segment of the
+subblock.
+
+=segoff= is the segment offset. It stores the starting
+segment position relative to the block. Subtracting the
+=segoff= of the next subblock obtains the number of segments
+in the subblock. If there is no next block, the offset can
+be subtracted from the total number of segments in the block
+to get number of segments in the subblock.
+#+NAME: orglet_blkref_setup
+#+BEGIN_SRC c
+br->blk = blk;
+br->pos = blk->nblocks;
+br->prev_lastseg = blk->last_seg;
+br->segoff = blk->nsegs;
 #+END_SRC
 * Command Line Arguments
 This section outlines command line arguments in Worgle.
