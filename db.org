@@ -272,7 +272,7 @@ sqlite3_exec(db,
              "name TEXT,\n"
              "filename TEXT,\n"
              "linum INTEGER,\n"
-             "next integer\n"
+             "next INTEGER\n"
              ");\n",
              NULL,
              NULL,
@@ -296,7 +296,7 @@ sqlite3_exec(db,
              "filename TEXT,\n"
              "linum INTEGER,\n"
              "content TEXT,\n"
-             "next integer\n"
+             "next INTEGER\n"
              ");\n",
              NULL,
              NULL,
@@ -327,7 +327,7 @@ sqlite3_exec(db,
              "section TEXT,\n"
              "filename TEXT,\n"
              "linum INTEGER,\n"
-             "next integer\n"
+             "next INTEGER\n"
              ");\n",
              NULL,
              NULL,
