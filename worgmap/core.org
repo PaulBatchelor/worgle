@@ -1228,7 +1228,7 @@ int wmp_header_find(wmp_core *c,
     return 1;
 }
 #+END_SRC
-* TODO Content
+* Content
 Gets content information.
 ** struct
 #+NAME: typedefs
@@ -1246,4 +1246,138 @@ struct wmp_content {
     char *content;
     int next;
 };
+#+END_SRC
+** init
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void wmp_content_init(wmp_content *c);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+void wmp_content_init(wmp_content *c)
+{
+    c->prog = -1;
+    c->id = -1;
+    c->section = NULL;
+    c->filename = NULL;
+    c->linum = -1;
+    c->content = NULL;
+    c->next = -1;
+}
+#+END_SRC
+** free
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void wmp_content_free(wmp_content *c);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+void wmp_content_free(wmp_content *c)
+{
+    if (c->section != NULL) {
+        free(c->section);
+        c->section = NULL;
+    }
+
+    if (c->content != NULL) {
+        free(c->content);
+        c->content = NULL;
+    }
+
+    if (c->filename != NULL) {
+        free(c->filename);
+        c->filename = NULL;
+    }
+}
+#+END_SRC
+** find
+#+NAME: function_declarations
+#+BEGIN_SRC c
+int wmp_content_find(wmp_core *c,
+                     unsigned int uuid,
+                     wmp_content *cnt,
+                     int prog);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+int wmp_content_find(wmp_core *c,
+                     unsigned int uuid,
+                     wmp_content *cnt,
+                     int prog)
+{
+    sqlite3 *db;
+    sqlite3_stmt *stmt;
+    int rc;
+
+    db = wmp_core_db(c);
+
+    sqlite3_prepare_v2(db,
+                       "SELECT "
+                         "program, "
+                         "id, "
+                         "section, "
+                         "filename , "
+                         "linum , "
+                         "content , "
+                         "next "
+                       "FROM content "
+                       "WHERE(id==?1) AND "
+                       "(program==?2);",
+                       -1,
+                       &stmt,
+                       NULL);
+    sqlite3_bind_int(stmt, 1, uuid);
+    sqlite3_bind_int(stmt, 2, prog);
+
+    rc = sqlite3_step(stmt);
+
+    if (rc == SQLITE_DONE) {
+        sqlite3_finalize(stmt);
+        return 0;
+    }
+
+    if (rc == SQLITE_ROW) {
+        cnt->prog = sqlite3_column_int(stmt, 0);
+        cnt->id = sqlite3_column_int(stmt, 1);
+
+        {
+            int nbytes;
+            const char *str;
+            nbytes = sqlite3_column_bytes(stmt, 2);
+            cnt->section = calloc(1, nbytes + 1);
+            str = (const char *)sqlite3_column_text(stmt, 2);
+            strncpy(cnt->section , str, nbytes);
+        }
+
+        {
+            int nbytes;
+            const char *str;
+            nbytes = sqlite3_column_bytes(stmt, 3);
+            cnt->filename = calloc(1, nbytes + 1);
+            str = (const char *)sqlite3_column_text(stmt, 3);
+            strncpy(cnt->filename, str, nbytes);
+        }
+
+        cnt->linum = sqlite3_column_int(stmt, 4);
+
+
+        {
+            int nbytes;
+            const char *str;
+            nbytes = sqlite3_column_bytes(stmt, 5);
+            cnt->content = calloc(1, nbytes + 1);
+            str = (const char *)sqlite3_column_text(stmt, 5);
+            strncpy(cnt->content, str, nbytes);
+        }
+
+        cnt->next = sqlite3_column_int(stmt, 6);
+    } else {
+        fprintf(stderr, "Error: %s\n", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+        return 0;
+    }
+    sqlite3_finalize(stmt);
+    return 1;
+}
 #+END_SRC
