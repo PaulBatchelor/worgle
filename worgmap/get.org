@@ -878,8 +878,85 @@ else if (match(argv[1], len, "blksearch", 9)) {
     get_blksearch(argc, argv);
 }
 #+END_SRC
-* TODO Header
+* Header
 Prints header information, given an id.
+
+#+NAME: available_commands
+#+BEGIN_SRC c
+fprintf(stderr, "header: prints header info given UUID\n");
+#+END_SRC
+
+#+NAME: utils
+#+BEGIN_SRC c
+static void print_header(wmp_header *h)
+{
+    printf("prog = %d\n", h->prog);
+    printf("id = %d\n", h->id);
+    printf("section = %s\n", h->section);
+    printf("level = %d\n", h->level);
+    printf("name = %s\n", h->name);
+    printf("filename = %s\n", h->filename);
+    printf("linum = %d\n", h->linum);
+    printf("next = %d\n", h->next);
+}
+#+END_SRC
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+static int get_header(int argc, char *argv[]);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+static int get_header(int argc, char *argv[])
+{
+    wmp_core core;
+    int rc;
+    wmp_header h;
+    unsigned int id;
+    int err;
+    int prog;
+
+    prog = 0;
+    err = 0;
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s UUID [prog]\n", argv[0]);
+        return 1;
+    }
+    rc = wmp_core_open(&core, wmp_filename_get());
+    if (!rc) return 0;
+    wmp_header_init(&h);
+    id = atoi(argv[1]);
+
+    if (argc > 2) prog = atoi(argv[2]);
+
+    rc = wmp_header_find(&core, id, &h, prog);
+
+    if(!rc) {
+        fprintf(stderr,
+                "Could not find block in program %d "
+                "with id %d\n",
+                prog,
+                id);
+        err = 1;
+    } else {
+        print_header(&h);
+    }
+
+    wmp_header_free(&h);
+    wmp_core_close(&core);
+    return err;
+}
+#+END_SRC
+
+#+NAME: command_parsing
+#+BEGIN_SRC c
+else if (match(argv[1], len, "header", 6)) {
+    argv++;
+    argc--;
+    get_header(argc, argv);
+}
+#+END_SRC
 * TODO Content
 Gets content information, given an id.
 * TODO TOC

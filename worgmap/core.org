@@ -1072,7 +1072,161 @@ int wmp_blksearch_step(wmp_core *core,
     return 1;
 }
 #+END_SRC
-* TODO Header
+* Header
 Gets header information.
+** struct
+#+NAME: typedefs
+#+BEGIN_SRC c
+typedef struct wmp_header wmp_header;
+#+END_SRC
+#+NAME: structs
+#+BEGIN_SRC c
+struct wmp_header {
+    int prog;
+    int id;
+    char *section;
+    int level;
+    char *name;
+    char *filename;
+    int linum;
+    int next;
+};
+#+END_SRC
+** init
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void wmp_header_init(wmp_header *h);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+void wmp_header_init(wmp_header *h)
+{
+    h->prog = -1;
+    h->id = -1;
+    h->section = NULL;
+    h->level = -1;
+    h->name = NULL;
+    h->filename = NULL;
+    h->linum = -1;
+    h->next = -1;
+}
+#+END_SRC
+** free
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void wmp_header_free(wmp_header *h);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+void wmp_header_free(wmp_header *h)
+{
+    if (h->section != NULL) {
+        free(h->section);
+        h->section = NULL;
+    }
+
+    if (h->name != NULL) {
+        free(h->name);
+        h->name = NULL;
+    }
+
+    if (h->filename != NULL) {
+        free(h->filename);
+        h->filename = NULL;
+    }
+}
+#+END_SRC
+** find
+#+NAME: function_declarations
+#+BEGIN_SRC c
+int wmp_header_find(wmp_core *c,
+                    unsigned int uuid,
+                    wmp_header *h,
+                    int prog);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+int wmp_header_find(wmp_core *c,
+                    unsigned int uuid,
+                    wmp_header *h,
+                    int prog)
+{
+    sqlite3 *db;
+    sqlite3_stmt *stmt;
+    int rc;
+
+    db = wmp_core_db(c);
+
+    sqlite3_prepare_v2(db,
+                       "SELECT "
+                         "program, "
+                         "id, "
+                         "section, "
+                         "level, "
+                         "name , "
+                         "filename , "
+                         "linum , "
+                         "next "
+                       "FROM headers "
+                       "WHERE(id==?1) AND "
+                       "(program==?2);",
+                       -1,
+                       &stmt,
+                       NULL);
+    sqlite3_bind_int(stmt, 1, uuid);
+    sqlite3_bind_int(stmt, 2, prog);
+
+    rc = sqlite3_step(stmt);
+
+    if (rc == SQLITE_DONE) {
+        sqlite3_finalize(stmt);
+        return 0;
+    }
+
+    if (rc == SQLITE_ROW) {
+        h->prog = sqlite3_column_int(stmt, 0);
+        h->id = sqlite3_column_int(stmt, 1);
+
+        {
+            int nbytes;
+            const char *str;
+            nbytes = sqlite3_column_bytes(stmt, 2);
+            h->section = calloc(1, nbytes + 1);
+            str = (const char *)sqlite3_column_text(stmt, 2);
+            strncpy(h->section, str, nbytes);
+        }
+
+        h->level = sqlite3_column_int(stmt, 3);
+
+        {
+            int nbytes;
+            const char *str;
+            nbytes = sqlite3_column_bytes(stmt, 4);
+            h->name = calloc(1, nbytes + 1);
+            str = (const char *)sqlite3_column_text(stmt, 4);
+            strncpy(h->name, str, nbytes);
+        }
+
+        {
+            int nbytes;
+            const char *str;
+            nbytes = sqlite3_column_bytes(stmt, 5);
+            h->filename = calloc(1, nbytes + 1);
+            str = (const char *)sqlite3_column_text(stmt, 5);
+            strncpy(h->filename, str, nbytes);
+        }
+
+        h->linum = sqlite3_column_int(stmt, 6);
+        h->next = sqlite3_column_int(stmt, 7);
+    } else {
+        fprintf(stderr, "Error: %s\n", sqlite3_errmsg(db));
+        sqlite3_finalize(stmt);
+        return 0;
+    }
+    sqlite3_finalize(stmt);
+    return 1;
+}
+#+END_SRC
 * TODO Content
 Gets content information.
