@@ -1230,3 +1230,20 @@ int wmp_header_find(wmp_core *c,
 #+END_SRC
 * TODO Content
 Gets content information.
+** struct
+#+NAME: typedefs
+#+BEGIN_SRC c
+typedef struct wmp_content wmp_content;
+#+END_SRC
+#+NAME: structs
+#+BEGIN_SRC c
+struct wmp_content {
+    int prog;
+    int id;
+    char *section;
+    char *filename;
+    int linum;
+    char *content;
+    int next;
+};
+#+END_SRC
