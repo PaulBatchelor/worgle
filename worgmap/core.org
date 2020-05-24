@@ -401,6 +401,8 @@ struct wmp_block {
     int head_segment;
     char *name;
     int prog;
+    int nblocks;
+    int nsegs;
 };
 #+END_SRC
 ** init
@@ -417,6 +419,8 @@ void wmp_block_init(wmp_block *b)
     b->head_segment = -1;
     b->name = NULL;
     b->prog = -1;
+    b->nblocks = -1;
+    b->nsegs = -1;
 }
 #+END_SRC
 ** free
@@ -442,7 +446,7 @@ int wmp_find_block(wmp_core *c,
                    wmp_block *b,
                    int prog);
 #+END_SRC
-TODO: implement me.
+
 #+NAME: functions
 #+BEGIN_SRC c
 int wmp_find_block(wmp_core *c,
@@ -462,7 +466,7 @@ int wmp_find_block(wmp_core *c,
                        "SELECT "
                          "head_segment,"
                          "name, "
-                         "program "
+                         "program, nblocks, nsegs "
                        "FROM blocks "
                        "WHERE(id==?1) AND "
                        "(program==?2);",
@@ -487,6 +491,8 @@ int wmp_find_block(wmp_core *c,
         str = (const char *)sqlite3_column_text(stmt, 1);
         strncpy(b->name, str, nbytes);
         b->prog = sqlite3_column_int(stmt, 2);
+        b->nblocks = sqlite3_column_int(stmt, 4);
+        b->nsegs = sqlite3_column_int(stmt, 5);
     } else {
         fprintf(stderr, "Error: %s\n", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
@@ -524,7 +530,7 @@ int wmp_lookup_block(wmp_core *c,
     sqlite3_prepare_v2(db,
                        "SELECT "
                          "id,"
-                         "head_segment "
+                         "head_segment, nblocks, nsegs "
                        "FROM blocks "
                        "WHERE(name==?1) AND "
                        "(program == ?2);",
@@ -548,6 +554,8 @@ int wmp_lookup_block(wmp_core *c,
         b->name = calloc(1, nbytes + 1);
         strncpy(b->name, name, nbytes);
         b->prog = prog;
+        b->nblocks = sqlite3_column_int(stmt, 2);
+        b->nsegs = sqlite3_column_int(stmt, 3);
     } else {
         fprintf(stderr, "Error: %s\n", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
