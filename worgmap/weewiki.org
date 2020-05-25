@@ -1,5 +1,5 @@
 #+TITLE: WeeWiki
-
+* Brain Storming
 A work in progress idea...
 
 The gist of this is to take a worgle program and export it
@@ -35,6 +35,120 @@ codeblocks to a string.
 When worgle generates the database, it recreates the headers
 and subheaders to include their section number.
 
-Codeblocks... how to recreate those? This may not be
-possible yet. And even if it is, one would want to have
-hyperlinks to references inside of codeblocks (eventually).
+Given a block reference, a code sub block can be printed.
+Eventually, all references will have links to a special
+generated codeblock page.
+* Tangled Files
+#+NAME: weewiki.c
+#+BEGIN_SRC c :tangle weewiki.c
+#include <stdio.h>
+#include <string.h>
+#include <sqlite3.h>
+#include <stdlib.h>
+#include "core.h"
+#include "core_private.h"
+<<functions>>
+#+END_SRC
+* Top Level Function
+#+NAME: functions
+#+BEGIN_SRC c
+int p_weewiki(int argc, char *argv[])
+{
+    fprintf(stderr, "To be implemented later.\n");
+
+    if (argc < 4) {
+        fprintf(stderr, "Usage: %s program db\n", argv[0]);
+        return 1;
+    }
+
+    return 0;
+}
+#+END_SRC
+* Opening/Closing the database
+If no filename is provided, the weewiki database is used.
+Otherwise, a new SQLite database is opened.
+
+At the end, this SQLite database is closed. If it's the same
+as the database (the same pointer), this does not happen.
+* Clearing + reset the weewiki tables
+** Wiki
+Create this table if it doesn't already exist.
+
+Remove all rows with the prefix =wm_=.
+** wm_ref
+This links wiki names with program and resource ideas.
+Create the table if doesn't exist, and clear any
+pre-existing rows.
+* Generation
+Every major section in a program is written to a separate
+file.
+
+A program in this context is considered to be a collection
+of top-level headers. If there are no level 1 headers, no
+pages are created. Any text that occurs before the first
+header will be skipped.
+
+The first header in the program needs to be found. This is
+the header with the smallest reference ID.
+Org code gets rendered by iterating through headers,
+content, and block references. These components are
+connected together as a linked list. Every one of these
+items has a "next" value, containing the reference ID. The
+type of the reference ID is determined, and then the
+information is extracted from the right table.
+
+Components get appended onto the end of a string as org
+code.
+
+For content, it's a matter of appending the text
+as-is. This is the most straightforward.
+
+Headers require some work. First, the header level is
+applied (the number of stars). Following that, the
+dynamically section number. Finally, the actual name itself
+appended.
+
+Markers are referenced using inline janet function called
+=marker=. This creates an id reference that jump links can
+use.
+
+A header marker generated with the format
+=wm_PROG_ID= where =PROG= is the program number, and
+=ID= is the reference id.
+
+Generating code blocks is where things start to get
+interesting. A code block first pops up as a block
+reference, and is used to make a marker with the name
+=wm_PROG_ID=. From the block reference, the code block
+itself can be extracted. The subblock can then be recreated
+using the =pos=, =ref=, =prev_lastseg=, and =segoff=
+values.
+
+A code subblock is a chain of segments. that gets written
+inside of a subblock. Segments are either piece of text,
+or block references. Block references will eventually turn
+into hyperlinks that go to a block page.
+
+Items are appended onto an org string until the next major
+org header is found.
+* Meta Page Generation
+Metapages are pages that are dynamically generated using
+SQL queries. These include a table of contents, a block
+tree, and block pages.
+
+A table of contents page generates a list of links for all
+the sections and subsections. Each section links to a page,
+and every subsection links to it's major section page with
+a jump link.
+
+Indentation will easier visibility, however the HTML will
+be abstracted away into inline janet functions, should this
+code ever want to be exported to a non-HTML format someday.
+This is TBD.
+
+A block tree is like a table of contents, but it outlines
+the code block hierachy in the program structure. Each of
+these blocks link to block pages.
+
+Block pages give meta information about each block and where
+they are located. This will include links to every subblock.

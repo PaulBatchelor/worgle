@@ -1,7 +1,7 @@
-* Worgmap Top
+#+TITLE: Worgmap Top
 This document describes the top-level files and constructs
 used in worgmap.
-** Main header file
+* Main header file
 The core header file is called =worgmap.h=.
 #+NAME: worgmap.h
 #+BEGIN_SRC c :tangle worgmap.h
@@ -9,7 +9,7 @@ The core header file is called =worgmap.h=.
 #define WORGMAP_H
 #endif
 #+END_SRC
-** Main C file
+* Main C file
 The main C file is called =worgmap.c=.
 #+NAME: worgmap.c
 #+BEGIN_SRC c :tangle worgmap.c
@@ -20,8 +20,9 @@ The main C file is called =worgmap.c=.
 int p_get(int argc, char *argv[]);
 int p_dot(int argc, char *argv[]);
 int p_html(int argc, char *argv[]);
+int p_weewiki(int argc, char *argv[]);
 
-#define NCOMMANDS 3
+#define NCOMMANDS 4
 
 typedef struct {
     const char *name;
@@ -32,6 +33,7 @@ worgmap_cmd commands[NCOMMANDS] = {
     {"get", p_get},
     {"dot", p_dot},
     {"html", p_html},
+    {"weewiki", p_weewiki},
 };
 
 int main(int argc, char *argv[])
@@ -82,7 +84,7 @@ int main(int argc, char *argv[])
     }
 
 
-    for (n = 0; n < 3; n++) {
+    for (n = 0; n < NCOMMANDS; n++) {
         if (!strcmp(argv[0], commands[n].name)) {
             return commands[n].fun(argc, argv);
         }

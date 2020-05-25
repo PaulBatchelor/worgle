@@ -2,7 +2,7 @@ WORGLE ?=../worgle
 
 CFLAGS=-O3 -Wall -pedantic -std=c89
 
-OBJ=worgmap.o get.o core.o dot.o html.o
+OBJ=worgmap.o get.o core.o dot.o html.o weewiki.o
 
 LIBS=-lsqlite3
 
