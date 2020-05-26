@@ -61,6 +61,9 @@ int p_weewiki(int argc, char *argv[])
         return 1;
     }
 
+    <<open_the_db>>
+    <<page_generation>>
+    <<close_the_db>>
     return 0;
 }
 #+END_SRC
@@ -68,8 +71,18 @@ int p_weewiki(int argc, char *argv[])
 If no filename is provided, the weewiki database is used.
 Otherwise, a new SQLite database is opened.
 
+#+NAME: open_the_db
+#+BEGIN_SRC c
+
+#+END_SRC
+
 At the end, this SQLite database is closed. If it's the same
 as the database (the same pointer), this does not happen.
+
+#+NAME: close_the_db
+#+BEGIN_SRC c
+
+#+END_SRC
 * Clearing + reset the weewiki tables
 ** Wiki
 Create this table if it doesn't already exist.
@@ -80,6 +93,12 @@ This links wiki names with program and resource ideas.
 Create the table if doesn't exist, and clear any
 pre-existing rows.
 * Generation
+#+NAME: page_generation
+#+BEGIN_SRC c
+<<find_first_id>>
+<<iterate_through_components>>
+#+END_SRC
+
 Every major section in a program is written to a separate
 file.
 
@@ -90,12 +109,46 @@ header will be skipped.
 
 The first header in the program needs to be found. This is
 the header with the smallest reference ID.
+
+#+NAME: find_first_id
+#+BEGIN_SRC c
+
+#+END_SRC
+
 Org code gets rendered by iterating through headers,
-content, and block references. These components are
+content, and block references.
+
+#+NAME: iterate_through_components
+#+BEGIN_SRC c
+<<get_type>>
+<<handle_component>>
+<<get_next>>
+<<create_page>>
+#+END_SRC
+
+These components are
 connected together as a linked list. Every one of these
-items has a "next" value, containing the reference ID. The
-type of the reference ID is determined, and then the
+items has a "next" value, containing the reference ID.
+
+#+NAME: get_next
+#+BEGIN_SRC c
+
+#+END_SRC
+
+The type of the reference ID is determined, and then the
 information is extracted from the right table.
+
+#+NAME: get_type
+#+BEGIN_SRC c
+
+#+END_SRC
+
+#+NAME: handle_component
+#+BEGIN_SRC c
+<<append_content>>
+<<append_header>>
+<<append_block>>
+#+END_SRC
 
 Components get appended onto the end of a string as org
 code.
@@ -103,10 +156,20 @@ code.
 For content, it's a matter of appending the text
 as-is. This is the most straightforward.
 
+#+NAME: append_content
+#+BEGIN_SRC c
+
+#+END_SRC
+
 Headers require some work. First, the header level is
 applied (the number of stars). Following that, the
 dynamically section number. Finally, the actual name itself
 appended.
+
+#+NAME: append_header
+#+BEGIN_SRC c
+<<check_for_new_section>>
+#+END_SRC
 
 Markers are referenced using inline janet function called
 =marker=. This creates an id reference that jump links can
@@ -129,8 +192,23 @@ inside of a subblock. Segments are either piece of text,
 or block references. Block references will eventually turn
 into hyperlinks that go to a block page.
 
+#+NAME: append_block
+#+BEGIN_SRC c
+
+#+END_SRC
+
 Items are appended onto an org string until the next major
 org header is found.
+
+#+NAME: check_for_new_section
+#+BEGIN_SRC c
+
+#+END_SRC
+
+#+NAME: create_page
+#+BEGIN_SRC c
+
+#+END_SRC
 * Meta Page Generation
 Metapages are pages that are dynamically generated using
 SQL queries. These include a table of contents, a block
@@ -152,3 +230,12 @@ these blocks link to block pages.
 
 Block pages give meta information about each block and where
 they are located. This will include links to every subblock.
+* Inserting Pages
+Inserting a page involves two INSERT statements: one for
+the main =wiki= table, and other for the =wm_ref= table.
+
+Three parameters are needed to insert a page: the page name,
+the content, and the id.
+
+The =wiki= table uses both the content and and the name. The
+=wm_ref= table uses the id and the name.
