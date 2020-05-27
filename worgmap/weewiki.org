@@ -54,16 +54,26 @@ generated codeblock page.
 #+BEGIN_SRC c
 int p_weewiki(int argc, char *argv[])
 {
+    sqlite3 *wiki;
+    wmp_core core;
+    int rc;
+
     fprintf(stderr, "To be implemented later.\n");
 
-    if (argc < 4) {
-        fprintf(stderr, "Usage: %s program db\n", argv[0]);
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s program [db]\n", argv[0]);
         return 1;
     }
 
+    rc = wmp_core_open(&core, wmp_filename_get());
+    if (!rc) return 0;
+
     <<open_the_db>>
+    <<clear_and_reset>>
     <<page_generation>>
     <<close_the_db>>
+
+    wmp_core_close(&core);
     return 0;
 }
 #+END_SRC
@@ -73,7 +83,18 @@ Otherwise, a new SQLite database is opened.
 
 #+NAME: open_the_db
 #+BEGIN_SRC c
-
+if (argc == 2) {
+    wiki = wmp_core_db(&core);
+} else {
+    rc = sqlite3_open(argv[2], &wiki);
+    if (rc) {
+        fprintf(stderr,
+                "Could not open database: %s",
+                sqlite3_errmsg(wiki));
+        sqlite3_close(wiki);
+        return 0;
+    }
+}
 #+END_SRC
 
 At the end, this SQLite database is closed. If it's the same
@@ -81,17 +102,48 @@ as the database (the same pointer), this does not happen.
 
 #+NAME: close_the_db
 #+BEGIN_SRC c
-
+if (wiki != wmp_core_db(&core)) {
+    printf("closing...\n");
+    sqlite3_close(wiki);
+    wiki = NULL;
+}
 #+END_SRC
 * Clearing + reset the weewiki tables
+#+NAME: clear_and_reset
+#+BEGIN_SRC c
+<<create_wiki_table>>
+<<create_wmref_table>>
+#+END_SRC
 ** Wiki
 Create this table if it doesn't already exist.
-
+#+NAME: create_wiki_table
+#+BEGIN_SRC c
+sqlite3_exec(wiki,
+             "DROP TABLE IF EXISTS wikilinks;"
+             "DROP TABLE IF EXISTS wiki;"
+             "CREATE TABLE "
+             "wiki(key TEXT UNIQUE, value TEXT);",
+             NULL,
+             NULL,
+             NULL);
+#+END_SRC
 Remove all rows with the prefix =wm_=.
-** wm_ref
+** wmref
 This links wiki names with program and resource ideas.
 Create the table if doesn't exist, and clear any
 pre-existing rows.
+#+NAME: create_wmref_table
+#+BEGIN_SRC c
+sqlite3_exec(wiki,
+             "DROP TABLE IF EXISTS wmref;"
+             "CREATE TABLE "
+             "wmref(key TEXT UNIQUE, "
+             "program INTEGER, "
+             "id INTEGER);",
+             NULL,
+             NULL,
+             NULL);
+#+END_SRC
 * Generation
 #+NAME: page_generation
 #+BEGIN_SRC c
