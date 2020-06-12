@@ -195,6 +195,10 @@ information is extracted from the right table.
 
 #+END_SRC
 
+Content gets appended to the working string in different
+ways depending on the type. There are three major types
+to consider: content data, headers, and code blocks.
+
 #+NAME: handle_component
 #+BEGIN_SRC c
 <<append_content>>
@@ -291,3 +295,11 @@ the content, and the id.
 
 The =wiki= table uses both the content and and the name. The
 =wm_ref= table uses the id and the name.
+* String Management
+Content gets dynamically appended onto a new string in
+memory, before being saved as content to a weewiki page.
+
+An interface needs to be built to handle this. Strings need
+to dynamically grow when needed (shrinking not needed at
+the moment), and it needs to be trivial to append stuff
+to the end of the string as well.
