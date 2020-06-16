@@ -164,13 +164,28 @@ generated accordingly.
 #+NAME: page_generation
 #+BEGIN_SRC c
 <<find_first_id>>
+<<find_last_id>>
 <<iterate_through_components>>
 #+END_SRC
 
 The first header in the program needs to be found. This is
 the header with the smallest reference ID.
 
+This can be found with =wmp_header_top=.
+
 #+NAME: find_first_id
+#+BEGIN_SRC c
+
+#+END_SRC
+
+# this should be a function:
+# SELECT max(id) from resources where program == prog;
+
+The last id of the program is found. When this resource
+is reached, the program willl break. This is found with
+the function =wmp_resource_last=.
+
+#+NAME: find_last_id
 #+BEGIN_SRC c
 
 #+END_SRC
@@ -183,14 +198,24 @@ content, and block references.
 <<get_type>>
 <<handle_component>>
 <<get_next>>
-<<create_page>>
+<<check_to_create_page>>
+<<check_for_last>>
 #+END_SRC
 
 These components are
 connected together as a linked list. Every one of these
 items has a "next" value, containing the reference ID.
 
+This ID value can be used to look up the next item.
+
 #+NAME: get_next
+#+BEGIN_SRC c
+#+END_SRC
+
+Iteration through the list will continue to happen until
+the last ID is found. There, it will break the loop.
+
+#+NAME: check_for_last
 #+BEGIN_SRC c
 
 #+END_SRC
@@ -269,7 +294,17 @@ org header is found.
 
 #+END_SRC
 
-#+NAME: create_page
+A check is done to see if a page needs to be written. A new
+page can be written when a new major section is found (this
+will probably be set with some sort of flag).
+
+Creating a new weewiki is a matter of inserting a new row
+into the =wiki= table. A unique page name is created with
+the format =WM_PROG_ID= where =PROG= is the program ID, and
+=ID= is the resource ID associated with the top-level
+header.
+
+#+NAME: check_to_create_page
 #+BEGIN_SRC c
 
 #+END_SRC

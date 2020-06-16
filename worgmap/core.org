@@ -250,6 +250,23 @@ const char *wmp_resource_typestring(wmp_resource *r)
     return "Unknown";
 }
 #+END_SRC
+** TODO Find last ID of program
+The last ID of a program can be reasonably assumed to be
+the greatest ID of a program, this can be found using
+the =MAX= argument in a SQL query.
+#+NAME: function_declarations
+#+BEGIN_SRC c
+int wmp_resource_last(wmp_resource *r, int prog);
+#+END_SRC
+
+Implement me!
+#+NAME: functions
+#+BEGIN_SRC c
+int wmp_resource_last(wmp_resource *r, int prog)
+{
+    return -1;
+}
+#+END_SRC
 * Segment
 ** Struct
 A =wmp_segment= stores a segment of text from the segment
@@ -1226,6 +1243,35 @@ int wmp_header_find(wmp_core *c,
     }
     sqlite3_finalize(stmt);
     return 1;
+}
+#+END_SRC
+** TODO get top header
+Finds the topmost header in a program. This is assumed
+to be header chunk smallest ID.
+
+This can be done with the following SQL query:
+
+#+BEGIN_SRC sqlite
+SELECT MIN(id) from headers where program == prog;
+#+END_SRC
+
+Where =prog= is the program id.
+
+From there =wmp_header_find= can be called as usual.
+
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+int wmp_header_top(wmp_core *c, wmp_header *h, int prog);
+#+END_SRC
+
+To be implemented later...
+
+#+NAME: functions
+#+BEGIN_SRC c
+int wmp_header_top(wmp_core *c, wmp_header *h, int prog)
+{
+    return 0;
 }
 #+END_SRC
 * Content
