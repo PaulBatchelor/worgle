@@ -145,19 +145,27 @@ sqlite3_exec(wiki,
              NULL);
 #+END_SRC
 * Generation
+This section refers to the core wiki page generation.
+
+Every weewiki page generated corresponds to a top-level
+header.
+
+For simplification purposes, a program in this context is
+considered to be a collection of top-level headers.
+If there are no level 1 headers, no pages are created.
+Any text that occurs before the first header will be skipped.
+
+Page generation is a matter of getting the top-level id, and
+then iterating through all the individual components until
+it reaches the end. Along the way, it is determined where
+major sections start and end, and pages are broken up and
+generated accordingly.
+
 #+NAME: page_generation
 #+BEGIN_SRC c
 <<find_first_id>>
 <<iterate_through_components>>
 #+END_SRC
-
-Every major section in a program is written to a separate
-file.
-
-A program in this context is considered to be a collection
-of top-level headers. If there are no level 1 headers, no
-pages are created. Any text that occurs before the first
-header will be skipped.
 
 The first header in the program needs to be found. This is
 the header with the smallest reference ID.
