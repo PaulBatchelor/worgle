@@ -304,6 +304,11 @@ the format =WM_PROG_ID= where =PROG= is the program ID, and
 =ID= is the resource ID associated with the top-level
 header.
 
+The data for page content itself is stored in a string that
+has been appended to since the last page was created.
+
+The key/value pair for an operation is written via a SQL
+=INSERT= operation via the SQLite API.
 #+NAME: check_to_create_page
 #+BEGIN_SRC c
 
