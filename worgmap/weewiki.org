@@ -350,4 +350,24 @@ memory, before being saved as content to a weewiki page.
 An interface needs to be built to handle this. Strings need
 to dynamically grow when needed (shrinking not needed at
 the moment), and it needs to be trivial to append stuff
-to the end of the string as well.
+to the end of the string as well. Something simple and
+fast. Just something that re-allocs stuff under the hood.
+
+The main struct consists of a string pointer, it's current
+size, and the total capacity.
+
+When the string is initialized, everything is zeroed out.
+
+The internal string grows by getting stuff appended to it.
+Supplied must be the content to appended (duh), as well
+as the size of the content.
+
+Before copying (memmove-ing?) the content over, the string
+must be checked if it has enough capacity for it. If not,
+the capacity will keep doubling until it is greater than
+the needed capacity. Either that, or the capacity reaches
+some built-in max. At which point, and error is returned.
+
+Speaking of max capacity, that's a constant defined! A value
+of 131072 (2^17) *should* be plenty while still being modest
+on modern hardware.
