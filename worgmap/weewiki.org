@@ -47,6 +47,7 @@ generated codeblock page.
 #include <stdlib.h>
 #include "core.h"
 #include "core_private.h"
+<<string_management>>
 <<functions>>
 #+END_SRC
 * Top Level Function
@@ -347,6 +348,13 @@ The =wiki= table uses both the content and and the name. The
 Content gets dynamically appended onto a new string in
 memory, before being saved as content to a weewiki page.
 
+#+NAME: string_management
+#+BEGIN_SRC c
+<<string_constants>>
+<<string_struct>>
+<<string_funcs>>
+#+END_SRC
+
 An interface needs to be built to handle this. Strings need
 to dynamically grow when needed (shrinking not needed at
 the moment), and it needs to be trivial to append stuff
@@ -356,11 +364,30 @@ fast. Just something that re-allocs stuff under the hood.
 The main struct consists of a string pointer, it's current
 size, and the total capacity.
 
+#+NAME: string_struct
+#+BEGIN_SRC c
+typedef struct {
+   char *str;
+   size_t sz;
+   size_t cap;
+} wwstring;
+#+END_SRC
+
 When the string is initialized, everything is zeroed out.
 
+#+NAME: string_funcs
+#+BEGIN_SRC c
+static void wwstring_init(wwstring *s)
+{
+    s->str = NULL;
+    s->sz = 0;
+    s->cap = 1;
+}
+#+END_SRC
+
 The internal string grows by getting stuff appended to it.
-Supplied must be the content to appended (duh), as well
-as the size of the content.
+Arguments supplied must be the content to appended (duh),
+as well as the size of the content.
 
 Before copying (memmove-ing?) the content over, the string
 must be checked if it has enough capacity for it. If not,
@@ -371,3 +398,102 @@ some built-in max. At which point, and error is returned.
 Speaking of max capacity, that's a constant defined! A value
 of 131072 (2^17) *should* be plenty while still being modest
 on modern hardware.
+
+#+NAME: string_constants
+#+BEGIN_SRC c
+#define WWSTRING_MAX 131072
+#+END_SRC
+
+An initialized string starts at 0, which means that no
+memory has actually been allocated yet. The initial
+allocation starts at 8, and doubles from there.
+
+None of the sizes/capacities include the null
+terminator, so malloc/realloc makes up for this by
+allocating capacity + 1.
+
+#+NAME: string_resize
+#+BEGIN_SRC c
+while (s->cap < new_sz) {
+    if (s->cap == 0) {
+        s->cap = 8;
+        s->str = malloc(s->cap + 1);
+    } else {
+        s->cap *= 2;
+        s->str = realloc(s->str, s->cap + 1);
+    }
+}
+#+END_SRC
+
+Since there is a hard coded max, some work needs to be
+done to ensure that the new string does go over the size.
+If this does happen, only part of the string gets appended.
+
+#+NAME: check_limits
+#+BEGIN_SRC c
+if (new_sz > WWSTRING_MAX) {
+    sz = WWSTRING_MAX - s->sz;
+    new_sz = WWSTRING_MAX;
+}
+#+END_SRC
+
+String copying is done with =memmove=, which is a little
+bit more straight forward than =memcpy= and is less prone
+to undefined behavior.
+
+The string starts copying over stuff where the previous size
+=sz= is. (I initially wasn't entirely sure this was
+corrrect, so I had to double check with a test; When =sz= is
+0, =str[0]= is correctly at the beginning of the string.)
+
+#+NAME: copy_string_over
+#+BEGIN_SRC c
+memmove(&s->str[s->sz], txt, sz);
+#+END_SRC
+
+At the end of it all, update the size of string to be
+=new_sz=.
+
+#+NAME: update_size
+#+BEGIN_SRC c
+s->sz = new_sz;
+#+END_SRC
+
+#+NAME: string_funcs
+#+BEGIN_SRC c
+static void wwstring_append(wwstring *s,
+                            const char *txt,
+                            size_t sz)
+{
+    size_t new_sz;
+
+    if (s->sz >= WWSTRING_MAX) return;
+
+    new_sz = s->sz + sz;
+
+    <<check_limits>>
+
+    if (new_sz > s->cap) {
+        <<string_resize>>
+    }
+
+    <<copy_string_over>>
+
+    <<update_size>>
+}
+#+END_SRC
+
+Freeing a string is done with =wwstring_free=. This function
+will ignore =cap= and =sz=, and only check and see if
+the string itself is =NULL= or not. The string gets
+reinitialized as a precautionary measure. Doing this
+should help to avoid things like double frees and
+out-of-bounds errors.
+
+#+NAME: string_funcs
+#+BEGIN_SRC c
+static void wwstring_free(wwstring *s)
+{
+    if (s->str != NULL) free(s->str);
+}
+#+END_SRC
