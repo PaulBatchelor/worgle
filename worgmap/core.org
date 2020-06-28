@@ -1245,7 +1245,7 @@ int wmp_header_find(wmp_core *c,
     return 1;
 }
 #+END_SRC
-** TODO get top header
+** get top header
 Finds the topmost header in a program. This is assumed
 to be header chunk smallest ID.
 
@@ -1259,19 +1259,51 @@ Where =prog= is the program id.
 
 From there =wmp_header_find= can be called as usual.
 
-
 #+NAME: function_declarations
 #+BEGIN_SRC c
-int wmp_header_top(wmp_core *c, wmp_header *h, int prog);
+unsigned int wmp_header_top(wmp_core *c, wmp_header *h, int prog);
 #+END_SRC
-
-To be implemented later...
 
 #+NAME: functions
 #+BEGIN_SRC c
-int wmp_header_top(wmp_core *c, wmp_header *h, int prog)
+unsigned int wmp_header_top(wmp_core *c, wmp_header *h, int prog)
 {
-    return 0;
+    sqlite3 *db;
+    sqlite3_stmt *stmt;
+    int rc;
+    int top;
+
+    db = wmp_core_db(c);
+
+    top = 0;
+
+    sqlite3_prepare_v2(db,
+                       "SELECT MIN(id) from headers "
+                       "where program == ?1;",
+                       -1,
+                       &stmt,
+                       NULL);
+
+    sqlite3_bind_int(stmt, 1, prog);
+
+    rc = sqlite3_step(stmt);
+
+    if (rc == SQLITE_DONE) {
+        sqlite3_finalize(stmt);
+        return 0;
+    }
+
+    if (rc == SQLITE_ROW) {
+        top = sqlite3_column_int(stmt, 0);
+    }
+
+    sqlite3_finalize(stmt);
+
+    rc = wmp_header_find(c, top, h, prog);
+
+    if (!rc) top = 0;
+
+    return top;
 }
 #+END_SRC
 * Content
