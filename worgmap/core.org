@@ -1299,9 +1299,10 @@ unsigned int wmp_header_top(wmp_core *c, wmp_header *h, int prog)
 
     sqlite3_finalize(stmt);
 
-    rc = wmp_header_find(c, top, h, prog);
-
-    if (!rc) top = 0;
+    if (h != NULL) {
+        rc = wmp_header_find(c, top, h, prog);
+        if (!rc) top = 0;
+    }
 
     return top;
 }

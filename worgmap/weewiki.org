@@ -58,6 +58,8 @@ int p_weewiki(int argc, char *argv[])
     sqlite3 *wiki;
     wmp_core core;
     int rc;
+    unsigned int id;
+    int prog;
 
     fprintf(stderr, "To be implemented later.\n");
 
@@ -69,6 +71,7 @@ int p_weewiki(int argc, char *argv[])
     rc = wmp_core_open(&core, wmp_filename_get());
     if (!rc) return 0;
 
+    prog = atoi(argv[1]);
     <<open_the_db>>
     <<clear_and_reset>>
     <<page_generation>>
@@ -176,7 +179,8 @@ This can be found with =wmp_header_top=.
 
 #+NAME: find_first_id
 #+BEGIN_SRC c
-
+id = wmp_header_top(&core, NULL, prog);
+printf("Top header is %d\n", id);
 #+END_SRC
 
 # this should be a function:
