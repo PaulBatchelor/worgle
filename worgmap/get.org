@@ -107,6 +107,7 @@ static int get_res(int argc, char *argv[])
     wmp_resource res;
     unsigned int id;
     int err;
+    int prog;
 
     err = 0;
     if (argc < 2) {
@@ -116,7 +117,8 @@ static int get_res(int argc, char *argv[])
     rc = wmp_core_open(&core, wmp_filename_get());
     if (!rc) return 0;
     id = atoi(argv[1]);
-    rc = wmp_find_resource(&core, id, &res);
+    prog = 0;
+    rc = wmp_find_resource(&core, id, &res, prog);
 
     if (!rc) {
         fprintf(stderr,

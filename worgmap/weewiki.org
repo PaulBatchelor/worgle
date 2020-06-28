@@ -60,6 +60,7 @@ int p_weewiki(int argc, char *argv[])
     int rc;
     unsigned int id;
     int prog;
+    unsigned int last;
 
     fprintf(stderr, "To be implemented later.\n");
 
@@ -192,7 +193,8 @@ the function =wmp_resource_last=.
 
 #+NAME: find_last_id
 #+BEGIN_SRC c
-
+last = wmp_resource_last(&core, NULL, prog);
+printf("last resource is %d\n", last);
 #+END_SRC
 
 Org code gets rendered by iterating through headers,

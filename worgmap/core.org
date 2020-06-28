@@ -169,6 +169,7 @@ typedef struct wmp_resource wmp_resource;
 struct wmp_resource {
     unsigned int id;
     int type;
+    int prog;
 };
 #+END_SRC
 ** Finding a Resource
@@ -181,7 +182,8 @@ then there was a problem finding the resource.
 #+BEGIN_SRC c
 int wmp_find_resource(wmp_core *c,
                       unsigned int uuid,
-                      wmp_resource *r);
+                      wmp_resource *r,
+                      int prog);
 #+END_SRC
 
 No free function is needed here, since this struct does
@@ -191,7 +193,8 @@ not need to store any strings.
 #+BEGIN_SRC c
 int wmp_find_resource(wmp_core *c,
                       unsigned int uuid,
-                      wmp_resource *r)
+                      wmp_resource *r,
+                      int prog)
 {
     sqlite3 *db;
     sqlite3_stmt *stmt;
@@ -202,11 +205,13 @@ int wmp_find_resource(wmp_core *c,
 
     sqlite3_prepare_v2(db,
                        "SELECT type FROM resources "
-                       "WHERE(id==?1);",
+                       "WHERE id==?1 and "
+                       "program == ?2",
                        -1,
                        &stmt,
                        NULL);
     sqlite3_bind_int(stmt, 1, uuid);
+    sqlite3_bind_int(stmt, 2, prog);
 
     rc = sqlite3_step(stmt);
 
@@ -220,6 +225,7 @@ int wmp_find_resource(wmp_core *c,
 
         r->id = uuid;
         r->type = type;
+        r->prog = prog;
     } else {
         fprintf(stderr, "Error: %s\n", sqlite3_errmsg(db));
         sqlite3_finalize(stmt);
@@ -250,21 +256,57 @@ const char *wmp_resource_typestring(wmp_resource *r)
     return "Unknown";
 }
 #+END_SRC
-** TODO Find last ID of program
+** Find last ID of program
 The last ID of a program can be reasonably assumed to be
 the greatest ID of a program, this can be found using
-the =MAX= argument in a SQL query.
+the =MAX= argument.
+
 #+NAME: function_declarations
 #+BEGIN_SRC c
-int wmp_resource_last(wmp_resource *r, int prog);
+unsigned int wmp_resource_last(wmp_core *c, wmp_resource *r, int prog);
 #+END_SRC
 
-Implement me!
 #+NAME: functions
 #+BEGIN_SRC c
-int wmp_resource_last(wmp_resource *r, int prog)
+unsigned int wmp_resource_last(wmp_core *c, wmp_resource *r, int prog)
 {
-    return -1;
+    sqlite3 *db;
+    sqlite3_stmt *stmt;
+    int rc;
+    unsigned int last;
+
+    db = wmp_core_db(c);
+
+    last = 0;
+
+    sqlite3_prepare_v2(db,
+                       "SELECT MAX(id) from resources "
+                       "where program == ?1;",
+                       -1,
+                       &stmt,
+                       NULL);
+
+    sqlite3_bind_int(stmt, 1, prog);
+
+    rc = sqlite3_step(stmt);
+
+    if (rc == SQLITE_DONE) {
+        sqlite3_finalize(stmt);
+        return 0;
+    }
+
+    if (rc == SQLITE_ROW) {
+        last = sqlite3_column_int(stmt, 0);
+    }
+
+    if (r != NULL) {
+        rc = wmp_find_resource(c, last, r, prog);
+        if (!rc) last = 0;
+    }
+
+    sqlite3_finalize(stmt);
+
+    return last;
 }
 #+END_SRC
 * Segment
