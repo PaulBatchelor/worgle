@@ -172,6 +172,19 @@ struct wmp_resource {
     int prog;
 };
 #+END_SRC
+#+NAME: function_declarations
+#+BEGIN_SRC c
+void wmp_resource_init(wmp_resource *r);
+#+END_SRC
+#+NAME: functions
+#+BEGIN_SRC c
+void wmp_resource_init(wmp_resource *r)
+{
+    r->id = 0;
+    r->type = -1;
+    r->prog = -1;
+}
+#+END_SRC
 ** Finding a Resource
 The function =wmp_find_resource= will find a resource with
 a particular UUID and place store the values in the
@@ -900,6 +913,85 @@ void wmp_blkref_free(wmp_blkref *br)
 {
     if (br->filename != NULL) free(br->filename);
     if (br->section != NULL) free(br->section);
+}
+#+END_SRC
+** Find
+Just get the blkref data, given an id and program number.
+#+NAME: function_declarations
+#+BEGIN_SRC c
+int wmp_blkref_find(wmp_core *c,
+                    unsigned int id,
+                    wmp_blkref *br,
+                    int prog);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+int wmp_blkref_find(wmp_core *c,
+                    unsigned int id,
+                    wmp_blkref *br,
+                    int prog)
+{
+    sqlite3 *db;
+    int rc;
+    sqlite3_stmt *stmt;
+
+    rc = 0;
+
+    db = wmp_core_db(c);
+
+    sqlite3_prepare_v2(db,
+                       "SELECT "
+                         "id, "
+                         "ref, "
+                         "section, "
+                         "filename, "
+                         "linum, "
+                         "next, "
+                         "program "
+                       "FROM blkref "
+                       "WHERE(id== ?1) AND "
+                       "(program == ?2);"
+                       ,
+                       -1,
+                       &stmt,
+                       NULL);
+    sqlite3_bind_int(stmt, 1, id);
+    sqlite3_bind_int(stmt, 2, prog);
+
+    rc = sqlite3_step(stmt);
+
+    if (rc == SQLITE_ROW) {
+        int nbytes;
+        const char *sec;
+        const char *fname;
+        br->id = sqlite3_column_int(stmt, 0);
+        br->ref = sqlite3_column_int(stmt, 1);
+
+        nbytes = sqlite3_column_bytes(stmt, 2);
+        br->section = calloc(1, nbytes + 1);
+        sec = (const char *)sqlite3_column_text(stmt, 2);
+        strncpy(br->section, sec, nbytes);
+
+        nbytes = sqlite3_column_bytes(stmt, 3);
+        br->filename = calloc(1, nbytes + 1);
+        fname = (const char *)sqlite3_column_text(stmt, 3);
+        strncpy(br->filename, fname, nbytes);
+
+        br->linum = sqlite3_column_int(stmt, 4);
+
+        br->next = sqlite3_column_int(stmt, 5);
+
+        br->prog = sqlite3_column_int(stmt, 6);
+
+        rc = 1;
+    } else {
+        fprintf(stderr, "Error: %s\n", sqlite3_errmsg(db));
+        rc = 0;
+    }
+
+    sqlite3_finalize(stmt);
+    return rc;
 }
 #+END_SRC
 ** Lookup

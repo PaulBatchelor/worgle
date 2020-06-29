@@ -59,10 +59,17 @@ int p_weewiki(int argc, char *argv[])
     wmp_core core;
     int rc;
     unsigned int id;
+    unsigned int next;
     int prog;
     unsigned int last;
+    wwstring str;
+    int err;
+    unsigned int prev_header_id;
+    int page_id;
 
     fprintf(stderr, "To be implemented later.\n");
+
+    err = 0;
 
     if (argc < 2) {
         fprintf(stderr, "Usage: %s program [db]\n", argv[0]);
@@ -73,13 +80,21 @@ int p_weewiki(int argc, char *argv[])
     if (!rc) return 0;
 
     prog = atoi(argv[1]);
+    wwstring_init(&str);
+    prev_header_id = 0;
+    page_id = 0;
+
+    next = 0;
+
     <<open_the_db>>
     <<clear_and_reset>>
     <<page_generation>>
     <<close_the_db>>
 
+    cleanup:
+    wwstring_free(&str);
     wmp_core_close(&core);
-    return 0;
+    return err;
 }
 #+END_SRC
 * Opening/Closing the database
@@ -182,10 +197,8 @@ This can be found with =wmp_header_top=.
 #+BEGIN_SRC c
 id = wmp_header_top(&core, NULL, prog);
 printf("Top header is %d\n", id);
+page_id = id;
 #+END_SRC
-
-# this should be a function:
-# SELECT max(id) from resources where program == prog;
 
 The last id of the program is found. When this resource
 is reached, the program willl break. This is found with
@@ -202,29 +215,34 @@ content, and block references.
 
 #+NAME: iterate_through_components
 #+BEGIN_SRC c
-<<get_type>>
-<<handle_component>>
-<<get_next>>
-<<check_to_create_page>>
-<<check_for_last>>
+while (1) {
+    wmp_resource res;
+    <<get_type>>
+    <<handle_component>>
+    <<check_for_last>>
+    <<update_id>>
+}
 #+END_SRC
 
 These components are
 connected together as a linked list. Every one of these
-items has a "next" value, containing the reference ID.
-
-This ID value can be used to look up the next item.
-
-#+NAME: get_next
-#+BEGIN_SRC c
-#+END_SRC
+components has a "next" value, containing the reference ID
+of the next object.
 
 Iteration through the list will continue to happen until
 the last ID is found. There, it will break the loop.
 
 #+NAME: check_for_last
 #+BEGIN_SRC c
+if (id >= last) break;
+#+END_SRC
 
+The =next= value is presumably found from one of the
+components, it is updated at the end of the loop.
+
+#+NAME: update_id
+#+BEGIN_SRC c
+id = next;
 #+END_SRC
 
 The type of the reference ID is determined, and then the
@@ -232,18 +250,43 @@ information is extracted from the right table.
 
 #+NAME: get_type
 #+BEGIN_SRC c
+wmp_resource_init(&res);
+rc = wmp_find_resource(&core, id, &res, prog);
 
+if (!rc) {
+    fprintf(stderr, "Could not find resource %d\n", id);
+    err = 1;
+    goto cleanup;
+}
 #+END_SRC
 
 Content gets appended to the working string in different
 ways depending on the type. There are three major types
 to consider: content data, headers, and code blocks.
 
+For now: headers, content, and block references are hard
+coded as integers 3, 4, 5 (as seen in the enum defined
+in db.org). A less brittle solution will perhaps someday be
+implemented.
+
 #+NAME: handle_component
 #+BEGIN_SRC c
-<<append_content>>
-<<append_header>>
-<<append_block>>
+switch (res.type) {
+    case 3:
+        <<append_header>>
+        break;
+    case 4:
+        <<append_content>>
+        break;
+    case 5:
+        <<append_block>>
+        break;
+    default:
+        fprintf(stderr, "Not sure how to handle type %d\n", 
+                res.type);
+        err = 1;
+        goto cleanup;
+}
 #+END_SRC
 
 Components get appended onto the end of a string as org
@@ -254,17 +297,67 @@ as-is. This is the most straightforward.
 
 #+NAME: append_content
 #+BEGIN_SRC c
+{
+    wmp_content ct;
+    rc = wmp_content_find(&core, id, &ct, prog);
 
+    if (!rc) {
+        fprintf(stderr,
+                "Could not find content %d in program %d\n",
+                id,
+                prog);
+        err = 1;
+        goto cleanup;
+    }
+
+    wwstring_append(&str, ct.content, strlen(ct.content));
+    next = ct.next;
+    wmp_content_free(&ct);
+}
 #+END_SRC
 
-Headers require some work. First, the header level is
+Headers require some processing. First, the header level is
 applied (the number of stars). Following that, the
-dynamically section number. Finally, the actual name itself
-appended.
+dynamically generated section number. Finally, the actual
+name itself is appended.
 
 #+NAME: append_header
 #+BEGIN_SRC c
-<<check_for_new_section>>
+{
+    wmp_header hd;
+    char tmp[16]; /* hope 16 levels is enough heh */
+    int i;
+    int level;
+    rc = wmp_header_find(&core, id, &hd, prog);
+
+    if (!rc) {
+        fprintf(stderr,
+                "Could not find content %d in program %d\n",
+                id,
+                prog);
+    }
+
+    <<check_for_new_section>>
+
+    if (hd.level >= 14) level = 14;
+    else level = hd.level;
+
+    for (i = 0; i < hd.level; i++) {
+        tmp[i] = '*';
+    }
+
+    tmp[level] = ' ';
+    tmp[level + 1] = '\0';
+
+    wwstring_append(&str, tmp, level + 1);
+    wwstring_append(&str, hd.section, strlen(hd.section));
+    wwstring_append(&str, hd.name, strlen(hd.name));
+    wwstring_append(&str, "\n", 1);
+
+    next = hd.next;
+    prev_header_id = hd.id;
+    wmp_header_free(&hd);
+}
 #+END_SRC
 
 Markers are referenced using inline janet function called
@@ -288,22 +381,36 @@ inside of a subblock. Segments are either piece of text,
 or block references. Block references will eventually turn
 into hyperlinks that go to a block page.
 
+This one is a work in progress...
+
 #+NAME: append_block
 #+BEGIN_SRC c
+{
+    wmp_blkref br;
 
-#+END_SRC
+    wmp_blkref_init(&br);
 
-Items are appended onto an org string until the next major
-org header is found.
+    wmp_blkref_find(&core, id, &br, prog);
 
-#+NAME: check_for_new_section
-#+BEGIN_SRC c
-
+    next = br.next;
+    wmp_blkref_free(&br);
+}
 #+END_SRC
 
 A check is done to see if a page needs to be written. A new
 page can be written when a new major section is found (this
 will probably be set with some sort of flag).
+
+#+NAME: check_for_new_section
+#+BEGIN_SRC c
+if (hd.level == 1 && prev_header_id > 0) {
+    char pgname[16]; /* wm_XXX_XXXX */
+    <<create_new_wikipage>>
+    wwstring_free(&str);
+    wwstring_init(&str);
+    page_id = hd.id;
+}
+#+END_SRC
 
 Creating a new weewiki is a matter of inserting a new row
 into the =wiki= table. A unique page name is created with
@@ -311,14 +418,48 @@ the format =WM_PROG_ID= where =PROG= is the program ID, and
 =ID= is the resource ID associated with the top-level
 header.
 
+#+NAME: generate_page_name
+#+BEGIN_SRC c
+sprintf(pgname, "wm_%03d_%04d", prog, page_id);
+printf("PAGE: %s\n", pgname);
+#+END_SRC
+
 The data for page content itself is stored in a string that
 has been appended to since the last page was created.
 
 The key/value pair for an operation is written via a SQL
 =INSERT= operation via the SQLite API.
-#+NAME: check_to_create_page
-#+BEGIN_SRC c
 
+#+NAME: sql_insert_operation
+#+BEGIN_SRC c
+{
+    sqlite3_stmt *stmt;
+
+    sqlite3_prepare_v2(wiki,
+                       "INSERT INTO wiki"
+                       "(key, value)\n"
+                       "VALUES(?1, ?2);",
+                       -1,
+                       &stmt,
+                       NULL);
+    sqlite3_bind_text(stmt, 1, pgname, -1, NULL);
+    sqlite3_bind_text(stmt, 2, str.str, -1, NULL);
+    printf("string length: %d\n", str.sz);
+    rc = sqlite3_step(stmt);
+    if (rc != SQLITE_DONE) {
+        sqlite3_finalize(stmt);
+        fprintf(stderr, "Error: %s\n", sqlite3_errmsg(wiki));
+        err = 1;
+        goto cleanup;
+    }
+    sqlite3_finalize(stmt);
+}
+#+END_SRC
+
+#+NAME: create_new_wikipage
+#+BEGIN_SRC c
+<<generate_page_name>>
+<<sql_insert_operation>>
 #+END_SRC
 * Meta Page Generation
 Metapages are pages that are dynamically generated using
@@ -455,6 +596,7 @@ corrrect, so I had to double check with a test; When =sz= is
 #+NAME: copy_string_over
 #+BEGIN_SRC c
 memmove(&s->str[s->sz], txt, sz);
+s->str[new_sz] = '\0'; /* don't forget the null terminator */
 #+END_SRC
 
 At the end of it all, update the size of string to be

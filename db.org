@@ -199,7 +199,8 @@ enum {
     RES_BLOCK,
     RES_SEGMENT,
     RES_HEADER,
-    RES_CONTENT
+    RES_CONTENT,
+    RES_BLKREF
 };
 #+END_SRC
 
@@ -349,7 +350,8 @@ sqlite3_exec(db,
              "WHEN 1 THEN 'Block' "
              "WHEN 2 THEN 'Segment' "
              "WHEN 3 THEN 'Header' "
-             "WHEN 4 THEN 'Block Reference' "
+             "WHEN 4 THEN 'Content' "
+             "WHEN 5 THEN 'Block Reference' "
              "ELSE 'Unknown' END as type "
              "FROM resources;"
              ");\n",
@@ -699,7 +701,7 @@ void worgle_db_insert_blkref(worgle_d *worg,
                           counter[n]);
     }
 
-    insert_resource(db, prog, o->id, RES_CONTENT);
+    insert_resource(db, prog, o->id, RES_BLKREF);
 
     sqlite3_prepare_v2(db,
                        "INSERT INTO blkref"
