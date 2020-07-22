@@ -282,7 +282,7 @@ switch (res.type) {
         <<append_block>>
         break;
     default:
-        fprintf(stderr, "Not sure how to handle type %d\n", 
+        fprintf(stderr, "Not sure how to handle type %d\n",
                 res.type);
         err = 1;
         goto cleanup;
@@ -379,9 +379,15 @@ values.
 A code subblock is a chain of segments. that gets written
 inside of a subblock. Segments are either piece of text,
 or block references. Block references will eventually turn
-into hyperlinks that go to a block page.
+into hyperlinks that go to a block page. For now, they
+will be represented in text form.
 
-This one is a work in progress...
+The first thing supplied here is a block reference. From the
+block reference, the actual named code block can be
+retrieved. However, since the named block can actually be
+pieced together from multiple blocks, the specific segments
+to write must be determined. This can be found using the
+=segoff= variable used in block reference.
 
 #+NAME: append_block
 #+BEGIN_SRC c
