@@ -3046,6 +3046,7 @@ segment position relative to the block. Subtracting the
 in the subblock. If there is no next block, the offset can
 be subtracted from the total number of segments in the block
 to get number of segments in the subblock.
+
 #+NAME: orglet_blkref_setup
 #+BEGIN_SRC c
 br->blk = blk;

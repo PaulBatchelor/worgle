@@ -1123,6 +1123,36 @@ int wmp_blkref_lookup_step(wmp_core *core,
     return 1;
 }
 #+END_SRC
+** TODO Code Block Regeneration
+This operation will reproduce a portion of a code block,
+referred to as a =subblock=, given a block reference. This
+will return the code in the subblock as an array of segments.
+
+From the block reference, retrieve the block, and
+the previous and next subblocks (if they exist). These will
+be needed later on.
+
+The number of segments in the subblock is derived from
+=segoff=, or the segment offset. The segment offset stores
+the starting segment position relative to the block.
+Subtracting =segoff= of the next subblock will get the size.
+
+The first segment is derived from =prev_lastseg=. It holds
+the id of the last segment of the previous block. Getting
+the =next= id from this segment will get the first segment
+of the subblock. If there is no next block, the offset
+can be subtracted from the total number of segments in the
+top-level block. The output segment list is then allocated
+with this value.
+
+After the first segment and total number of segments is
+found, the rest of the procedure works like a linked list
+operation, with each segment entry has a ID value pointing
+to the next segment. The contents of each segment get copied
+to their respective position in the segment list.
+
+Since the segment list is dynamically allocated, it must be
+freed explicitly.
 * Block Search
 Under the hood, this performs a SQL query in the blocks
 table for any block matching a keyword, and returns the
