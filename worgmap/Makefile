@@ -1,6 +1,6 @@
 WORGLE ?=../worgle
 
-CFLAGS=-O3 -Wall -pedantic -std=c89
+CFLAGS=-O3 -Wall -pedantic -std=c89 -g
 
 OBJ=worgmap.o get.o core.o dot.o html.o weewiki.o
 

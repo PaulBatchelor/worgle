@@ -450,7 +450,7 @@ The key/value pair for an operation is written via a SQL
                        NULL);
     sqlite3_bind_text(stmt, 1, pgname, -1, NULL);
     sqlite3_bind_text(stmt, 2, str.str, -1, NULL);
-    printf("string length: %d\n", str.sz);
+    printf("string length: %d\n", (int)str.sz);
     rc = sqlite3_step(stmt);
     if (rc != SQLITE_DONE) {
         sqlite3_finalize(stmt);

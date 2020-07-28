@@ -881,6 +881,8 @@ struct wmp_blkref {
     int linum;
     int next;
     int prog;
+    int segoff;
+    int prev_lastseg;
 };
 #+END_SRC
 ** init
@@ -899,6 +901,8 @@ void wmp_blkref_init(wmp_blkref *br)
     br->linum = -1;
     br->next = -1;
     br->prog = -1;
+    br->segoff = -1;
+    br->prev_lastseg = -1;
 }
 #+END_SRC
 ** Free
@@ -907,12 +911,19 @@ It is freed using =wmp_blkref_free=.
 #+BEGIN_SRC c
 void wmp_blkref_free(wmp_blkref *br);
 #+END_SRC
+
+After freeing the strings, the blkref is re-initialized for
+re-use.
+
 #+NAME: functions
 #+BEGIN_SRC c
 void wmp_blkref_free(wmp_blkref *br)
 {
     if (br->filename != NULL) free(br->filename);
     if (br->section != NULL) free(br->section);
+
+    /* re-initialize */
+    wmp_blkref_init(br);
 }
 #+END_SRC
 ** Find
@@ -948,7 +959,9 @@ int wmp_blkref_find(wmp_core *c,
                          "filename, "
                          "linum, "
                          "next, "
-                         "program "
+                         "program, "
+                         "segoff, "
+                         "prev_lastseg "
                        "FROM blkref "
                        "WHERE(id== ?1) AND "
                        "(program == ?2);"
@@ -983,6 +996,10 @@ int wmp_blkref_find(wmp_core *c,
         br->next = sqlite3_column_int(stmt, 5);
 
         br->prog = sqlite3_column_int(stmt, 6);
+
+        br->segoff = sqlite3_column_int(stmt, 7);
+
+        br->prev_lastseg = sqlite3_column_int(stmt, 8);
 
         rc = 1;
     } else {
@@ -1046,7 +1063,9 @@ int wmp_blkref_lookup_setup(wmp_core *core,
                          "filename, "
                          "linum, "
                          "next, "
-                         "program "
+                         "program, "
+                         "segoff, "
+                         "prev_lastseg "
                        "FROM blkref "
                        "WHERE(program == ?1) AND "
                        "(ref == ?2);"
@@ -1092,7 +1111,10 @@ int wmp_blkref_lookup_step(wmp_core *core,
         int nbytes;
         const char *sec;
         const char *fname;
+
+        /* clear/free the blkref */
         wmp_blkref_free(br);
+
         br->id = sqlite3_column_int(stmt, 0);
         br->ref = sqlite3_column_int(stmt, 1);
 
@@ -1111,6 +1133,10 @@ int wmp_blkref_lookup_step(wmp_core *core,
         br->next = sqlite3_column_int(stmt, 5);
 
         br->prog = sqlite3_column_int(stmt, 6);
+
+        br->segoff = sqlite3_column_int(stmt, 7);
+
+        br->prev_lastseg = sqlite3_column_int(stmt, 8);
     } else {
         sqlite3 *db;
 

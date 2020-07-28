@@ -794,6 +794,8 @@ static int get_blkref(int argc, char *argv[])
     prog = atoi(argv[2]);
     name = argv[1];
 
+    wmp_blkref_init(&br);
+
     rc = wmp_blkref_lookup_setup(&core, name, prog, &stmt);
 
     if (!rc) {
