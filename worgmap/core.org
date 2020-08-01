@@ -1155,21 +1155,25 @@ referred to as a =subblock=, given a block reference. This
 will return the code in the subblock as an array of segments.
 
 From the block reference, retrieve the block, and
-the previous and next subblocks (if they exist). These will
-be needed later on.
+the next block reference (if it exists).
+These will be needed later on. These can be retrieved using
+the =pos= value in the block reference schema and the magic
+of SQLite. =pos + 1= will get the next block reference.
 
 The number of segments in the subblock is derived from
 =segoff=, or the segment offset. The segment offset stores
 the starting segment position relative to the block.
-Subtracting =segoff= of the next subblock will get the size.
+Subtracting =segoff= of the *next* subblock will get the size.
+If there is no next reference, the
+offset can be subtracted from the total number of segments
+in the top-level block.
+
+The output segment list is then allocated with this value.
 
 The first segment is derived from =prev_lastseg=. It holds
-the id of the last segment of the previous block. Getting
-the =next= id from this segment will get the first segment
-of the subblock. If there is no next block, the offset
-can be subtracted from the total number of segments in the
-top-level block. The output segment list is then allocated
-with this value.
+the id of the last segment of the previous block reference.
+Getting the =next= id from this segment will get the first
+segment of the current subblock.
 
 After the first segment and total number of segments is
 found, the rest of the procedure works like a linked list
