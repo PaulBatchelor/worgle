@@ -1149,10 +1149,101 @@ int wmp_blkref_lookup_step(wmp_core *core,
     return 1;
 }
 #+END_SRC
+** TODO Blockref Neighbor lookup
+Given a block reference, find the id another block reference
+at local position =p=. If nothing pops up, an invalid id of
+0 gets returned.
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+unsigned int wmp_blkref_neighbor(wmp_core *c,
+                                 wmp_blkref *br,
+                                 int pos);
+#+END_SRC
+
+The SQLite query looks like this:
+
+#+BEGIN_SRC sqlite
+select id from blkref where ref=?1 and pos=?2 and program=?3;
+#+END_SRC
+
+Where ?1 =ref= is the block reference id, found in the
+passed in blkref, and ?2 =pos= is the local position. The
+=program= ?3 is .
+
+#+NAME: functions
+#+BEGIN_SRC c
+unsigned int wmp_blkref_neighbor(wmp_core *c,
+                                 wmp_blkref *br,
+                                 int pos)
+{
+    sqlite3 *db;
+    int rc;
+    sqlite3_stmt *stmt;
+    unsigned int id;
+
+    db = wmp_core_db(c);
+
+    id = 0;
+
+    sqlite3_prepare_v2(db,
+                       "SELECT id "
+                       "FROM blkref "
+                       "WHERE(ref == ?1) AND "
+                       "(pos == ?2) AND "
+                       "(program == ?3);"
+                       ,
+                       -1,
+                       &stmt,
+                       NULL);
+    sqlite3_bind_int(stmt, 1, br->ref);
+    sqlite3_bind_int(stmt, 2, pos);
+    sqlite3_bind_int(stmt, 3, br->prog);
+
+    rc = sqlite3_step(stmt);
+
+    if (rc == SQLITE_ROW) {
+        id = sqlite3_column_int(stmt, 0);
+    }
+
+    sqlite3_finalize(stmt);
+    return id;
+}
+#+END_SRC
 ** TODO Code Block Regeneration
-This operation will reproduce a portion of a code block,
-referred to as a =subblock=, given a block reference. This
-will return the code in the subblock as an array of segments.
+The function =wmp_blkref_codeblock= will reproduce a portion
+of a code block, referred to as a =subblock=, given a block
+reference. This will return the code in the subblock as an
+array of segments.
+
+Since the segment list is dynamically allocated, it must be
+also freed explicitly with =wmp_blkref_codeblock_free=.
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+int wmp_blkref_codeblock(wmp_core *c,
+                         wmp_blkref *br,
+                         wmp_segment *segs,
+                         int *nsegs);
+void wmp_blkref_codeblock_free(wmp_core *c, wmp_segment *segs);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+int wmp_blkref_codeblock(wmp_core *c,
+                         wmp_blkref *br,
+                         wmp_segment *segs,
+                         int *nsegs)
+{
+    <<retrieve_block_from_reference>>
+    <<retrieve_next_block_reference>>
+    <<calculate_number_of_segments>>
+    <<allocate_segment_list>>
+    <<obtain_first_segment>>
+    <<populate_segment_list>>
+    return 1;
+}
+#+END_SRC
 
 From the block reference, retrieve the block, and
 the next block reference (if it exists).
@@ -1160,7 +1251,17 @@ These will be needed later on. These can be retrieved using
 the =pos= value in the block reference schema and the magic
 of SQLite. =pos + 1= will get the next block reference.
 
-The number of segments in the subblock is derived from
+#+NAME: retrieve_block_from_reference
+#+BEGIN_SRC c
+
+#+END_SRC
+
+#+NAME: retrieve_next_block_reference
+#+BEGIN_SRC c
+
+#+END_SRC
+
+The number of segments in the subblock is calculated from
 =segoff=, or the segment offset. The segment offset stores
 the starting segment position relative to the block.
 Subtracting =segoff= of the *next* subblock will get the size.
@@ -1168,12 +1269,27 @@ If there is no next reference, the
 offset can be subtracted from the total number of segments
 in the top-level block.
 
+#+NAME: calculate_number_of_segments
+#+BEGIN_SRC c
+
+#+END_SRC
+
 The output segment list is then allocated with this value.
 
-The first segment is derived from =prev_lastseg=. It holds
+#+NAME: allocate_segment_list
+#+BEGIN_SRC c
+
+#+END_SRC
+
+The first segment is obtained from =prev_lastseg=. It holds
 the id of the last segment of the previous block reference.
 Getting the =next= id from this segment will get the first
 segment of the current subblock.
+
+#+NAME: obtain_first_segment
+#+BEGIN_SRC c
+
+#+END_SRC
 
 After the first segment and total number of segments is
 found, the rest of the procedure works like a linked list
@@ -1181,8 +1297,10 @@ operation, with each segment entry has a ID value pointing
 to the next segment. The contents of each segment get copied
 to their respective position in the segment list.
 
-Since the segment list is dynamically allocated, it must be
-freed explicitly.
+#+NAME: populate_segment_list
+#+BEGIN_SRC c
+
+#+END_SRC
 * Block Search
 Under the hood, this performs a SQL query in the blocks
 table for any block matching a keyword, and returns the
