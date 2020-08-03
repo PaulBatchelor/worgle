@@ -384,22 +384,48 @@ will be represented in text form.
 
 The first thing supplied here is a block reference. From the
 block reference, the actual named code block can be
-retrieved. However, since the named block can actually be
-pieced together from multiple blocks, the specific segments
-to write must be determined. This can be found using the
-=segoff= variable used in block reference.
+retrieved. This is found using =wmp_blkref_codeblock=, which
+returns the subblock as a list of segments.
 
 #+NAME: append_block
 #+BEGIN_SRC c
 {
     wmp_blkref br;
+    wmp_segment *segs;
+    int nsegs;
+    wmp_block blk;
+    int k;
 
+    nsegs = 0;
     wmp_blkref_init(&br);
 
     wmp_blkref_find(&core, id, &br, prog);
+    wmp_block_init(&blk);
+    wmp_find_block(&core, br.ref, &blk, prog);
+    wmp_blkref_codeblock(&core, &br, &segs, &nsegs);
+
+    wwstring_append(&str, "#+NAME: ", 8);
+    wwstring_append(&str, blk.name, strlen(blk.name));
+    wwstring_append(&str, "\n", 1);
+    wwstring_append(&str, "#+BEGIN_SRC c", 13);
+    wwstring_append(&str, "\n", 1);
+    for (k = 0; k < nsegs; k++) {
+        if (segs[k].type == 0) {
+            wwstring_append(&str, segs[k].str, strlen(segs[k].str));
+        } else if (segs[k].type == 1) {
+            wwstring_append(&str, "<<", 2);
+            wwstring_append(&str, segs[k].str, strlen(segs[k].str));
+            wwstring_append(&str, ">>", 2);
+            wwstring_append(&str, "\n", 1);
+        }
+    }
+    wwstring_append(&str, "#+END_SRC", 9);
+    wwstring_append(&str, "\n", 1);
 
     next = br.next;
     wmp_blkref_free(&br);
+    wmp_block_free(&blk);
+    wmp_blkref_codeblock_free(&core, &segs, nsegs);
 }
 #+END_SRC
 

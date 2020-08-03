@@ -1239,10 +1239,10 @@ also freed explicitly with =wmp_blkref_codeblock_free=.
 #+BEGIN_SRC c
 int wmp_blkref_codeblock(wmp_core *c,
                          wmp_blkref *br,
-                         wmp_segment *segs,
+                         wmp_segment **segs,
                          int *nsegs);
 void wmp_blkref_codeblock_free(wmp_core *c,
-                               wmp_segment *segs,
+                               wmp_segment **segs,
                                int nsegs);
 #+END_SRC
 
@@ -1250,7 +1250,7 @@ void wmp_blkref_codeblock_free(wmp_core *c,
 #+BEGIN_SRC c
 int wmp_blkref_codeblock(wmp_core *c,
                          wmp_blkref *br,
-                         wmp_segment *segs,
+                         wmp_segment **segs,
                          int *nsegs)
 {
     wmp_blkref next_br;
@@ -1285,7 +1285,8 @@ int wmp_blkref_codeblock(wmp_core *c,
     <<populate_segment_list>>
 
     (*nsegs) = len;
-    segs = list;
+    *segs = list;
+
 
     cleanup:
     wmp_blkref_free(&next_br);
@@ -1342,7 +1343,6 @@ if (next_br_id > 0) {
     len = next_br.segoff - br->segoff;
 } else {
     len = blk.nblocks - br->segoff;
-    wmp_block_free(&blk);
 }
 #+END_SRC
 
@@ -1365,18 +1365,26 @@ in the top-block.
 
 #+NAME: obtain_first_segment
 #+BEGIN_SRC c
-rc = wmp_find_segment(c, br->prev_lastseg, &prevseg, br->prog);
+if (br->prev_lastseg > 0) {
+    rc = wmp_find_segment(c, br->prev_lastseg, &prevseg, br->prog);
 
-if (rc != WMP_OK) {
-    ok = WMP_NOT_OK;
-    goto cleanup;
-}
+    if (rc != WMP_OK) {
+        ok = WMP_NOT_OK;
+        goto cleanup;
+    }
 
-rc = wmp_find_segment(c, prevseg.nxtseg, &head, br->prog);
+    rc = wmp_find_segment(c, prevseg.nxtseg, &head, br->prog);
 
-if (rc != WMP_OK) {
-    ok = WMP_NOT_OK;
-    goto cleanup;
+    if (rc != WMP_OK) {
+        ok = WMP_NOT_OK;
+        goto cleanup;
+    }
+} else {
+    rc = wmp_find_segment(c, blk.head_segment, &head, br->prog);
+    if (rc != WMP_OK) {
+        ok = WMP_NOT_OK;
+        goto cleanup;
+    }
 }
 #+END_SRC
 
@@ -1391,27 +1399,35 @@ to their respective position in the segment list.
 list[0] = head;
 seg = head;
 for (i = 1; i < len; i++) {
-    rc = wmp_find_segment(c, seg.nxtseg, &seg, br->prog);
+    unsigned int nxt;
+    nxt = seg.nxtseg;
+    wmp_segment_init(&seg);
+    rc = wmp_find_segment(c, nxt, &seg, br->prog);
     if (rc != WMP_OK) {
         ok = WMP_NOT_OK;
-        len = i + 1;
+        len = i;
         goto cleanup;
     }
+    list[i] = seg;
 }
 #+END_SRC
 
 #+NAME: functions
 #+BEGIN_SRC c
 void wmp_blkref_codeblock_free(wmp_core *c,
-                               wmp_segment *segs,
+                               wmp_segment **segs,
                                int nsegs)
 {
     int i;
+    wmp_segment *lst;
+
+    lst = *segs;
+
     for (i = 0; i < nsegs; i++) {
-        wmp_segment_free(&segs[i]);
+        wmp_segment_free(&lst[i]);
     }
 
-    free(segs);
+    free(lst);
 }
 #+END_SRC
 * Block Search
