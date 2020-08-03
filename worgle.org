@@ -886,6 +886,7 @@ void worgle_append_string(worgle_d *worg)
                                      worg->curline,
                                      &worg->curbuf->filename);
     <<worgle_segment_string_set_id>>
+    <<store_last_string_id>>
 }
 #+END_SRC
 
@@ -905,6 +906,7 @@ void worgle_append_reference(worgle_d *worg, worgle_string *ref)
                                         worg->linum,
                                         &worg->curbuf->filename);
     <<worgle_segment_reference_set_id>>
+    <<store_last_reference_id>>
 }
 #+END_SRC
 
@@ -1988,12 +1990,27 @@ b->last_seg = -1;
 #+END_SRC
 
 When a new block reference is created, the id of the last
-appended segment is saved.
+appended segment is saved. Segments need to happen after the
+id is created, which happens to be in two places: one for
+appending reference segments , and the other for appending
+string segments.
 
 #+NAME: store_last_seg
 #+BEGIN_SRC c
-b->last_seg = s->id;
+/* TODO: remove this */
+/* b->last_seg = s->id; */
 #+END_SRC
+
+#+NAME: store_last_string_id
+#+BEGIN_SRC c
+worg->curblock->last_seg = seg->id;
+#+END_SRC
+
+#+NAME: store_last_reference_id
+#+BEGIN_SRC c
+worg->curblock->last_seg = seg->id;
+#+END_SRC
+
 
 This id, if a positive value, would be the last segment of
 the previous block. This information can be used later by
