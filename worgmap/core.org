@@ -277,10 +277,17 @@ const char *wmp_resource_typestring(wmp_resource *r)
     return "Unknown";
 }
 #+END_SRC
-** Find last ID of program
+** Find last significant ID of program
 The last ID of a program can be reasonably assumed to be
 the greatest ID of a program, this can be found using
-the =MAX= argument.
+the =MAX= argument. The last *significant* id of a program
+can be the largest resource ID whose type is one of the org
+structure types: header, content, or block reference. By the
+time it reaches this ID, it knows it is done rendering
+documents. Any of the resources with a larger ID will be
+rendered implicitely (such as a segment inside of a code
+block). The =MAX= SQLite function is still used, but on a
+special view created for this very purpose called =orglist=.
 
 #+NAME: function_declarations
 #+BEGIN_SRC c
@@ -301,7 +308,7 @@ unsigned int wmp_resource_last(wmp_core *c, wmp_resource *r, int prog)
     last = 0;
 
     sqlite3_prepare_v2(db,
-                       "SELECT MAX(id) from resources "
+                       "SELECT MAX(id) from orglist "
                        "where program == ?1;",
                        -1,
                        &stmt,

@@ -200,9 +200,9 @@ id = wmp_header_top(&core, NULL, prog);
 page_id = id;
 #+END_SRC
 
-The last id of the program is found. When this resource
-is reached, the program willl break. This is found with
-the function =wmp_resource_last=.
+The last significant id of the program is found. When this
+resource is reached, the program willl break. This is found
+with the function =wmp_resource_last=.
 
 #+NAME: find_last_id
 #+BEGIN_SRC c

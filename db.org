@@ -359,6 +359,24 @@ sqlite3_exec(db,
              NULL,
              NULL);
 #+END_SRC
+** orglist view
+The orglist is a resource list that only selects org
+components: headers, content, and block references. For now,
+hardcoded as 3, 4, 5. This =orglist= is primarily used by
+worgmap to figure out the last significant to render to.
+#+NAME: schemas
+#+BEGIN_SRC c
+sqlite3_exec(db,
+             "CREATE VIEW orglist AS "
+             "SELECT * "
+             "FROM resources WHERE "
+             "type == 3 or "
+             "type == 4 or "
+             "type == 5;",
+             NULL,
+             NULL,
+             NULL);
+#+END_SRC
 * SQLite Insert Statements
 This section pertains to the actual SQLite insert statements
 that occur.
