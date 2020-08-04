@@ -44,7 +44,7 @@ public and private.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifndef wORGLITE
+#ifndef WORGLITE
 #include <sqlite3.h>
 #endif
 #include "parg.h"
@@ -309,7 +309,7 @@ int parse_file(worgle_d *worg, int file)
     worg->curorg = &worg->orgs[file];
 #endif
     <<parser_initialization>>
-    while(1) {
+    while (1) {
         <<getline>>
         if(mode == MODE_ORG) {
             <<parse_mode_org>>
@@ -319,6 +319,10 @@ int parse_file(worgle_d *worg, int file)
             <<parse_mode_begincode>>
         }
     }
+
+#ifndef WORGLITE
+    <<parser_wrapup>>
+#endif
     return rc;
 }
 #+END_SRC
@@ -1123,6 +1127,15 @@ static int worgle_getline(char *fullbuf,
         p++;
     }
 }
+#+END_SRC
+*** TODO Parser Wrap-up
+When writing a database, the last segment isn't getting
+appended. I'm guessing it has to do with the fact that it
+is last, and most of the appending behaviors rely on
+switching states.
+#+NAME: parser_wrapup
+#+BEGIN_SRC c
+/* TODO */
 #+END_SRC
 ** Generation
 The last phase of the program is code generation.

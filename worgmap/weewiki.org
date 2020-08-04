@@ -206,6 +206,7 @@ the function =wmp_resource_last=.
 #+NAME: find_last_id
 #+BEGIN_SRC c
 last = wmp_resource_last(&core, NULL, prog);
+printf("last ID is %d\n", last);
 #+END_SRC
 
 Org code gets rendered by iterating through headers,
@@ -240,6 +241,9 @@ components, it is updated at the end of the loop.
 
 #+NAME: update_id
 #+BEGIN_SRC c
+if (next == 0) {
+    printf("next id is 0, coming from %d\n", id);
+}
 id = next;
 #+END_SRC
 
