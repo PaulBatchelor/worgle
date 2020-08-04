@@ -53,6 +53,7 @@ generated codeblock page.
 * Top Level Function
 #+NAME: functions
 #+BEGIN_SRC c
+<<helper_functions>>
 int p_weewiki(int argc, char *argv[])
 {
     sqlite3 *wiki;
@@ -221,6 +222,7 @@ while (1) {
     <<check_for_last>>
     <<update_id>>
 }
+<<flush_last_page>>
 #+END_SRC
 
 These components are
@@ -439,7 +441,6 @@ will probably be set with some sort of flag).
 #+NAME: check_for_new_section
 #+BEGIN_SRC c
 if (hd.level == 1 && prev_header_id > 0) {
-    char pgname[16]; /* wm_XXX_XXXX */
     <<create_new_wikipage>>
     wwstring_free(&str);
     wwstring_init(&str);
@@ -468,6 +469,7 @@ The key/value pair for an operation is written via a SQL
 #+BEGIN_SRC c
 {
     sqlite3_stmt *stmt;
+    int rc;
 
     sqlite3_prepare_v2(wiki,
                        "INSERT INTO wiki"
@@ -477,22 +479,64 @@ The key/value pair for an operation is written via a SQL
                        &stmt,
                        NULL);
     sqlite3_bind_text(stmt, 1, pgname, -1, NULL);
-    sqlite3_bind_text(stmt, 2, str.str, -1, NULL);
+    sqlite3_bind_text(stmt, 2, str->str, -1, NULL);
     rc = sqlite3_step(stmt);
     if (rc != SQLITE_DONE) {
         sqlite3_finalize(stmt);
         fprintf(stderr, "Error: %s\n", sqlite3_errmsg(wiki));
         err = 1;
-        goto cleanup;
     }
     sqlite3_finalize(stmt);
 }
 #+END_SRC
 
+
 #+NAME: create_new_wikipage
 #+BEGIN_SRC c
-<<generate_page_name>>
-<<sql_insert_operation>>
+rc = create_new_wikipage(wiki, prog, page_id, &str);
+if (rc) {
+    err = 1;
+    goto cleanup;
+}
+#+END_SRC
+
+A function called =create_new_wikipage= will create a new
+weewiki page given the database, program, page id, and
+content stored in a =wwstring=. This is needed as a function
+because it is called in more than one place.
+
+#+NAME: helper_functions
+#+BEGIN_SRC c
+static int create_new_wikipage(sqlite3 *wiki,
+                               int prog,
+                               int page_id,
+                               wwstring *str)
+{
+    char pgname[16]; /* wm_XXX_XXXX */
+    int err;
+    err = 0;
+    <<generate_page_name>>
+    <<sql_insert_operation>>
+    return err;
+}
+#+END_SRC
+
+At the end of the parsing, the last page must be written to
+disk, if there is a last page. Prior to this, the only way
+a new wiki page would be written was when a new major
+section occured. No more major sections following means this
+page would otherwise be stick in limbo.
+
+#+NAME: flush_last_page
+#+BEGIN_SRC c
+if (prev_header_id > 0 && str.sz > 0) {
+    rc = create_new_wikipage(wiki, prog, page_id, &str);
+
+    if (rc) {
+        err = 1;
+        goto cleanup;
+    }
+}
 #+END_SRC
 * Meta Page Generation
 Metapages are pages that are dynamically generated using

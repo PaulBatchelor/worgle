@@ -3455,3 +3455,7 @@ void worgle_map_a_file(worgle_d *worg, worgle_file *file, FILE *out)
     worgle_map(worg, file->top, 0, out);
 }
 #+END_SRC
+
+This line is needed due to a bug with worgmap. Remove it,
+and the last segment in the code block won't be linked
+properly. Will fix this ASAP.
