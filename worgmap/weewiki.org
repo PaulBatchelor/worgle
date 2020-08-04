@@ -196,7 +196,6 @@ This can be found with =wmp_header_top=.
 #+NAME: find_first_id
 #+BEGIN_SRC c
 id = wmp_header_top(&core, NULL, prog);
-printf("Top header is %d\n", id);
 page_id = id;
 #+END_SRC
 
@@ -207,7 +206,6 @@ the function =wmp_resource_last=.
 #+NAME: find_last_id
 #+BEGIN_SRC c
 last = wmp_resource_last(&core, NULL, prog);
-printf("last resource is %d\n", last);
 #+END_SRC
 
 Org code gets rendered by iterating through headers,
@@ -351,6 +349,7 @@ name itself is appended.
 
     wwstring_append(&str, tmp, level + 1);
     wwstring_append(&str, hd.section, strlen(hd.section));
+    wwstring_append(&str, " ", 1);
     wwstring_append(&str, hd.name, strlen(hd.name));
     wwstring_append(&str, "\n", 1);
 
@@ -453,7 +452,6 @@ header.
 #+NAME: generate_page_name
 #+BEGIN_SRC c
 sprintf(pgname, "wm_%03d_%04d", prog, page_id);
-printf("PAGE: %s\n", pgname);
 #+END_SRC
 
 The data for page content itself is stored in a string that
@@ -476,7 +474,6 @@ The key/value pair for an operation is written via a SQL
                        NULL);
     sqlite3_bind_text(stmt, 1, pgname, -1, NULL);
     sqlite3_bind_text(stmt, 2, str.str, -1, NULL);
-    printf("string length: %d\n", (int)str.sz);
     rc = sqlite3_step(stmt);
     if (rc != SQLITE_DONE) {
         sqlite3_finalize(stmt);
