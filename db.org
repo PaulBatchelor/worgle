@@ -270,6 +270,7 @@ sqlite3_exec(db,
              "id INTEGER,\n"
              "section TEXT,\n"
              "level INTEGER,\n"
+             "top_level INTEGER,\n"
              "name TEXT,\n"
              "filename TEXT,\n"
              "linum INTEGER,\n"
@@ -555,9 +556,10 @@ void worgle_db_insert_header(worgle_d *worg,
     sqlite3_prepare_v2(db,
                        "INSERT INTO headers"
                        "(id, section, level, name, "
-                       "filename, linum, next, program)"
+                       "filename, linum, next, program, "
+                       "top_level) "
                        "VALUES(?1,?2,?3,?4,"
-                       "?5,?6,?7,?8);",
+                       "?5,?6,?7,?8,?9);",
                        -1,
                        &stmt,
                        NULL);
@@ -580,6 +582,7 @@ void worgle_db_insert_header(worgle_d *worg,
     }
 
     sqlite3_bind_int(stmt, 8, prog);
+    sqlite3_bind_int(stmt, 9, counter[0]);
 
     rc = sqlite3_step(stmt);
 
