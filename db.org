@@ -378,6 +378,21 @@ sqlite3_exec(db,
              NULL,
              NULL);
 #+END_SRC
+** pglist view
+The =pglist= view lists all the weewiki pages that would be
+generated via worgmap. This is a helpful view that can be
+used to dynamically generate page reference links.
+#+NAME: schemas
+#+BEGIN_SRC c
+sqlite3_exec(db,
+             "CREATE VIEW pglist AS "
+             "SELECT * "
+             "FROM headers WHERE "
+             "level == 1;",
+             NULL,
+             NULL,
+             NULL);
+#+END_SRC
 * SQLite Insert Statements
 This section pertains to the actual SQLite insert statements
 that occur.
