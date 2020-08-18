@@ -331,6 +331,10 @@ name itself is appended.
 # an href tag. id is made with prog and the id in
 # the header struct.
 
+Following each header is a =marker= command from Janet. This
+is used to enable jump links for specific sections. The id
+used will be the relative worgmap id.
+
 #+NAME: append_header
 #+BEGIN_SRC c
 {
@@ -338,6 +342,8 @@ name itself is appended.
     char tmp[16]; /* hope 16 levels is enough heh */
     int i;
     int level;
+    char idstr[12]; /* wm_XXX_YYYY */
+
     rc = wmp_header_find(&core, id, &hd, prog);
 
     if (!rc) {
@@ -364,6 +370,12 @@ name itself is appended.
     wwstring_append(&str, " ", 1);
     wwstring_append(&str, hd.name, strlen(hd.name));
     wwstring_append(&str, "\n", 1);
+
+    sprintf(idstr, "wm_%03d_%04d", prog, hd.id);
+    idstr[11] = 0;
+    wwstring_append(&str, "@!(marker \"", 11);
+    wwstring_append(&str, idstr, 11);
+    wwstring_append(&str, "\")!@\n", 5);
 
     next = hd.next;
     prev_header_id = hd.id;
