@@ -1,5 +1,5 @@
 #+TITLE: WeeWiki
-* Brain Storming
+* Brainstorming (soon to be overview)
 A work in progress idea...
 
 The gist of this is to take a worgle program and export it
@@ -324,6 +324,12 @@ Headers require some processing. First, the header level is
 applied (the number of stars). Following that, the
 dynamically generated section number. Finally, the actual
 name itself is appended.
+
+# TODO: add href tag
+# This'll be wrapped in a janet function called
+# marker. !@(marker "wm_000_0002")!@ will create
+# an href tag. id is made with prog and the id in
+# the header struct.
 
 #+NAME: append_header
 #+BEGIN_SRC c
