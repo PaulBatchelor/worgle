@@ -319,10 +319,6 @@ int parse_file(worgle_d *worg, int file)
             <<parse_mode_begincode>>
         }
     }
-
-#ifndef WORGLITE
-    <<parser_wrapup>>
-#endif
     return rc;
 }
 #+END_SRC
