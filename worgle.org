@@ -1128,15 +1128,6 @@ static int worgle_getline(char *fullbuf,
     }
 }
 #+END_SRC
-*** TODO Parser Wrap-up
-When writing a database, the last segment isn't getting
-appended. I'm guessing it has to do with the fact that it
-is last, and most of the appending behaviors rely on
-switching states.
-#+NAME: parser_wrapup
-#+BEGIN_SRC c
-/* TODO */
-#+END_SRC
 ** Generation
 The last phase of the program is code generation.
 
