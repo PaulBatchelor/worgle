@@ -54,21 +54,36 @@ generated codeblock page.
 #+NAME: functions
 #+BEGIN_SRC c
 <<helper_functions>>
-int p_weewiki(int argc, char *argv[])
+static int mkpage (wmp_core *core, sqlite3 *wiki, int prog)
 {
-    sqlite3 *wiki;
-    wmp_core core;
     int rc;
     unsigned int id;
     unsigned int next;
-    int prog;
     unsigned int last;
     wwstring str;
     int err;
     unsigned int prev_header_id;
     int page_id;
 
-    fprintf(stderr, "To be implemented later.\n");
+    err = 0;
+    wwstring_init(&str);
+    prev_header_id = 0;
+    page_id = 0;
+    next = 0;
+    <<page_generation>>
+    cleanup:
+    wwstring_free(&str);
+
+    return err;
+}
+
+int p_weewiki(int argc, char *argv[])
+{
+    sqlite3 *wiki;
+    wmp_core core;
+    int err;
+    int prog;
+    int rc;
 
     err = 0;
 
@@ -80,20 +95,47 @@ int p_weewiki(int argc, char *argv[])
     rc = wmp_core_open(&core, wmp_filename_get());
     if (!rc) return 0;
 
-    prog = atoi(argv[1]);
-    wwstring_init(&str);
-    prev_header_id = 0;
-    page_id = 0;
-
-    next = 0;
 
     <<open_the_db>>
     <<clear_and_reset>>
-    <<page_generation>>
+
+
+    if (!strncmp(argv[1], "all", 3)) {
+        sqlite3_stmt *stmt;
+        int run;
+
+        run = 1;
+        printf("rendering all pages\n");
+        sqlite3_prepare_v2(wiki,
+                           "SELECT DISTINCT(program) FROM resources;",
+                           -1, &stmt, NULL);
+        while (run) {
+            rc = sqlite3_step(stmt);
+
+            switch (rc) {
+                case SQLITE_ROW:
+                    prog = sqlite3_column_int(stmt, 0);
+                    printf("generating program %d\n", prog);
+                    err = mkpage(&core, wiki, prog);
+                    if (err) run = 0;
+                    break;
+                case SQLITE_DONE:
+                    run = 0;
+                    break;
+                default:
+                    fprintf(stderr, "Error: %s\n", sqlite3_errmsg(wiki));
+                    break;
+            }
+        }
+
+        sqlite3_finalize(stmt);
+    } else {
+        prog = atoi(argv[1]);
+        err = mkpage(&core, wiki, prog);
+    }
+
     <<close_the_db>>
 
-    cleanup:
-    wwstring_free(&str);
     wmp_core_close(&core);
     return err;
 }
@@ -196,7 +238,7 @@ This can be found with =wmp_header_top=.
 
 #+NAME: find_first_id
 #+BEGIN_SRC c
-id = wmp_header_top(&core, NULL, prog);
+id = wmp_header_top(core, NULL, prog);
 page_id = id;
 #+END_SRC
 
@@ -206,8 +248,7 @@ with the function =wmp_resource_last=.
 
 #+NAME: find_last_id
 #+BEGIN_SRC c
-last = wmp_resource_last(&core, NULL, prog);
-printf("last ID is %d\n", last);
+last = wmp_resource_last(core, NULL, prog);
 #+END_SRC
 
 Org code gets rendered by iterating through headers,
@@ -255,7 +296,7 @@ information is extracted from the right table.
 #+NAME: get_type
 #+BEGIN_SRC c
 wmp_resource_init(&res);
-rc = wmp_find_resource(&core, id, &res, prog);
+rc = wmp_find_resource(core, id, &res, prog);
 
 if (!rc) {
     fprintf(stderr, "Could not find resource %d\n", id);
@@ -303,7 +344,7 @@ as-is. This is the most straightforward.
 #+BEGIN_SRC c
 {
     wmp_content ct;
-    rc = wmp_content_find(&core, id, &ct, prog);
+    rc = wmp_content_find(core, id, &ct, prog);
 
     if (!rc) {
         fprintf(stderr,
@@ -344,7 +385,7 @@ used will be the relative worgmap id.
     int level;
     char idstr[12]; /* wm_XXX_YYYY */
 
-    rc = wmp_header_find(&core, id, &hd, prog);
+    rc = wmp_header_find(core, id, &hd, prog);
 
     if (!rc) {
         fprintf(stderr,
@@ -422,10 +463,10 @@ returns the subblock as a list of segments.
     nsegs = 0;
     wmp_blkref_init(&br);
 
-    wmp_blkref_find(&core, id, &br, prog);
+    wmp_blkref_find(core, id, &br, prog);
     wmp_block_init(&blk);
-    wmp_find_block(&core, br.ref, &blk, prog);
-    wmp_blkref_codeblock(&core, &br, &segs, &nsegs);
+    wmp_find_block(core, br.ref, &blk, prog);
+    wmp_blkref_codeblock(core, &br, &segs, &nsegs);
 
     wwstring_append(&str, "#+NAME: ", 8);
     wwstring_append(&str, blk.name, strlen(blk.name));
@@ -448,7 +489,7 @@ returns the subblock as a list of segments.
     next = br.next;
     wmp_blkref_free(&br);
     wmp_block_free(&blk);
-    wmp_blkref_codeblock_free(&core, &segs, nsegs);
+    wmp_blkref_codeblock_free(core, &segs, nsegs);
 }
 #+END_SRC
 
