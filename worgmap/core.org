@@ -337,6 +337,59 @@ unsigned int wmp_resource_last(wmp_core *c, wmp_resource *r, int prog)
     return last;
 }
 #+END_SRC
+** Find top ID of program
+Needed for headerless single-page renders in weewiki.
+Similar to =wmp_header_top=.
+
+#+NAME: function_declarations
+#+BEGIN_SRC c
+unsigned int wmp_resource_top(wmp_core *c, wmp_resource *r, int prog);
+#+END_SRC
+
+#+NAME: functions
+#+BEGIN_SRC c
+unsigned int wmp_resource_top(wmp_core *c, wmp_resource *r, int prog)
+{
+    sqlite3 *db;
+    sqlite3_stmt *stmt;
+    int rc;
+    int top;
+
+    db = wmp_core_db(c);
+
+    top = 0;
+
+    sqlite3_prepare_v2(db,
+                       "SELECT MIN(id) from resources "
+                       "where program == ?1;",
+                       -1,
+                       &stmt,
+                       NULL);
+
+    sqlite3_bind_int(stmt, 1, prog);
+
+    rc = sqlite3_step(stmt);
+
+    if (rc == SQLITE_DONE) {
+        sqlite3_finalize(stmt);
+        return 0;
+    }
+
+    if (rc == SQLITE_ROW) {
+        top = sqlite3_column_int(stmt, 0);
+    }
+
+    sqlite3_finalize(stmt);
+
+    if (r != NULL) {
+        rc = wmp_find_resource(c, top, r, prog);
+        if (!rc) top = 0;
+    }
+
+    return top;
+}
+#+END_SRC
+
 * Segment
 ** Struct
 A =wmp_segment= stores a segment of text from the segment

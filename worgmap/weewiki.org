@@ -64,12 +64,14 @@ static int mkpage (wmp_core *core, sqlite3 *wiki, int prog)
     int err;
     unsigned int prev_header_id;
     int page_id;
+    int single_page;
 
     err = 0;
     wwstring_init(&str);
     prev_header_id = 0;
     page_id = 0;
     next = 0;
+    single_page = 0;
     <<page_generation>>
     cleanup:
     wwstring_free(&str);
@@ -240,9 +242,8 @@ This can be found with =wmp_header_top=.
 #+BEGIN_SRC c
 id = wmp_header_top(core, NULL, prog);
 if (id == 0) {
-    fprintf(stderr, "No headers to parse in program with id %d\n", prog);
-    err = 1;
-    goto cleanup;
+    single_page = 1;
+    id = wmp_resource_top(core, NULL, prog);
 }
 page_id = id;
 #+END_SRC
@@ -593,7 +594,7 @@ page would otherwise be stick in limbo.
 
 #+NAME: flush_last_page
 #+BEGIN_SRC c
-if (prev_header_id > 0 && str.sz > 0) {
+if (single_page || (prev_header_id > 0 && str.sz > 0)) {
     rc = create_new_wikipage(wiki, prog, page_id, &str);
 
     if (rc) {

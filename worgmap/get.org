@@ -504,7 +504,7 @@ static int print_filelist(wmp_core *core, int prog)
         int next;
         int id;
 
-        printf("%s\n", f.filename);
+        printf("%d: %s\n", prog, f.filename);
         next = f.next_file;
         id = f.id;
         wmp_file_free(&f);
