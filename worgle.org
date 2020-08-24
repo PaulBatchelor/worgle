@@ -307,6 +307,11 @@ int parse_file(worgle_d *worg, int file)
     worg->curbuf = curbuf;
 #ifndef WORGLITE
     worg->curorg = &worg->orgs[file];
+    if (file > 0) {
+        worg->curorg->prev = &worg->orgs[file - 1];
+    } else {
+        worg->curorg->prev = NULL;
+    }
 #endif
     <<parser_initialization>>
     while (1) {
@@ -2747,6 +2752,7 @@ typedef struct worgle_orgfile worgle_orgfile;
 struct worgle_orgfile {
     worgle_orglet *head;
     worgle_orglet *tail;
+    worgle_orgfile *prev;
     int size;
 };
 #+END_SRC
@@ -2764,6 +2770,7 @@ void worgle_orgfile_init(worgle_orgfile *org)
     org->head = NULL;
     org->tail = NULL;
     org->size = 0;
+    org->prev = NULL;
 }
 #+END_SRC
 *** DONE Freeing
@@ -2805,6 +2812,12 @@ void worgle_orgfile_append(worgle_d *worg,
                            worgle_orgfile *file,
                            worgle_orglet *orglet);
 #+END_SRC
+
+To ensure that org content for a program spread out multiple
+files get linked properly, a =prev= file entry is utilized.
+If it isn't NULL, the =tail= of the previous list is
+linked to the =head= of the current list.
+
 #+NAME: functions
 #+BEGIN_SRC c
 void worgle_orgfile_append(worgle_d *worg,
@@ -2813,6 +2826,9 @@ void worgle_orgfile_append(worgle_d *worg,
 {
     if (file->size <= 0) {
         file->head = orglet;
+        if (file->prev != NULL) {
+            file->prev->tail->next = file->head;
+        }
         file->tail = orglet;
     }
 
