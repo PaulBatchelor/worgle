@@ -239,6 +239,11 @@ This can be found with =wmp_header_top=.
 #+NAME: find_first_id
 #+BEGIN_SRC c
 id = wmp_header_top(core, NULL, prog);
+if (id == 0) {
+    fprintf(stderr, "No headers to parse in program with id %d\n", prog);
+    err = 1;
+    goto cleanup;
+}
 page_id = id;
 #+END_SRC
 
