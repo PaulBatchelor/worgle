@@ -1,5 +1,5 @@
+#+PROPERTY: header-args :noweb yes
 #+TITLE: Sorg
-
 * Introduction
 
 This is Sorg, the Simple Org parser, inspired by

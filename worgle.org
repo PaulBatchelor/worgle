@@ -1,3 +1,4 @@
+#+PROPERTY: header-args :noweb yes
 #+TITLE: Worgle
 * What is Worgle?
 Hello, fellow human. I'm glad you could stop by.
