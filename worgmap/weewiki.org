@@ -97,10 +97,8 @@ int p_weewiki(int argc, char *argv[])
     rc = wmp_core_open(&core, wmp_filename_get());
     if (!rc) return 0;
 
-
     <<open_the_db>>
     <<clear_and_reset>>
-
 
     if (!strncmp(argv[1], "all", 3)) {
         sqlite3_stmt *stmt;
@@ -238,6 +236,11 @@ the header with the smallest reference ID.
 
 This can be found with =wmp_header_top=.
 
+=single_page= mode is triggered happens when there are
+no headers to be found (and therefore no headers). Instead
+of breaking the page into sections, it will render
+everything into one page.
+
 #+NAME: find_first_id
 #+BEGIN_SRC c
 id = wmp_header_top(core, NULL, prog);
@@ -249,8 +252,8 @@ page_id = id;
 #+END_SRC
 
 The last significant id of the program is found. When this
-resource is reached, the program willl break. This is found
-with the function =wmp_resource_last=.
+resource id is reached, the program willl break. This is
+found with the function =wmp_resource_last=.
 
 #+NAME: find_last_id
 #+BEGIN_SRC c
@@ -272,7 +275,7 @@ while (1) {
 <<flush_last_page>>
 #+END_SRC
 
-These components are
+Document components are
 connected together as a linked list. Every one of these
 components has a "next" value, containing the reference ID
 of the next object.
@@ -285,12 +288,13 @@ the last ID is found. There, it will break the loop.
 if (id >= last) break;
 #+END_SRC
 
-The =next= value is presumably found from one of the
+The =next= value is (presumably) found from one of the
 components, it is updated at the end of the loop.
 
 #+NAME: update_id
 #+BEGIN_SRC c
 if (next == 0) {
+    /* debug code, this message shouldn't happen! */
     printf("next id is 0, coming from %d\n", id);
 }
 id = next;
@@ -317,8 +321,8 @@ to consider: content data, headers, and code blocks.
 
 For now: headers, content, and block references are hard
 coded as integers 3, 4, 5 (as seen in the enum defined
-in db.org). A less brittle solution will perhaps someday be
-implemented.
+in db.org). A less brittle solution may someday be
+implemented (enums + macros, perhaps?).
 
 #+NAME: handle_component
 #+BEGIN_SRC c
@@ -371,12 +375,6 @@ Headers require some processing. First, the header level is
 applied (the number of stars). Following that, the
 dynamically generated section number. Finally, the actual
 name itself is appended.
-
-# TODO: add href tag
-# This'll be wrapped in a janet function called
-# marker. !@(marker "wm_000_0002")!@ will create
-# an href tag. id is made with prog and the id in
-# the header struct.
 
 Following each header is a =marker= command from Janet. This
 is used to enable jump links for specific sections. The id
@@ -513,6 +511,37 @@ if (hd.level == 1 && prev_header_id > 0) {
 }
 #+END_SRC
 
+#+NAME: create_new_wikipage
+#+BEGIN_SRC c
+rc = create_new_wikipage(wiki, prog, page_id, &str);
+if (rc) {
+    err = 1;
+    goto cleanup;
+}
+#+END_SRC
+
+A function called =create_new_wikipage= will create a new
+weewiki page given the database, program, page id, and
+content stored in a =wwstring=. This is needed as a function
+because it is called in more than one place.
+
+#+NAME: helper_functions
+#+BEGIN_SRC c
+static int create_new_wikipage(sqlite3 *wiki,
+                               int prog,
+                               int page_id,
+                               wwstring *str)
+{
+    char pgname[16]; /* wm_XXX_XXXX */
+    int err;
+    err = 0;
+    <<generate_page_name>>
+    <<append_footer>>
+    <<sql_insert_operation>>
+    return err;
+}
+#+END_SRC
+
 Creating a new weewiki is a matter of inserting a new row
 into the =wiki= table. A unique page name is created with
 the format =WM_PROG_ID= where =PROG= is the program ID, and
@@ -555,34 +584,27 @@ The key/value pair for an operation is written via a SQL
 }
 #+END_SRC
 
+Before rendering, a dynamically footer is
+appened to the end of the page before it is inserted into
+the weewiki database. To maximize flexibility, this is done
+as a call to a user-defined inline janet function
+=wm-footer=. The idea here is to provide prev/home/next
+page navigation. To do this, the top-level page id is
+needed, as well as the program id.
 
-#+NAME: create_new_wikipage
+#+NAME: append_footer
 #+BEGIN_SRC c
-rc = create_new_wikipage(wiki, prog, page_id, &str);
-if (rc) {
-    err = 1;
-    goto cleanup;
-}
-#+END_SRC
-
-A function called =create_new_wikipage= will create a new
-weewiki page given the database, program, page id, and
-content stored in a =wwstring=. This is needed as a function
-because it is called in more than one place.
-
-#+NAME: helper_functions
-#+BEGIN_SRC c
-static int create_new_wikipage(sqlite3 *wiki,
-                               int prog,
-                               int page_id,
-                               wwstring *str)
 {
-    char pgname[16]; /* wm_XXX_XXXX */
-    int err;
-    err = 0;
-    <<generate_page_name>>
-    <<sql_insert_operation>>
-    return err;
+    char b[16];
+    int sz;
+
+    wwstring_append(str, "\n\n", 2);
+    wwstring_append(str, "@!(wm-footer ", 13);
+    sz = sprintf(b, "%d ", prog);
+    wwstring_append(str, b, sz);
+    sz = sprintf(b, "%d", page_id);
+    wwstring_append(str, b, sz);
+    wwstring_append(str, ")!@", 3);
 }
 #+END_SRC
 
@@ -603,7 +625,7 @@ if (single_page || (prev_header_id > 0 && str.sz > 0)) {
     }
 }
 #+END_SRC
-* Meta Page Generation
+* Meta Page Generation (WIP)
 Metapages are pages that are dynamically generated using
 SQL queries. These include a table of contents, a block
 tree, and block pages.
