@@ -100,10 +100,10 @@ which generates the file =amalg.c=
 ./mkamalg.sh
 #+END_SRC
 
-It can then be compiled using the =-DWORGLITE= flag.
+It can then be compiled with;
 
 #+BEGIN_SRC sh
-gcc -DWORGLITE amalg.c -o worglite
+gcc amalg.c -o worglite
 #+END_SRC
 * License
 This project is placed under the public domain. Happy hacking, humans.

@@ -4,6 +4,11 @@ cat > amalg.c <<EOF
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+
+#ifndef WORGLE_FULLVERSION
+#define WORGLITE
+#endif
+
 EOF
 
 cat parg/parg.h >> amalg.c
