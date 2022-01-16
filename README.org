@@ -93,14 +93,14 @@ Sorg: 0m0.006s
 A portable version of worglite can be made by generating an
 amalgamation.
 
-An amalgamation can be dynamically generated with `mkamalg.sh`,
-which generates the file `amalg.c`
+An amalgamation can be dynamically generated with =mkamalg.sh=,
+which generates the file =amalg.c=
 
 #+BEGIN_SRC sh
 ./mkamalg.sh
 #+END_SRC
 
-It can then be compiled using the `-DWORGLITE` flag.
+It can then be compiled using the =-DWORGLITE= flag.
 
 #+BEGIN_SRC sh
 gcc -DWORGLITE amalg.c -o worglite
