@@ -89,5 +89,21 @@ Worgle: 0m0.002s
 Org-export-to-html (via Emacs): 1m21.955s
 Sorg: 0m0.006s
 #+END_EXAMPLE
+* Amalgamation
+A portable version of worglite can be made by generating an
+amalgamation.
+
+An amalgamation can be dynamically generated with `mkamalg.sh`,
+which generates the file `amalg.c`
+
+#+BEGIN_SRC sh
+./mkamalg.sh
+#+END_SRC
+
+It can then be compiled using the `-DWORGLITE` flag.
+
+#+BEGIN_SRC sh
+gcc -DWORGLITE amalg.c -o worglite
+#+END_SRC
 * License
 This project is placed under the public domain. Happy hacking, humans.

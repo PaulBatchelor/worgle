@@ -1,4 +1,5 @@
 cat > amalg.c <<EOF
+/* Generated Worgle Amalgamation: do not edit manually */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
